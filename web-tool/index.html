@@ -164,12 +164,28 @@ function doSearch() {
 }
 
 function resolveId(q, id) {
-    // 纯前端无法从读者 API 获取 book_id（反爬保护）
     if (q.indexOf('/reader/') !== -1) {
         return Promise.resolve({book_id: null, error: '章节链接无法直接解析，请复制书籍名搜索'});
     }
-    // 链接包含 /book/ 或纯 book_id
+    if (q.indexOf('/page/') !== -1) {
+        fetchPageTitle(id);
+        return Promise.resolve({book_id: id});
+    }
     return Promise.resolve({book_id: id});
+}
+
+function fetchPageTitle(bookId) {
+    if (!CORS_PROXY) return;
+    fetch(CORS_PROXY + encodeURIComponent('https://fanqienovel.com/page/' + bookId)).then(function(r) {
+        return r.text();
+    }).then(function(html) {
+        var m = html.match(/<title>([^<]+)<\/title>/);
+        if (m && book && book.book_id === bookId) {
+            var t = m[1].replace(/完整版在线免费阅读.*$/, '').replace(/_番茄小说官网$/, '').trim();
+            book.title = t;
+            $('dlTitle').textContent = t;
+        }
+    }).catch(function() {});
 }
 
 function fetchCount(bookId) {
