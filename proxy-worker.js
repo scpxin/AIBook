@@ -32,13 +32,16 @@ export default {
       return new Response('Host not allowed', { status: 403 });
     }
 
-    const resp = await fetch(target, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Referer': 'https://fanqienovel.com/',
-      }
-    });
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/plain, */*',
+    };
+    // 只对 fanqienovel 加 Referer，内容 API 不加
+    if (parsed.hostname !== '101.35.133.34') {
+      headers['Referer'] = 'https://fanqienovel.com/';
+    }
+
+    const resp = await fetch(target, { headers });
 
     return new Response(resp.body, {
       status: resp.status,
