@@ -186,7 +186,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     s = sessions.get(sid)
                     if not s:
                         self.send_json({'error': 'session not found'}, 404); return
-                    if s['status'] != 'done':
+                    # 允许下载已暂停或已完成的
+                    if s['status'] not in ('done', 'partial') and not s.get('paused'):
                         self.send_json({'error': f'not done yet, status={s["status"]}'}, 400); return
                     content = ''.join(s['content'])
                     sessions.pop(sid, None)
