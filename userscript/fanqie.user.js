@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name              番茄小说免费阅读
 // @namespace         https://github.com/scpxin/fanqie
-// @version           2.0.0
+// @version           2.0.1
 // @description       自动获取番茄小说锁定章节的完整内容，支持下载整本
 // @license           MIT License
 // @match             https://fanqienovel.com/*
@@ -61,9 +61,34 @@
     function getMeta() {
         var m = location.pathname.match(/\/reader\/(\d+)/);
         if (!m) return null;
-        var cd = (window.__INITIAL_STATE__ || {}).reader || {};
-        cd = cd.chapterData || {};
-        return { itemId: m[1], bookId: cd.bookId, title: cd.title || '', bookName: cd.bookName || '' };
+
+        function tryState() {
+            var st = window.__INITIAL_STATE__ || {};
+            var rd = st.reader || st.Reader || {};
+            var cd = rd.chapterData || rd.chapter || rd.data || {};
+            return {
+                bookId: cd.bookId || cd.book_id || st.bookId || st.book_id || '',
+                title: cd.title || '',
+                bookName: cd.bookName || cd.book_name || cd.title || ''
+            };
+        }
+
+        function tryHtml() {
+            var html = document.documentElement.innerHTML;
+            var re = /"bookId"\s*:\s*"(\d+)"/;
+            var match = html.match(re);
+            return match ? match[1] : '';
+        }
+
+        var fromState = tryState();
+        var bookId = fromState.bookId || tryHtml();
+
+        return {
+            itemId: m[1],
+            bookId: bookId,
+            title: fromState.title,
+            bookName: fromState.bookName || ''
+        };
     }
 
     function gmGet(url) {
@@ -226,7 +251,8 @@
 
     function startBookDownload() {
         var meta = getMeta();
-        if (!meta || !meta.bookId) { alert('未找到书籍信息，请在章节页面点击下载'); return; }
+        if (!meta) { alert('未检测到章节页面，请确认当前 URL 包含 /reader/'); return; }
+        if (!meta.bookId) { alert('未找到书籍 ID，请刷新页面重试。\n\n如问题持续存在，请安装最新版脚本:\nhttps://raw.githubusercontent.com/scpxin/fanqie/master/userscript/fanqie.user.js'); return; }
 
         _dlRunning = true;
         _dlPaused = false;
