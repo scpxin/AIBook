@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """番茄小说下载器 - 服务端 v2 (下载持久化 + AI分析生成)"""
-import http.server, urllib.request, urllib.parse, urllib.error, json, os, time, re, threading, uuid, sys
+import http.server, urllib.request, urllib.parse, urllib.error, json, os, time, re, threading, uuid, sys, traceback
 
 PORT = int(os.environ.get('PORT', '8000'))
 BASE_DIR = os.environ.get('BASE_DIR', os.path.dirname(os.path.abspath(__file__)))
@@ -214,9 +214,33 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.handle_novel_analyze_chapter(data)
             elif path == '/api/novel/generate-style':
                 self.handle_novel_generate_style(data)
+            # ===== 网文创作技法（Craft）=====
+            elif path == '/api/novel/craft/detect-ai':
+                self.handle_craft_detect_ai(data)
+            elif path == '/api/novel/craft/fix-ai':
+                self.handle_craft_fix_ai(data)
+            elif path == '/api/novel/craft/golden-three':
+                self.handle_craft_golden_three(data)
+            elif path == '/api/novel/craft/hooks':
+                self.handle_craft_hooks(data)
+            elif path == '/api/novel/craft/satisfaction':
+                self.handle_craft_satisfaction(data)
+            elif path == '/api/novel/craft/quality-score':
+                self.handle_craft_quality_score(data)
+            elif path == '/api/novel/craft/chapter':
+                self.handle_craft_chapter(data)
+            elif path == '/api/novel/craft/titles':
+                self.handle_craft_titles(data)
+            elif path == '/api/novel/craft/descriptions':
+                self.handle_craft_descriptions(data)
+            elif path == '/api/novel/craft/report':
+                self.handle_craft_report(data)
             else:
                 self.send_json({'error': 'Not found'}, 404)
         except Exception as e:
+            import traceback
+            print(f"ERROR in {path}: {e}")
+            traceback.print_exc()
             self.send_json({'error': str(e)}, 500)
 
     def do_GET(self):
@@ -568,15 +592,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not self._check_ai_config(cfg):
             self.send_json({'error': '缺少AI配置参数'}, 400); return
         gen = self._create_generator(data)
+        style = data.get("styleProfile", "")
+        description = data.get('description', '')
+        if style:
+            description = "[风格参考]\n" + style + "\n\n[故事简介]\n" + description
         result, err = gen.generate_world_building(
             title=data.get('title', ''),
             theme=data.get('theme', ''),
             genre=data.get('genre', ''),
-            description=data.get('description', '')
+            description=description
         )
         if err:
             self.send_json({'error': err}, 500)
         else:
+            for k in ['time_period', 'location', 'atmosphere', 'rules']:
+                if k in result and not isinstance(result[k], str):
+                    result[k] = json.dumps(result[k], ensure_ascii=False) if isinstance(result[k], dict) else str(result[k])
             self.send_json(result)
 
     # ===== 角色生成 =====
@@ -585,6 +616,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         cfg = self._get_ai_config(data)
         if not self._check_ai_config(cfg):
             self.send_json({'error': '缺少AI配置参数'}, 400); return
+        print(f"[DEBUG] characters request: model={cfg.get('model')}, endpoint={cfg.get('endpoint', '')[:50]}")
         gen = self._create_generator(data)
         result, err = gen.generate_characters(
             world_data=data.get('worldData', {}),
@@ -692,6 +724,134 @@ class Handler(http.server.BaseHTTPRequestHandler):
         else:
             self.send_json({'content': result})
 
+    # ===== 网文创作技法（Craft）=====
+
+    def handle_craft_detect_ai(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.detect_ai_flavor(data.get('content', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json(result)
+
+    def handle_craft_fix_ai(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.fix_ai_flavor(data.get('content', ''), data.get('issues', []))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'content': result})
+
+    def handle_craft_golden_three(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.analyze_golden_three(data.get('content', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json(result)
+
+    def handle_craft_hooks(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.analyze_hooks(data.get('content', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json(result)
+
+    def handle_craft_satisfaction(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.analyze_satisfaction_rhythm(data.get('content', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json(result)
+
+    def handle_craft_quality_score(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.quality_score(
+            data.get('content', ''),
+            data.get('title', ''),
+            data.get('genre', '')
+        )
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json(result)
+
+    def handle_craft_chapter(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_chapter_craft(
+            project_title=data.get('projectTitle', ''),
+            genre=data.get('genre', ''),
+            chapter_number=data.get('chapterNumber', 1),
+            chapter_title=data.get('chapterTitle', ''),
+            chapter_outline=data.get('chapterOutline', ''),
+            continuation_point=data.get('continuationPoint', ''),
+            previous_chapter_summary=data.get('previousChapterSummary', ''),
+            chapter_characters=data.get('chapterCharacters', ''),
+            foreshadow_reminders=data.get('foreshadowReminders', ''),
+            target_word_count=data.get('targetWordCount', 3000),
+            narrative_perspective=data.get('narrativePerspective', '第三人称')
+        )
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'content': result})
+
+    def handle_craft_titles(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_titles_craft(data.get('userInput', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'options': result})
+
+    def handle_craft_descriptions(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_descriptions_craft(data.get('title', ''), data.get('userInput', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'options': result})
+
+    def handle_craft_report(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_analysis_report(data.get('content', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'report': result})
+
     def send_json(self, data, code=200):
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
         self.send_response(code)
@@ -704,4 +864,4 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     print(f'番茄小说服务端 v2 已启动: http://0.0.0.0:{PORT}')
-    http.server.HTTPServer(('0.0.0.0', PORT), Handler).serve_forever()
+    http.server.ThreadingHTTPServer(('0.0.0.0', PORT), Handler).serve_forever()
