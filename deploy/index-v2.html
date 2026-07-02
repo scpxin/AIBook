@@ -48,6 +48,22 @@
         .progress-detail{display:flex;gap:12px;font-size:10px;color:#888;flex-wrap:wrap}
         .spinner{display:inline-block;width:10px;height:10px;border:2px solid #fff3;border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
         @keyframes spin{to{transform:rotate(360deg)}}
+.novel-steps{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.novel-step{padding:5px 10px;border-radius:15px;font-size:11px;background:#f0f0f0;color:#888;cursor:pointer;transition:.2s}
+.novel-step.active{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+.novel-step.done{background:#38ef7d;color:#fff}
+.inspire-option{padding:8px 12px;border:2px solid #e0e0e0;border-radius:6px;margin-bottom:4px;cursor:pointer;font-size:12px;transition:.2s}
+.inspire-option:hover{border-color:#667eea;background:#f0f3ff}
+.inspire-option.selected{border-color:#667eae;background:#e8edfe}
+.world-block{background:#f8f9fa;border-radius:6px;padding:10px;margin-bottom:6px;font-size:12px;line-height:1.6}
+.world-block h4{font-size:12px;color:#667eea;margin-bottom:4px}
+.char-card{background:#f8f9fa;border-radius:6px;padding:10px;margin-bottom:6px;font-size:12px}
+.char-card .char-name{font-weight:700;color:#333;margin-bottom:2px}
+.char-card .char-type{font-size:10px;color:#667eea;display:inline-block;padding:1px 6px;background:#e8edfe;border-radius:8px;margin-bottom:4px}
+.outline-item{padding:10px;border:1px solid #e0e0e0;border-radius:6px;margin-bottom:6px;font-size:12px}
+.outline-item .outline-title{font-weight:700;color:#333;margin-bottom:4px}
+.chapter-content{background:#f8f9fa;border-radius:6px;padding:12px;font-size:13px;line-height:1.8;white-space:pre-wrap;margin-top:8px}
+.novel-btn-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
         .tip{font-size:10px;color:#aaa;margin-top:3px;line-height:1.5}
         .error{background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:8px;border-radius:5px;margin-top:8px;font-size:11px}
         .success{background:#d4edda;border:1px solid #c3e6cb;color:#155724;padding:8px;border-radius:5px;margin-top:8px;font-size:11px}
@@ -127,6 +143,80 @@
 
 <!-- Panel 1: AI创作 -->
 <div class="panel" id="panel-1">
+    <!-- AI 小说创作 -->
+    <div class="card">
+        <h2>AI 小说创作</h2>
+        <div class="tip" style="margin-bottom:8px">从灵感到大纲到章节，AI 辅助完成小说创作全流程。</div>
+
+        <!-- 步骤指示器 -->
+        <div class="novel-steps">
+            <div class="novel-step active" id="step0"><span>1.灵感</span></div>
+            <div class="novel-step" id="step1"><span>2.世界观</span></div>
+            <div class="novel-step" id="step2"><span>3.角色</span></div>
+            <div class="novel-step" id="step3"><span>4.大纲</span></div>
+            <div class="novel-step" id="step4"><span>5.章节</span></div>
+        </div>
+
+        <!-- Step 0: 灵感 -->
+        <div class="novel-step-content" id="novelStep0">
+            <div class="select-row" style="margin-bottom:8px">
+                <select id="novelModel"></select>
+                <button class="btn btn-ai" id="btnNovelInspire">生成灵感</button>
+            </div>
+            <div class="form-group" style="margin-bottom:6px"><label>参考输入（可选）</label><input id="novelUserInput" placeholder="输入你的想法、关键词..."></div>
+            <div id="inspireResults"></div>
+            <div id="inspireSelected" style="margin-top:8px"></div>
+            <div class="select-row" style="margin-top:8px">
+                <input id="novelTitle" placeholder="书名" style="flex:1;padding:8px 12px;border:2px solid #e0e0e0;border-radius:6px;font-size:13px">
+                <input id="novelDesc" placeholder="简介" style="flex:1;padding:8px 12px;border:2px solid #e0e0e0;border-radius:6px;font-size:13px">
+            </div>
+            <div class="select-row" style="margin-top:6px">
+                <input id="novelTheme" placeholder="主题" style="flex:1;padding:8px 12px;border:2px solid #e0e0e0;border-radius:6px;font-size:13px">
+                <input id="novelGenre" placeholder="类型" style="flex:1;padding:8px 12px;border:2px solid #e0e0e0;border-radius:6px;font-size:13px">
+            </div>
+            <div style="margin-top:8px"><button class="btn btn-dl" id="btnToWorld" disabled>下一步：构建世界观</button></div>
+        </div>
+
+        <!-- Step 1: 世界观 -->
+        <div class="novel-step-content" id="novelStep1" style="display:none">
+            <div id="worldResult"></div>
+            <div style="margin-top:8px"><button class="btn btn-dl" id="btnToChars" disabled>下一步：生成角色</button></div>
+        </div>
+
+        <!-- Step 2: 角色 -->
+        <div class="novel-step-content" id="novelStep2" style="display:none">
+            <div class="select-row" style="margin-bottom:8px">
+                <input id="novelCharCount" type="number" value="6" min="3" max="15" style="width:80px;padding:8px;border:2px solid #e0e0e0;border-radius:6px">
+                <button class="btn btn-ai" id="btnGenChars">生成角色</button>
+            </div>
+            <div id="charsResult"></div>
+            <div style="margin-top:8px"><button class="btn btn-dl" id="btnToOutline" disabled>下一步：生成大纲</button></div>
+        </div>
+
+        <!-- Step 3: 大纲 -->
+        <div class="novel-step-content" id="novelStep3" style="display:none">
+            <div class="select-row" style="margin-bottom:8px">
+                <input id="novelChapterCount" type="number" value="3" min="1" max="20" style="width:80px;padding:8px;border:2px solid #e0e0e0;border-radius:6px">
+                <select id="novelPerspective"><option>第三人称</option><option>第一人称</option></select>
+                <button class="btn btn-ai" id="btnGenOutline">生成大纲</button>
+            </div>
+            <div id="outlineResult"></div>
+            <div style="margin-top:8px"><button class="btn btn-dl" id="btnToChapters" disabled>下一步：生成章节</button></div>
+        </div>
+
+        <!-- Step 4: 章节 -->
+        <div class="novel-step-content" id="novelStep4" style="display:none">
+            <div class="select-row" style="margin-bottom:8px">
+                <input id="novelTargetWords" type="number" value="3000" min="500" max="10000" step="500" style="width:100px;padding:8px;border:2px solid #e0e0e0;border-radius:6px">
+                <button class="btn btn-ai" id="btnGenChapter">生成下一章</button>
+                <button class="btn btn-save" id="btnGenAllChapters">一键生成全部</button>
+            </div>
+            <div id="chapterProgress"></div>
+            <div id="chaptersResult"></div>
+        </div>
+    </div>
+
+    <!-- AI 风格分析 -->
     <div class="card">
         <h2>AI 风格分析</h2>
         <div class="tip" style="margin-bottom:8px">分析小说的写作风格，为AI仿写提供风格画像。</div>
@@ -698,6 +788,236 @@ $("btnRunAnalyze").onclick = function() {
         $("analyzeResult").innerHTML = "<div class=\"error\">分析失败: "+escHtml(e.message)+"</div>";
         $("btnRunAnalyze").disabled = false;
     });
+};
+
+// ====== 小说创作 ======
+var novelState = { step: 0, title: "", description: "", theme: "", genre: "", world: null, characters: [], outline: [], chapters: [], currentChapter: 0 };
+
+function showNovelStep(n) {
+    novelState.step = n;
+    for (var i = 0; i < 5; i++) {
+        var el = $("novelStep" + i);
+        if (el) el.style.display = i === n ? "block" : "none";
+        var stepEl = $("step" + i);
+        if (stepEl) {
+            stepEl.classList.remove("active", "done");
+            if (i === n) stepEl.classList.add("active");
+            else if (i < n) stepEl.classList.add("done");
+        }
+    }
+    if (n === 4 && novelState.outline.length > 0) {
+        renderChapterProgress();
+    }
+}
+
+function getNovelModel() {
+    var sel = $("novelModel");
+    return models[sel && sel.value ? parseInt(sel.value) : 0] || models[0];
+}
+
+// 灵感生成
+$("btnNovelInspire").onclick = function() {
+    var m = getNovelModel();
+    if (!m) { alert("请先配置AI模型"); return; }
+    var userInput = $("novelUserInput").value.trim();
+    var btn = $("btnNovelInspire");
+    btn.disabled = true; btn.innerHTML = "<span class=spinner></span>生成中...";
+
+    apiPost("/api/novel/inspiration/title", {endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, userInput: userInput})
+    .then(function(d) {
+        var html = "<div style=\"font-size:11px;color:#888;margin-bottom:4px\">选择一个书名（或手动输入）：</div>";
+        (d.options || []).forEach(function(opt, i) {
+            html += "<div class=\"inspire-option\" data-type=\"title\"" + (i===0?" selected":"") + ">" + escHtml(opt) + "</div>";
+        });
+        var r = $("inspireResults"); r.innerHTML = html;
+        r.querySelectorAll(".inspire-option").forEach(function(el) {
+            el.onclick = function() {
+                r.querySelectorAll(".inspire-option").forEach(function(e) { e.classList.remove("selected"); });
+                el.classList.add("selected");
+                $("novelTitle").value = el.textContent;
+            };
+        });
+        if (d.options && d.options[0]) $("novelTitle").value = d.options[0];
+
+        // 自动获取简介选项
+        return apiPost("/api/novel/inspiration/description", {endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, title: d.options[0] || "", userInput: userInput});
+    })
+    .then(function(d) {
+        if (d.options) {
+            var html = "<div style=\"font-size:11px;color:#888;margin:8px 0 4px\">选择一个简介：</div>";
+            d.options.forEach(function(opt, i) {
+                html += "<div class=\"inspire-option\" data-type=\"desc\"" + (i===0?" selected":"") + ">" + escHtml(opt) + "</div>";
+            });
+            var r = $("inspireSelected"); r.innerHTML = html;
+            r.querySelectorAll(".inspire-option").forEach(function(el) {
+                el.onclick = function() {
+                    r.querySelectorAll(".inspire-option").forEach(function(e) { e.classList.remove("selected"); });
+                    el.classList.add("selected");
+                    $("novelDesc").value = el.textContent;
+                };
+            });
+            if (d.options[0]) $("novelDesc").value = d.options[0];
+        }
+        return apiPost("/api/novel/inspiration/theme", {endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, title: $("novelTitle").value, description: $("novelDesc").value});
+    })
+    .then(function(d) {
+        if (d.options && d.options[0]) $("novelTheme").value = d.options[0];
+        return apiPost("/api/novel/inspiration/genre", {endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, title: $("novelTitle").value, description: $("novelDesc").value});
+    })
+    .then(function(d) {
+        if (d.options && d.options[0]) $("novelGenre").value = d.options[0];
+        $("btnToWorld").disabled = false;
+    })
+    .catch(function(e) { $("inspireResults").innerHTML = "<div class=\"error\">生成失败: " + escHtml(e.message) + "</div>"; })
+    .finally(function() { btn.disabled = false; btn.innerHTML = "生成灵感"; });
+};
+
+// 世界观
+$("btnToWorld").onclick = function() {
+    var m = getNovelModel();
+    if (!m) { alert("请先配置AI模型"); return; }
+    novelState.title = $("novelTitle").value.trim();
+    novelState.description = $("novelDesc").value.trim();
+    novelState.theme = $("novelTheme").value.trim();
+    novelState.genre = $("novelGenre").value.trim();
+    if (!novelState.title) { alert("请输入书名"); return; }
+
+    showNovelStep(1);
+    var r = $("worldResult"); r.innerHTML = "<div class=\"empty\"><span class=\"spinner\"></span> 正在构建世界观...</div>";
+    apiPost("/api/novel/worldbuilding", {endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, title: novelState.title, theme: novelState.theme, genre: novelState.genre, description: novelState.description})
+    .then(function(d) {
+        novelState.world = d;
+        var html = "";
+        var labels = {time_period: "时间背景", location: "空间环境", atmosphere: "情感基调", rules: "世界规则"};
+        Object.keys(labels).forEach(function(k) {
+            if (d[k]) html += "<div class=\"world-block\"><h4>" + labels[k] + "</h4>" + escHtml(d[k]) + "</div>";
+        });
+        html += "<div class=\"novel-btn-row\"><button class=\"btn btn-ghost\" id=\"btnEditWorld\">编辑世界观</button></div>";
+        r.innerHTML = html;
+        $("btnToChars").disabled = false;
+    })
+    .catch(function(e) { r.innerHTML = "<div class=\"error\">生成失败: " + escHtml(e.message) + "</div>"; });
+};
+
+// 角色
+$("btnToChars").onclick = function() {
+    showNovelStep(2);
+};
+$("btnGenChars").onclick = function() {
+    var m = getNovelModel();
+    if (!m) { alert("请先配置AI模型"); return; }
+    var count = parseInt($("novelCharCount").value) || 6;
+    var r = $("charsResult"); r.innerHTML = "<div class=\"empty\"><span class=\"spinner\"></span> 正在生成角色...</div>";
+    apiPost("/api/novel/characters", {endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, worldData: novelState.world, theme: novelState.theme, genre: novelState.genre, count: count})
+    .then(function(d) {
+        novelState.characters = d.characters || [];
+        var html = "<div style=\"font-size:11px;color:#888;margin-bottom:4px\">已生成 " + novelState.characters.length + " 个角色：</div>";
+        novelState.characters.forEach(function(c) {
+            if (c.is_organization) {
+                html += "<div class=\"char-card\"><span class=\"char-type\">组织</span><div class=\"char-name\">" + escHtml(c.name) + "</div><div style=\"color:#666\">" + escHtml(c.organization_purpose || "") + "</div></div>";
+            } else {
+                html += "<div class=\"char-card\"><span class=\"char-type\">" + escHtml(c.role_type || "角色") + "</span><div class=\"char-name\">" + escHtml(c.name) + "</div><div style=\"color:#666\">" + escHtml(c.personality || "") + "</div></div>";
+            }
+        });
+        r.innerHTML = html;
+        $("btnToOutline").disabled = false;
+    })
+    .catch(function(e) { r.innerHTML = "<div class=\"error\">生成失败: " + escHtml(e.message) + "</div>"; });
+};
+
+// 大纲
+$("btnToOutline").onclick = function() {
+    showNovelStep(3);
+};
+$("btnGenOutline").onclick = function() {
+    var m = getNovelModel();
+    if (!m) { alert("请先配置AI模型"); return; }
+    var count = parseInt($("novelChapterCount").value) || 3;
+    var persp = $("novelPerspective").value;
+    var r = $("outlineResult"); r.innerHTML = "<div class=\"empty\"><span class=\"spinner\"></span> 正在生成大纲...</div>";
+    apiPost("/api/novel/outline", {endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, title: novelState.title, theme: novelState.theme, genre: novelState.genre, charactersInfo: novelState.characters, chapterCount: count, narrativePerspective: persp})
+    .then(function(d) {
+        novelState.outline = d.outline || [];
+        novelState.currentChapter = 0;
+        var html = "";
+        novelState.outline.forEach(function(o, i) {
+            html += "<div class=\"outline-item\"><div class=\"outline-title\">第" + o.chapter_number + "章 " + escHtml(o.title) + "</div><div style=\"color:#666\">" + escHtml(o.summary) + "</div></div>";
+        });
+        r.innerHTML = html;
+        $("btnToChapters").disabled = false;
+    })
+    .catch(function(e) { r.innerHTML = "<div class=\"error\">生成失败: " + escHtml(e.message) + "</div>"; });
+};
+
+// 章节
+$("btnToChapters").onclick = function() {
+    showNovelStep(4);
+};
+
+$("btnGenChapter").onclick = function() {
+    var m = getNovelModel();
+    if (!m) { alert("请先配置AI模型"); return; }
+    if (novelState.currentChapter >= novelState.outline.length) { alert("所有章节已生成完毕"); return; }
+    generateOneChapter(m, novelState.currentChapter);
+};
+
+$("btnGenAllChapters").onclick = function() {
+    var m = getNovelModel();
+    if (!m) { alert("请先配置AI模型"); return; }
+    var i = novelState.currentChapter;
+    function next() {
+        if (i >= novelState.outline.length) return;
+        generateOneChapter(m, i, function(){ i++; next(); });
+    }
+    next();
+};
+
+function generateOneChapter(m, idx, cb) {
+    var o = novelState.outline[idx];
+    var prevSummary = idx > 0 ? (novelState.chapters[idx-1] || "").slice(0, 200) : "";
+    var prevEnd = idx > 0 ? (novelState.chapters[idx-1] || "").slice(-300) : "";
+    var targetWords = parseInt($("novelTargetWords").value) || 3000;
+
+    $("chapterProgress").innerHTML = "<div class=\"empty\"><span class=\"spinner\></span> 正在生成第" + o.chapter_number + "章...</div>";
+
+    apiPost("/api/novel/chapter", {
+        endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
+        projectTitle: novelState.title, genre: novelState.genre,
+        chapterNumber: o.chapter_number, chapterTitle: o.title,
+        chapterOutline: o.summary, continuationPoint: prevEnd,
+        previousChapterSummary: prevSummary, chapterCharacters: (o.characters || []).join(", "),
+        targetWordCount: targetWords, narrativePerspective: $("novelPerspective").value
+    }).then(function(d) {
+        novelState.chapters[idx] = d.content;
+        novelState.currentChapter = idx + 1;
+        renderChapterProgress();
+        if (cb) cb();
+    }).catch(function(e) {
+        $("chapterProgress").innerHTML = "<div class=\"error\">第" + o.chapter_number + "章生成失败: " + escHtml(e.message) + "</div>";
+    });
+}
+
+function renderChapterProgress() {
+    var html = "<div style=\"font-size:11px;color:#888;margin-bottom:6px\">已生成 " + novelState.currentChapter + "/" + novelState.outline.length + " 章</div>";
+    novelState.chapters.forEach(function(c, i) {
+        html += "<div style=\"margin-bottom:6px\"><div style=\"font-weight:600;font-size:12px;margin-bottom:2px\">第" + (i+1) + "章 " + escHtml(novelState.outline[i].title) + "</div><div class=\"chapter-content\">" + escHtml(c) + "</div></div>";
+    });
+    $("chaptersResult").innerHTML = html;
+    $("chapterProgress").innerHTML = "";
+}
+
+// 初始化小说创作模型选择
+function updateNovelModelSelect() {
+    var sel = $("novelModel");
+    if (!sel) return;
+    sel.innerHTML = models.map(function(m, i) { return "<option value=\""+i+"\">"+escHtml(m.name)+"</option>"; }).join("");
+}
+
+// 覆盖 updateModelSelects 加入 novelModel
+var _origUpdateModelSelects = updateModelSelects;
+updateModelSelects = function() {
+    if (_origUpdateModelSelects) _origUpdateModelSelects();
+    updateNovelModelSelect();
 };
 
 // ====== 初始化 ======

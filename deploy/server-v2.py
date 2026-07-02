@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """番茄小说下载器 - 服务端 v2 (下载持久化 + AI分析生成)"""
-import http.server, urllib.request, urllib.parse, urllib.error, json, os, time, re, threading, uuid
+import http.server, urllib.request, urllib.parse, urllib.error, json, os, time, re, threading, uuid, sys
 
 PORT = int(os.environ.get('PORT', '8000'))
 BASE_DIR = os.environ.get('BASE_DIR', os.path.dirname(os.path.abspath(__file__)))
@@ -15,6 +15,10 @@ UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 
 sessions = {}
 sessions_lock = threading.Lock()
+
+# 小说创作模块
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from novel_creator import NovelGenerator
 
 
 def http_get(url):
@@ -187,6 +191,29 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # AI 生成
             elif path == '/api/ai/generate':
                 self.handle_ai_generate(data)
+            # ===== 小说创作 (MuMuAINovel) =====
+            elif path == '/api/novel/inspiration/title':
+                self.handle_novel_inspiration_title(data)
+            elif path == '/api/novel/inspiration/description':
+                self.handle_novel_inspiration_description(data)
+            elif path == '/api/novel/inspiration/theme':
+                self.handle_novel_inspiration_theme(data)
+            elif path == '/api/novel/inspiration/genre':
+                self.handle_novel_inspiration_genre(data)
+            elif path == '/api/novel/worldbuilding':
+                self.handle_novel_worldbuilding(data)
+            elif path == '/api/novel/characters':
+                self.handle_novel_characters(data)
+            elif path == '/api/novel/outline':
+                self.handle_novel_outline(data)
+            elif path == '/api/novel/chapter':
+                self.handle_novel_chapter(data)
+            elif path == '/api/novel/analyze-style':
+                self.handle_novel_analyze_style(data)
+            elif path == '/api/novel/analyze-chapter':
+                self.handle_novel_analyze_chapter(data)
+            elif path == '/api/novel/generate-style':
+                self.handle_novel_generate_style(data)
             else:
                 self.send_json({'error': 'Not found'}, 404)
         except Exception as e:
@@ -462,6 +489,208 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_json({'error': err}, 500)
         else:
             self.send_json({'result': result})
+
+    def _get_ai_config(self, data):
+        """从请求中获取AI配置"""
+        return {
+            'endpoint': data.get('endpoint', ''),
+            'api_key': data.get('apiKey', ''),
+            'model': data.get('model', ''),
+        }
+
+    def _check_ai_config(self, cfg):
+        """检查AI配置是否完整"""
+        if not all([cfg['endpoint'], cfg['api_key'], cfg['model']]):
+            return False
+        return True
+
+    def _create_generator(self, data):
+        """创建NovelGenerator实例"""
+        cfg = self._get_ai_config(data)
+        return NovelGenerator(
+            api_key=cfg['api_key'],
+            base_url=cfg['endpoint'],
+            model=cfg['model'],
+            temperature=data.get('temperature', 0.7),
+            max_tokens=data.get('maxTokens', 4000)
+        )
+
+    # ===== 灵感模式 =====
+
+    def handle_novel_inspiration_title(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_titles(data.get('userInput', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'options': result})
+
+    def handle_novel_inspiration_description(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_descriptions(data.get('title', ''), data.get('userInput', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'options': result})
+
+    def handle_novel_inspiration_theme(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_themes(data.get('title', ''), data.get('description', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'options': result})
+
+    def handle_novel_inspiration_genre(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_genres(data.get('title', ''), data.get('description', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'options': result})
+
+    # ===== 世界观构建 =====
+
+    def handle_novel_worldbuilding(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_world_building(
+            title=data.get('title', ''),
+            theme=data.get('theme', ''),
+            genre=data.get('genre', ''),
+            description=data.get('description', '')
+        )
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json(result)
+
+    # ===== 角色生成 =====
+
+    def handle_novel_characters(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_characters(
+            world_data=data.get('worldData', {}),
+            theme=data.get('theme', ''),
+            genre=data.get('genre', ''),
+            count=data.get('count', 6),
+            requirements=data.get('requirements', '')
+        )
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'characters': result})
+
+    # ===== 大纲生成 =====
+
+    def handle_novel_outline(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_outline(
+            title=data.get('title', ''),
+            theme=data.get('theme', ''),
+            genre=data.get('genre', ''),
+            characters_info=data.get('charactersInfo', []),
+            chapter_count=data.get('chapterCount', 3),
+            narrative_perspective=data.get('narrativePerspective', '第三人称')
+        )
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'outline': result})
+
+    # ===== 章节生成 =====
+
+    def handle_novel_chapter(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_chapter(
+            project_title=data.get('projectTitle', ''),
+            genre=data.get('genre', ''),
+            chapter_number=data.get('chapterNumber', 1),
+            chapter_title=data.get('chapterTitle', ''),
+            chapter_outline=data.get('chapterOutline', ''),
+            continuation_point=data.get('continuationPoint', ''),
+            previous_chapter_summary=data.get('previousChapterSummary', ''),
+            chapter_characters=data.get('chapterCharacters', ''),
+            foreshadow_reminders=data.get('foreshadowReminders', ''),
+            target_word_count=data.get('targetWordCount', 3000),
+            narrative_perspective=data.get('narrativePerspective', '第三人称')
+        )
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'content': result})
+
+    # ===== 分析功能 =====
+
+    def handle_novel_analyze_style(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.analyze_style(data.get('content', ''))
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json(result)
+
+    def handle_novel_analyze_chapter(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.analyze_chapter(
+            chapter_number=data.get('chapterNumber', 1),
+            title=data.get('title', ''),
+            content=data.get('content', '')
+        )
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json(result)
+
+    # ===== 风格仿写 =====
+
+    def handle_novel_generate_style(self, data):
+        cfg = self._get_ai_config(data)
+        if not self._check_ai_config(cfg):
+            self.send_json({'error': '缺少AI配置参数'}, 400); return
+        gen = self._create_generator(data)
+        result, err = gen.generate_with_style(
+            style_profile=data.get('styleProfile', ''),
+            genre=data.get('genre', '未指定'),
+            count=data.get('count', 3),
+            protagonist=data.get('protagonist', '未指定'),
+            world=data.get('world', '未指定'),
+            outline=data.get('outline', '未指定'),
+            target_word_count=data.get('targetWordCount', 3000)
+        )
+        if err:
+            self.send_json({'error': err}, 500)
+        else:
+            self.send_json({'content': result})
 
     def send_json(self, data, code=200):
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')

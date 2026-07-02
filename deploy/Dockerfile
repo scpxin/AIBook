@@ -3,6 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 COPY server-v2.py .
+COPY novel_creator/ novel_creator/
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
