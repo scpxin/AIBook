@@ -207,8 +207,8 @@
 var CORS_PROXY = 'https://cool-tree-8fanqie.2137459298.workers.dev/?url=';
 var CONTENT_API_URL = 'http://101.35.133.34:5000/api/content?tab=%E5%B0%8F%E8%AF%B4&item_id=';
 var AI_PROXY = 'https://cool-tree-8fanqie.2137459298.workers.dev';
-// 如果你用 Sealos DevBox 部署了 ai-proxy-server.js，改成你的地址，如:
-// var AI_PROXY = 'https://你的地址.sealos.run';
+// 如果你部署了阿里云 FC 函数（全部 API 走 FC），取消下一行注释并填入地址:
+// var FC_BASE = 'https://你的函数ID.cn-hangzhou.fc.aliyuncs.com';
 
 // ====== 状态 ======
 var book = null;
@@ -222,9 +222,34 @@ var lastProgress = {t:0, n:0};
 function $(id){ return document.getElementById(id); }
 
 // ====== API 调用 ======
+// 如果配置了 FC_BASE，使用阿里云 FC REST 路径；否则用 CF Worker ?url= 代理
 function proxyFetch(url) {
+    if (typeof FC_BASE !== 'undefined' && FC_BASE) {
+        // 解析原始 URL 中的路径和参数，映射到 FC REST 接口
+        var fcUrl;
+        if (url.indexOf('search/search/v1') !== -1) {
+            var q = url.match(/q=([^&]*)/);
+            fcUrl = FC_BASE + '/api/search?q=' + encodeURIComponent(q ? decodeURIComponent(q[1]) : '');
+        } else if (url.indexOf('directory/detail') !== -1) {
+            var bid = url.match(/bookId=(\d+)/);
+            fcUrl = FC_BASE + '/api/directory?bookId=' + (bid ? bid[1] : '');
+        } else if (url.indexOf('101.35.133.34') !== -1) {
+            fcUrl = FC_BASE + '/api/content?item_id=' + url.match(/item_id=(\d+)/)[1];
+        } else {
+            // fallback to CF Worker
+            return fetchProxyFallback(url);
+        }
+        return fetch(fcUrl).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        });
+    }
+    return fetchProxyFallback(url);
+}
+
+function fetchProxyFallback(url) {
     if (!CORS_PROXY) {
-        return Promise.reject(new Error('未配置代理，请按 README 部署 Cloudflare Worker 代理'));
+        return Promise.reject(new Error('未配置代理'));
     }
     var controller = new AbortController();
     var timeout = setTimeout(function() { controller.abort(); }, 25000);
@@ -309,12 +334,20 @@ function resolveId(q, id) {
 }
 
 function proxyFetchText(url) {
-    if (!CORS_PROXY) {
+    if (!CORS_PROXY && (typeof FC_BASE === 'undefined' || !FC_BASE)) {
         return Promise.reject(new Error('未配置代理'));
+    }
+    var fetchUrl;
+    if (typeof FC_BASE !== 'undefined' && FC_BASE) {
+        // For HTML text proxy, use CF Worker or skip (FC doesn't proxy raw HTML)
+        if (!CORS_PROXY) return Promise.reject(new Error('FC 模式不支持页面抓取，请同时配置 CORS_PROXY'));
+        fetchUrl = CORS_PROXY + encodeURIComponent(url);
+    } else {
+        fetchUrl = CORS_PROXY + encodeURIComponent(url);
     }
     var controller = new AbortController();
     var timeout = setTimeout(function() { controller.abort(); }, 20000);
-    return fetch(CORS_PROXY + encodeURIComponent(url), {signal: controller.signal}).then(function(r) {
+    return fetch(fetchUrl, {signal: controller.signal}).then(function(r) {
         clearTimeout(timeout);
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.text();
@@ -792,8 +825,9 @@ function saveGenerated() {
 
 // ====== AI API 调用 ======
 function getAIEndpoint() {
-    // Cloudflare Worker: /api/ai/generate 有路径路由
-    // Laf.dev: 云函数是单一端点，直接发到函数地址
+    if (typeof FC_BASE !== 'undefined' && FC_BASE) {
+        return FC_BASE + '/api/ai/generate';
+    }
     return AI_PROXY.indexOf('laf.dev') !== -1 ? AI_PROXY : (AI_PROXY + '/api/ai/generate');
 }
 
