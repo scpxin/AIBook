@@ -48,6 +48,49 @@
         @keyframes spin{to{transform:rotate(360deg)}}
         .tip{font-size:12px;color:#aaa;margin-top:8px}
         .error{background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:12px;border-radius:8px;margin-top:12px}
+        /* AI styles */
+        .steps{display:flex;gap:0;margin-bottom:20px}
+        .step{flex:1;text-align:center;padding:10px 4px;font-size:12px;background:#eee;color:#999;position:relative}
+        .step.active{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-weight:600}
+        .step.done{background:#11998e;color:#fff}
+        .step+.step{margin-left:2px}
+        .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center}
+        .modal-card{background:#fff;border-radius:12px;padding:24px;min-width:360px;max-width:480px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+        .modal-card h3{font-size:18px;margin-bottom:16px}
+        .modal-close{float:right;background:none;border:none;font-size:22px;cursor:pointer;color:#999;margin-top:-4px}
+        .settings-icon{position:absolute;top:12px;right:20px;background:none;border:none;font-size:20px;cursor:pointer;color:#fff;opacity:.8}
+        .settings-icon:hover{opacity:1}
+        .header{position:relative}
+        .model-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1px solid #eee;border-radius:8px;margin-bottom:8px}
+        .model-item.selected{border-color:#667eea;background:#f0eeff}
+        .model-name{font-weight:600;font-size:14px}
+        .model-endpoint{font-size:11px;color:#888}
+        .model-actions{display:flex;gap:4px}
+        .model-act-btn{background:none;border:none;cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px}
+        .model-act-btn.sel{color:#11998e}
+        .model-act-btn.del{color:#e74c3c}
+        .add-model-btn{width:100%;padding:10px;border:2px dashed #ddd;border-radius:8px;background:none;cursor:pointer;font-size:14px;color:#888;margin-top:8px}
+        .add-model-btn:hover{border-color:#667eea;color:#667eea}
+        .form-group{margin-bottom:12px}
+        .form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:#555}
+        .form-group input{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+        .ai-section{display:none}
+        .ai-section.active{display:block}
+        .style-profile{background:#f8f9fa;border-radius:8px;padding:16px}
+        .style-profile h4{font-size:15px;color:#333;margin:12px 0 6px}
+        .style-profile p{font-size:13px;color:#555;line-height:1.7;margin-bottom:4px}
+        .gen-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .gen-form .full{grid-column:1/-1}
+        .gen-form label{font-size:13px;font-weight:600;color:#555;display:block;margin-bottom:4px}
+        .gen-form input,.gen-form textarea,.gen-form select{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px;font-family:inherit}
+        .gen-form textarea{resize:vertical;min-height:80px}
+        .chapter-list{max-height:500px;overflow-y:auto;margin-top:12px}
+        .chapter-card{border:1px solid #eee;border-radius:8px;padding:16px;margin-bottom:8px}
+        .chapter-card h4{font-size:15px;margin-bottom:8px;color:#333}
+        .chapter-card p{font-size:14px;line-height:1.8;color:#444;white-space:pre-wrap}
+        .select-model-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+        .select-model-row select{flex:1;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+        .stream-text{background:#f8f9fa;border-radius:8px;padding:16px;max-height:400px;overflow-y:auto;font-size:14px;line-height:1.8;white-space:pre-wrap}
     </style>
 </head>
 <body>
@@ -55,9 +98,38 @@
 <div class="header">
     <h1>番茄小说下载器</h1>
     <p>搜索书名查看目录 | 下载整本请安装<a href="https://raw.githubusercontent.com/scpxin/fanqie/master/userscript/fanqie.user.js" style="color:#fff;text-decoration:underline">油猴脚本</a></p>
+    <button class="settings-icon" onclick="openSettings()" title="模型配置">⚙</button>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsOverlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeSettings()">
+    <div class="modal-card">
+        <button class="modal-close" onclick="closeSettings()">&times;</button>
+        <h3>大模型配置</h3>
+        <div id="modelList"></div>
+        <button class="add-model-btn" onclick="showAddModel()">+ 添加模型</button>
+        <div id="modelForm" style="display:none">
+            <div class="form-group"><label>模型名称</label><input id="mfName" placeholder="如: DeepSeek V3"></div>
+            <div class="form-group"><label>API 地址</label><input id="mfEndpoint" placeholder="https://api.deepseek.com/v1/chat/completions"></div>
+            <div class="form-group"><label>API Key</label><input id="mfKey" type="password" placeholder="sk-xxx"></div>
+            <div class="form-group"><label>模型标识</label><input id="mfModel" placeholder="deepseek-chat"></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+                <button class="btn btn-dl" onclick="saveModel()" style="flex:1">保存</button>
+                <button class="btn" onclick="hideModelForm()" style="flex:1;background:#ccc">取消</button>
+            </div>
+        </div>
+        <div style="font-size:11px;color:#aaa;margin-top:12px;line-height:1.6">支持 DeepSeek / 通义千问 / OpenAI 等兼容 API。<br>API Key 仅保存在你浏览器本地，不会上传。</div>
+    </div>
 </div>
 
 <div class="container">
+
+    <div class="steps">
+        <div class="step active" id="step1">1. 搜索</div>
+        <div class="step" id="step2">2. 下载</div>
+        <div class="step" id="step3">3. 分析</div>
+        <div class="step" id="step4">4. 生成</div>
+    </div>
 
     <div class="card">
         <div class="search-box">
@@ -88,6 +160,40 @@
             </div>
         </div>
         <div id="dlError"></div>
+    </div>
+
+    <!-- AI 风格分析 -->
+    <div class="card ai-section" id="aiAnalyzeSection">
+        <h2 style="font-size:18px;margin-bottom:12px">AI 风格分析</h2>
+        <p style="font-size:13px;color:#888;margin-bottom:12px">将下载的小说发送给 AI，提取写作风格特征（视角、句式、词汇、节奏等）</p>
+        <div class="select-model-row">
+            <select id="analyzeModel"><option value="">-- 请先在设置中配置模型 --</option></select>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn" id="btnAnalyze" onclick="runAnalysis()" style="background:linear-gradient(135deg,#667eea,#764ba2)" disabled>开始分析</button>
+            <span style="font-size:12px;color:#888;align-self:center" id="analyzeStatus"></span>
+        </div>
+        <div id="analyzeResult" style="margin-top:16px"></div>
+    </div>
+
+    <!-- AI 仿写生成 -->
+    <div class="card ai-section" id="aiGenerateSection">
+        <h2 style="font-size:18px;margin-bottom:12px">AI 仿写生成</h2>
+        <div class="select-model-row">
+            <select id="generateModel"><option value="">-- 请先在设置中配置模型 --</option></select>
+        </div>
+        <div class="gen-form" id="genForm">
+            <div><label>题材类型</label><input id="gfGenre" placeholder="悬疑 / 玄幻 / 都市..."></div>
+            <div><label>生成章节数</label><input id="gfCount" type="number" value="3" min="1" max="20"></div>
+            <div class="full"><label>主角设定</label><input id="gfProtagonist" placeholder="姓名、年龄、身份、性格..."></div>
+            <div class="full"><label>世界观</label><textarea id="gfWorld" placeholder="时代背景、特殊规则、势力分布..."></textarea></div>
+            <div class="full"><label>故事梗概</label><textarea id="gfOutline" placeholder="主线剧情的大致走向..."></textarea></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+            <button class="btn" id="btnGenerate" onclick="runGeneration()" style="background:linear-gradient(135deg,#f093fb,#f5576c)" disabled>开始生成</button>
+            <span style="font-size:12px;color:#888;align-self:center" id="generateStatus"></span>
+        </div>
+        <div id="generateResult" style="margin-top:16px"></div>
     </div>
 
 </div>
@@ -360,6 +466,7 @@ function runWorker() {
             $('progressFill').style.width = '100%';
             $('progressPct').textContent = '100%';
             $('dlError').innerHTML = '';
+            checkAIReady();
             return;
         }
 
@@ -429,6 +536,278 @@ $('results').addEventListener('click', function(e) {
 
 function escHtml(s){ var d=document.createElement('div'); d.textContent=s || ''; return d.innerHTML; }
 
+// ====== AI 功能 ======
+var models = [];
+
+function loadModels() {
+    try { models = JSON.parse(localStorage.getItem('fanqie_models') || '[]'); } catch(e) { models = []; }
+}
+function saveModels() { localStorage.setItem('fanqie_models', JSON.stringify(models)); }
+function getActiveModelId() { return localStorage.getItem('fanqie_active_model') || (models.length ? models[0].id : ''); }
+function setActiveModelId(id) { localStorage.setItem('fanqie_active_model', id); }
+
+function openSettings() {
+    loadModels();
+    renderModelList();
+    $('settingsOverlay').style.display = 'flex';
+}
+function closeSettings() {
+    $('settingsOverlay').style.display = 'none';
+    hideModelForm();
+    updateModelSelects();
+    checkAIReady();
+}
+
+function renderModelList() {
+    var h = '';
+    var active = getActiveModelId();
+    if (!models.length) { h = '<div style="color:#999;padding:12px 0;text-align:center">暂无配置，请添加模型</div>'; }
+    models.forEach(function(m) {
+        var isActive = m.id === active;
+        h += '<div class="model-item' + (isActive ? ' selected' : '') + '">';
+        h += '<div><div class="model-name">' + escHtml(m.name) + '</div><div class="model-endpoint">' + escHtml(m.endpoint) + '</div></div>';
+        h += '<div class="model-actions">';
+        if (!isActive) h += '<button class="model-act-btn sel" onclick="selectModel(\'' + m.id + '\')">使用</button>';
+        else h += '<span style="font-size:11px;color:#11998e;padding:2px 6px">当前</span>';
+        h += '<button class="model-act-btn del" onclick="deleteModel(\'' + m.id + '\')">删除</button>';
+        h += '</div></div>';
+    });
+    $('modelList').innerHTML = h;
+}
+
+function selectModel(id) {
+    setActiveModelId(id);
+    renderModelList();
+    updateModelSelects();
+}
+
+function deleteModel(id) {
+    if (!confirm('确定删除此模型配置？')) return;
+    models = models.filter(function(m) { return m.id !== id; });
+    if (getActiveModelId() === id) setActiveModelId(models.length ? models[0].id : '');
+    saveModels();
+    renderModelList();
+    updateModelSelects();
+}
+
+function showAddModel() { $('modelForm').style.display = 'block'; }
+function hideModelForm() { $('modelForm').style.display = 'none'; $('mfName').value = $('mfEndpoint').value = $('mfKey').value = $('mfModel').value = ''; }
+
+function saveModel() {
+    var name = $('mfName').value.trim();
+    var endpoint = $('mfEndpoint').value.trim();
+    var key = $('mfKey').value.trim();
+    var model = $('mfModel').value.trim();
+    if (!name || !endpoint || !key || !model) { alert('请填写所有字段'); return; }
+    models.push({ id: 'm' + Date.now(), name: name, endpoint: endpoint, apiKey: key, model: model });
+    saveModels();
+    if (!getActiveModelId()) setActiveModelId(models[models.length - 1].id);
+    hideModelForm();
+    renderModelList();
+}
+
+function updateModelSelects() {
+    loadModels();
+    var active = getActiveModelId();
+    var opts = '<option value="">-- 选择模型 --</option>';
+    models.forEach(function(m) {
+        opts += '<option value="' + m.id + '"' + (m.id === active ? ' selected' : '') + '>' + escHtml(m.name) + '</option>';
+    });
+    var selA = $('analyzeModel');
+    var selG = $('generateModel');
+    selA.innerHTML = selG.innerHTML = opts;
+}
+
+function getModelById(id) {
+    for (var i = 0; i < models.length; i++) { if (models[i].id === id) return models[i]; }
+    return null;
+}
+
+function checkAIReady() {
+    var hasModel = !!getActiveModelId();
+    $('btnAnalyze').disabled = !hasModel;
+    $('btnGenerate').disabled = !hasModel;
+    if (state === 'done') {
+        $('aiAnalyzeSection').classList.add('active');
+        stepActive(2);
+        stepDone(0);
+        stepDone(1);
+    }
+}
+
+function stepActive(n) {
+    for (var i = 1; i <= 4; i++) $('step' + i).className = $('step' + i).className.replace(' active', '').replace(' done', '');
+    $('step' + n).classList.add('active');
+}
+function stepDone(n) { $('step' + n).classList.add('done'); }
+
+// ====== AI 风格分析 ======
+function runAnalysis() {
+    var modelId = $('analyzeModel').value || getActiveModelId();
+    if (!modelId) { alert('请先选择模型'); return; }
+    var model = getModelById(modelId);
+    if (!model) { alert('模型配置不存在'); return; }
+    if (!contentParts.length) { alert('请先下载小说内容'); return; }
+
+    $('btnAnalyze').disabled = true;
+    $('analyzeStatus').textContent = '分析中...';
+    $('analyzeResult').innerHTML = '';
+    stepActive(2);
+
+    // Select first 3 chapters (or fewer if book is short), truncate each to ~2000 chars
+    var sampleChapters = contentParts.slice(0, Math.min(3, contentParts.length));
+    var sampleText = sampleChapters.map(function(c, i) {
+        return c.replace(/\n/g, ' ').slice(0, 2000);
+    }).join('\n\n');
+
+    var messages = [
+        { role: 'system', content: '你是一位专业的小说分析家。请分析小说的写作风格特征，从以下维度输出结构化分析，每个维度用标签标记：\n【叙事视角】\n【句式特征】\n【词汇偏好】\n【对话风格】\n【节奏模式】\n【场景描写】\n每个维度50-100字，用中文输出。' },
+        { role: 'user', content: '请分析以下小说的写作风格：\n\n' + sampleText }
+    ];
+
+    callAI(model, messages, { temperature: 0.3, max_tokens: 2000 }).then(function(content) {
+        $('analyzeResult').innerHTML = '<div class="style-profile"><h3 style="margin-top:0">风格画像</h3>' +
+            content.split('\n').map(function(line) {
+                if (line.match(/^【.+】/)) return '<h4>' + escHtml(line) + '</h4>';
+                return '<p>' + escHtml(line) + '</p>';
+            }).join('') + '</div>';
+        $('analyzeStatus').textContent = '分析完成';
+        $('btnAnalyze').disabled = false;
+        stepDone(2);
+        stepActive(3);
+        $('aiGenerateSection').classList.add('active');
+        window._styleProfile = content;
+    }).catch(function(e) {
+        $('analyzeResult').innerHTML = '<div class="error">分析失败: ' + escHtml(e.message) + '</div>';
+        $('analyzeStatus').textContent = '失败';
+        $('btnAnalyze').disabled = false;
+    });
+}
+
+// ====== AI 仿写生成 ======
+function runGeneration() {
+    var modelId = $('generateModel').value || getActiveModelId();
+    if (!modelId) { alert('请先选择模型'); return; }
+    var model = getModelById(modelId);
+    if (!model) { alert('模型配置不存在'); return; }
+    if (!window._styleProfile) { alert('请先完成风格分析'); return; }
+
+    var genre = $('gfGenre').value.trim() || '未指定';
+    var count = parseInt($('gfCount').value) || 3;
+    var protagonist = $('gfProtagonist').value.trim() || '未指定';
+    var world = $('gfWorld').value.trim() || '未指定';
+    var outline = $('gfOutline').value.trim() || '未指定';
+
+    $('btnGenerate').disabled = true;
+    $('generateStatus').textContent = '生成中...';
+    $('generateResult').innerHTML = '';
+    stepActive(3);
+
+    var messages = [
+        { role: 'system', content: '你是一位专业的小说作家。请根据提供的风格画像和创作设定创作小说。严格按照要求的风格写作，每章 1000-2000 字。输出格式：\n第X章 章节标题\n（正文）\n\n直接开始创作，不要额外说明。' },
+        { role: 'user', content: '【风格画像】\n' + window._styleProfile + '\n\n【创作设定】\n题材: ' + genre + '\n主角: ' + protagonist + '\n世界观: ' + world + '\n故事梗概: ' + outline + '\n\n请生成' + count + '章小说。' }
+    ];
+
+    callAI(model, messages, { temperature: 0.8, max_tokens: 4096 }).then(function(content) {
+        window._generatedNovel = content;
+        var chapters = parseChapters(content);
+
+        var h = '<h3>生成结果</h3>';
+        if (chapters.length) {
+            chapters.forEach(function(ch, i) {
+                h += '<div class="chapter-card"><h4>' + escHtml(ch.title) + ' (' + ch.text.length + '字)</h4>';
+                h += '<p>' + escHtml(ch.text) + '</p></div>';
+            });
+            h += '<div style="margin-top:12px">';
+            h += '<button class="btn btn-dl" onclick="saveGenerated()">保存 TXT</button>';
+            h += '<button class="btn" style="background:#ccc;margin-left:8px" onclick="runGeneration()">重新生成</button>';
+            h += '</div>';
+        } else {
+            h += '<div class="stream-text">' + escHtml(content) + '</div>';
+            h += '<div style="margin-top:12px">';
+            h += '<button class="btn btn-dl" onclick="saveGenerated()">保存 TXT</button>';
+            h += '<button class="btn" style="background:#ccc;margin-left:8px" onclick="runGeneration()">重新生成</button>';
+            h += '</div>';
+        }
+
+        $('generateResult').innerHTML = h;
+        $('generateStatus').textContent = '生成完成';
+        $('btnGenerate').disabled = false;
+        stepDone(3);
+        stepActive(4);
+    }).catch(function(e) {
+        $('generateResult').innerHTML = '<div class="error">生成失败: ' + escHtml(e.message) + '</div>';
+        $('generateStatus').textContent = '失败';
+        $('btnGenerate').disabled = false;
+    });
+}
+
+function parseChapters(text) {
+    var chapters = [];
+    var re = /第([一二三四五六七八九十百千\d]+)章\s*(.*?)(?:\n|$)/g;
+    var match;
+    var lastIdx = 0;
+    while ((match = re.exec(text)) !== null) {
+        if (lastIdx > 0) {
+            chapters[chapters.length - 1].text = text.slice(lastIdx, match.index).trim();
+        }
+        chapters.push({ title: '第' + match[1] + '章' + (match[2] ? ' ' + match[2] : ''), text: '' });
+        lastIdx = match.index + match[0].length;
+    }
+    if (chapters.length && lastIdx < text.length) {
+        chapters[chapters.length - 1].text = text.slice(lastIdx).trim();
+    }
+    return chapters;
+}
+
+function saveGenerated() {
+    var text = window._generatedNovel || '';
+    if (!text) return;
+    var blob = new Blob(['\uFEFF' + text], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (book ? (book.title || book.book_id) : 'ai-novel') + '_AI仿写.txt';
+    a.click();
+    setTimeout(function() { URL.revokeObjectURL(a.href); }, 2000);
+}
+
+// ====== AI API 调用 ======
+function callAI(model, messages, options) {
+    return fetch(CORS_PROXY_BASE + '/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            endpoint: model.endpoint,
+            apiKey: model.apiKey,
+            model: model.model,
+            messages: messages,
+            options: options
+        })
+    }).then(function(r) {
+        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'HTTP ' + r.status); });
+        return r.json();
+    }).then(function(d) {
+        if (d.error) throw new Error(d.error);
+        if (!d.content) throw new Error('AI 返回空内容');
+        return d.content;
+    });
+}
+
+// 代理基础地址（不带 ?url= 参数）
+var CORS_PROXY_BASE = 'https://cool-tree-8fanqie.2137459298.workers.dev';
+
+// 初始化
+loadModels();
+updateModelSelects();
+checkAIReady();
+
+// 监听下载完成 → 开启 AI 分析
+var _origSaveFile = saveFile;
+saveFile = function() {
+    _origSaveFile();
+    checkAIReady();
+};
+
 // 暴露到全局
 window.doSearch = doSearch;
 window.selectBook = selectBook;
@@ -436,6 +815,16 @@ window.startDL = startDL;
 window.doPause = doPause;
 window.doResume = doResume;
 window.saveFile = saveFile;
+window.openSettings = openSettings;
+window.closeSettings = closeSettings;
+window.showAddModel = showAddModel;
+window.saveModel = saveModel;
+window.hideModelForm = hideModelForm;
+window.deleteModel = deleteModel;
+window.selectModel = selectModel;
+window.runAnalysis = runAnalysis;
+window.runGeneration = runGeneration;
+window.saveGenerated = saveGenerated;
 
 })();
 </script>
