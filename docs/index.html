@@ -206,6 +206,9 @@
 // 部署方法见 README / proxy-worker.js
 var CORS_PROXY = 'https://cool-tree-8fanqie.2137459298.workers.dev/?url=';
 var CONTENT_API_URL = 'http://101.35.133.34:5000/api/content?tab=%E5%B0%8F%E8%AF%B4&item_id=';
+var AI_PROXY = 'https://cool-tree-8fanqie.2137459298.workers.dev';
+// 如果用 Laf.dev，将上面 AI_PROXY 改为你的 Laf 函数地址，如:
+// var AI_PROXY = 'https://你的appid.laf.dev/ai-proxy';
 
 // ====== 状态 ======
 var book = null;
@@ -772,8 +775,14 @@ function saveGenerated() {
 }
 
 // ====== AI API 调用 ======
+function getAIEndpoint() {
+    // Cloudflare Worker: /api/ai/generate 有路径路由
+    // Laf.dev: 云函数是单一端点，直接发到函数地址
+    return AI_PROXY.indexOf('laf.dev') !== -1 ? AI_PROXY : (AI_PROXY + '/api/ai/generate');
+}
+
 function callAI(model, messages, options) {
-    return fetch(CORS_PROXY_BASE + '/api/ai/generate', {
+    return fetch(getAIEndpoint(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -792,9 +801,6 @@ function callAI(model, messages, options) {
         return d.content;
     });
 }
-
-// 代理基础地址（不带 ?url= 参数）
-var CORS_PROXY_BASE = 'https://cool-tree-8fanqie.2137459298.workers.dev';
 
 // 初始化
 loadModels();
