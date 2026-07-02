@@ -111,19 +111,66 @@ https://xxx.你的用户名.workers.dev/?url=https%3A%2F%2Fnovel.snssdk.com%2Fap
 
 ---
 
+## AI 小说风格分析 + 仿写生成
+
+网页版内置 AI 功能，下载小说后可自动分析写作风格并生成模仿该风格的新小说。
+
+### 使用流程
+
+1. 搜索并下载小说（油猴脚本 / 本地 Python 代理）
+2. 下载完成后，页面自动显示「AI 风格分析」区域
+3. 点击右上角设置图标，配置大模型 API（支持 DeepSeek / 通义千问 / OpenAI 等）
+4. 点击「开始分析」→ AI 提取 6 维风格画像
+5. 填写创作设定（题材/主角/世界观/梗概）→ 点击「开始生成」
+
+### AI 代理部署（二选一）
+
+#### 方案 A：Cloudflare Worker（推荐）
+
+使用已部署的 Worker（`proxy-worker.js`），AI 路由已包含在内。不需要额外操作。
+
+#### 方案 B：Node.js 独立服务器
+
+适合部署到 Sealos DevBox 或任意 VPS：
+
+```bash
+# 本地运行
+node ai-proxy-server.js
+
+# Docker 部署（Sealos / Railway 等）
+docker build -f Dockerfile.ai-proxy -t ai-proxy .
+docker run -p 8787:8787 ai-proxy
+```
+
+部署后修改 `docs/index.html` 中的 `AI_PROXY` 变量为目标地址。
+
+### 支持的模型
+
+任何 OpenAI 兼容 API 均可使用，常见配置：
+
+| 模型 | API 地址 | 模型标识 |
+|------|---------|---------|
+| DeepSeek | `https://api.deepseek.com/v1/chat/completions` | `deepseek-chat` |
+| 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions` | `qwen-plus` |
+| OpenAI | `https://api.openai.com/v1/chat/completions` | `gpt-4o` |
+
+---
+
 ## 项目结构
 
 ```
 fanqie/
 ├── README.md
-├── proxy-worker.js                   # Cloudflare Worker 代理脚本
+├── proxy-worker.js                   # Cloudflare Worker 代理 + AI 路由
+├── ai-proxy-server.js                # Node.js AI 代理（Sealos / VPS 部署用）
+├── Dockerfile.ai-proxy               # AI 代理 Docker 镜像
 ├── userscript/
 │   └── fanqie.user.js                # 油猴脚本（推荐）
 ├── web-tool/
 │   ├── server.py                     # Python 本地后端
 │   └── index.html                    # 网页前端源文件（双模式自适应）
 ├── docs/
-│   └── index.html                    # GitHub Pages 部署文件
+│   └── index.html                    # GitHub Pages 部署文件（含 AI 功能）
 └── .monkeycode/specs/ai-novel-generator/
     ├── requirements.md               # AI 仿写需求文档
     └── design.md                     # AI 仿写技术设计
@@ -132,6 +179,13 @@ fanqie/
 ---
 
 ## 更新日志
+
+### v2.1.0 (2026-07-02)
+- 新增 AI 风格分析 + 仿写生成功能
+- 模型配置（localStorage 存储，支持多模型切换）
+- 步骤导航：搜索 → 下载 → 分析 → 生成
+- 生成结果支持章节自动解析和 TXT 保存
+- 参考 ainovel-cli (1.2k stars) 多智能体设计理念
 
 ### v2.0.3 (2026-07-02)
 - 暂停下载后显示「保存 TXT」按钮，可随时保存已下载章节
@@ -144,14 +198,6 @@ fanqie/
 
 ### v2.0.0 (2026-06-27)
 - 首个稳定版：自动获取完整内容、整本下载、暂停/继续、工具栏
-
----
-
-## 计划中
-
-- AI 小说风格分析 + 仿写生成（需求和技术设计已完成，待开发）
-
----
 
 ## 技术说明
 
