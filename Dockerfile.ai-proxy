@@ -1,5 +1,0 @@
-FROM node:18-alpine
-WORKDIR /app
-COPY ai-proxy-server.js .
-EXPOSE 8787
-CMD ["node", "ai-proxy-server.js"]
