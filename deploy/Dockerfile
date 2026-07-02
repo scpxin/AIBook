@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY server-v2.py .
+
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
+
+EXPOSE 8000
+
+CMD ["python3", "server-v2.py"]

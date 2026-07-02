@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>番茄小说下载器</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#333;min-height:100vh}
+        .header{background:linear-gradient(135deg,#ff6b35,#ff4444);color:#fff;padding:32px 20px;text-align:center}
+        .header h1{font-size:28px;margin-bottom:8px}
+        .header p{opacity:.85;font-size:14px}
+        .container{max-width:720px;margin:0 auto;padding:20px}
+        .card{background:#fff;border-radius:12px;padding:24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+        .search-box{display:flex;gap:12px}
+        .search-box input{flex:1;padding:12px 16px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none}
+        .search-box input:focus{border-color:#ff6b35}
+        .search-box button{padding:12px 28px;background:linear-gradient(135deg,#ff6b35,#ff4444);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
+        .search-box button:disabled{opacity:.6;cursor:not-allowed}
+        .book-item{display:flex;justify-content:space-between;align-items:center;padding:16px;border:2px solid #f0f0f0;border-radius:10px;margin-bottom:10px;cursor:pointer;transition:.2s}
+        .book-item:hover{border-color:#ff6b35;background:#fff8f6}
+        .book-item.selected{border-color:#ff6b35;background:#fff3ee}
+        .book-title{font-size:16px;font-weight:600;color:#222}
+        .book-meta{font-size:13px;color:#888;margin-top:4px}
+        .book-count{font-size:13px;color:#ff6b35;font-weight:600;white-space:nowrap}
+        .empty{text-align:center;color:#999;padding:40px}
+        .dl-section{display:none}
+        .dl-section.active{display:block}
+        .dl-info{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+        .dl-info h2{font-size:18px}
+        .dl-btns{display:flex;gap:8px}
+        .btn{border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;padding:10px 22px;color:#fff}
+        .btn:disabled{opacity:.6;cursor:not-allowed}
+        .btn-dl{background:linear-gradient(135deg,#11998e,#38ef7d)}
+        .btn-pause{background:linear-gradient(135deg,#f093fb,#f5576c)}
+        .btn-resume{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+        .progress{margin-top:20px}
+        .progress-top{display:flex;justify-content:space-between;margin-bottom:8px}
+        .progress-label{font-size:13px;color:#666}
+        .progress-pct{font-size:18px;font-weight:700;color:#11998e}
+        .progress-bar{height:10px;background:#eee;border-radius:5px;overflow:hidden;margin-bottom:10px}
+        .progress-fill{height:100%;background:linear-gradient(90deg,#11998e,#38ef7d);border-radius:5px;transition:width .3s;width:0}
+        .progress-detail{display:flex;gap:24px;font-size:13px;color:#888;flex-wrap:wrap}
+        .spinner{display:inline-block;width:14px;height:14px;border:2px solid #fff3;border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .tip{font-size:12px;color:#aaa;margin-top:8px}
+        .error{background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:12px;border-radius:8px;margin-top:12px}
+        /* AI styles */
+        .steps{display:flex;gap:0;margin-bottom:20px}
+        .step{flex:1;text-align:center;padding:10px 4px;font-size:12px;background:#eee;color:#999;position:relative}
+        .step.active{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-weight:600}
+        .step.done{background:#11998e;color:#fff}
+        .step+.step{margin-left:2px}
+        .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center}
+        .modal-card{background:#fff;border-radius:12px;padding:24px;min-width:360px;max-width:480px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+        .modal-card h3{font-size:18px;margin-bottom:16px}
+        .modal-close{float:right;background:none;border:none;font-size:22px;cursor:pointer;color:#999;margin-top:-4px}
+        .settings-icon{position:absolute;top:12px;right:20px;background:none;border:none;font-size:20px;cursor:pointer;color:#fff;opacity:.8}
+        .settings-icon:hover{opacity:1}
+        .header{position:relative}
+        .model-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1px solid #eee;border-radius:8px;margin-bottom:8px}
+        .model-item.selected{border-color:#667eea;background:#f0eeff}
+        .model-name{font-weight:600;font-size:14px}
+        .model-endpoint{font-size:11px;color:#888}
+        .model-actions{display:flex;gap:4px}
+        .model-act-btn{background:none;border:none;cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px}
+        .model-act-btn.sel{color:#11998e}
+        .model-act-btn.del{color:#e74c3c}
+        .add-model-btn{width:100%;padding:10px;border:2px dashed #ddd;border-radius:8px;background:none;cursor:pointer;font-size:14px;color:#888;margin-top:8px}
+        .add-model-btn:hover{border-color:#667eea;color:#667eea}
+        .form-group{margin-bottom:12px}
+        .form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:#555}
+        .form-group input{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+        .ai-section{display:none}
+        .ai-section.active{display:block}
+        .style-profile{background:#f8f9fa;border-radius:8px;padding:16px}
+        .style-profile h4{font-size:15px;color:#333;margin:12px 0 6px}
+        .style-profile p{font-size:13px;color:#555;line-height:1.7;margin-bottom:4px}
+        .gen-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .gen-form .full{grid-column:1/-1}
+        .gen-form label{font-size:13px;font-weight:600;color:#555;display:block;margin-bottom:4px}
+        .gen-form input,.gen-form textarea,.gen-form select{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px;font-family:inherit}
+        .gen-form textarea{resize:vertical;min-height:80px}
+        .chapter-list{max-height:500px;overflow-y:auto;margin-top:12px}
+        .chapter-card{border:1px solid #eee;border-radius:8px;padding:16px;margin-bottom:8px}
+        .chapter-card h4{font-size:15px;margin-bottom:8px;color:#333}
+        .chapter-card p{font-size:14px;line-height:1.8;color:#444;white-space:pre-wrap}
+        .select-model-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+        .select-model-row select{flex:1;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+        .stream-text{background:#f8f9fa;border-radius:8px;padding:16px;max-height:400px;overflow-y:auto;font-size:14px;line-height:1.8;white-space:pre-wrap}
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>番茄小说下载器</h1>
+    <p>搜索书名查看目录 | 下载整本请安装<a href="https://raw.githubusercontent.com/scpxin/fanqie/master/userscript/fanqie.user.js" style="color:#fff;text-decoration:underline">油猴脚本</a></p>
+    <button class="settings-icon" onclick="openSettings()" title="模型配置">⚙</button>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsOverlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeSettings()">
+    <div class="modal-card">
+        <button class="modal-close" onclick="closeSettings()">&times;</button>
+        <h3>大模型配置</h3>
+        <div id="modelList"></div>
+        <button class="add-model-btn" onclick="showAddModel()">+ 添加模型</button>
+        <div id="modelForm" style="display:none">
+            <div class="form-group"><label>模型名称</label><input id="mfName" placeholder="如: DeepSeek V3"></div>
+            <div class="form-group"><label>API 地址</label><input id="mfEndpoint" placeholder="https://api.deepseek.com/v1/chat/completions"></div>
+            <div class="form-group"><label>API Key</label><input id="mfKey" type="password" placeholder="sk-xxx"></div>
+            <div class="form-group"><label>模型标识</label><input id="mfModel" placeholder="deepseek-chat"></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+                <button class="btn btn-dl" onclick="saveModel()" style="flex:1">保存</button>
+                <button class="btn" onclick="hideModelForm()" style="flex:1;background:#ccc">取消</button>
+            </div>
+        </div>
+        <div style="font-size:11px;color:#aaa;margin-top:12px;line-height:1.6">支持 DeepSeek / 通义千问 / OpenAI 等兼容 API。<br>API Key 仅保存在你浏览器本地，不会上传。</div>
+    </div>
+</div>
+
+<div class="container">
+
+    <div class="steps">
+        <div class="step active" id="step1">1. 搜索</div>
+        <div class="step" id="step2">2. 下载</div>
+        <div class="step" id="step3">3. 分析</div>
+        <div class="step" id="step4">4. 生成</div>
+    </div>
+
+    <div class="card">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="书名 / 章节链接 / book_id" autofocus>
+            <button id="searchBtn" onclick="doSearch()">搜索</button>
+        </div>
+        <div class="tip">搜索书名或粘贴链接查看目录。下载 TXT 请用油猴脚本（代理被内容服务器屏蔽）</div>
+    </div>
+
+    <div id="results"></div>
+
+    <div class="card dl-section" id="dlSection">
+        <div class="dl-info">
+            <div>
+                <h2 id="dlTitle"></h2>
+                <div style="font-size:13px;color:#888;margin-top:4px" id="dlMeta"></div>
+            </div>
+            <div class="dl-btns" id="dlBtns"></div>
+        </div>
+        <div class="progress">
+            <div class="progress-top"><span class="progress-label" id="progressLabel">准备中...</span><span class="progress-pct" id="progressPct">0%</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-detail">
+                <span id="detailChapters">章节: 0/0</span>
+                <span id="detailSpeed">速度: --</span>
+                <span id="detailETA">预计剩余: --</span>
+                <span id="detailTime">已用时: 0s</span>
+            </div>
+        </div>
+        <div id="dlError"></div>
+    </div>
+
+    <!-- AI 风格分析 -->
+    <div class="card ai-section" id="aiAnalyzeSection">
+        <h2 style="font-size:18px;margin-bottom:12px">AI 风格分析</h2>
+        <p style="font-size:13px;color:#888;margin-bottom:12px">将下载的小说发送给 AI，提取写作风格特征（视角、句式、词汇、节奏等）</p>
+        <div class="select-model-row">
+            <select id="analyzeModel"><option value="">-- 请先在设置中配置模型 --</option></select>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn" id="btnAnalyze" onclick="runAnalysis()" style="background:linear-gradient(135deg,#667eea,#764ba2)" disabled>开始分析</button>
+            <span style="font-size:12px;color:#888;align-self:center" id="analyzeStatus"></span>
+        </div>
+        <div id="analyzeResult" style="margin-top:16px"></div>
+    </div>
+
+    <!-- AI 仿写生成 -->
+    <div class="card ai-section" id="aiGenerateSection">
+        <h2 style="font-size:18px;margin-bottom:12px">AI 仿写生成</h2>
+        <div class="select-model-row">
+            <select id="generateModel"><option value="">-- 请先在设置中配置模型 --</option></select>
+        </div>
+        <div class="gen-form" id="genForm">
+            <div><label>题材类型</label><input id="gfGenre" placeholder="悬疑 / 玄幻 / 都市..."></div>
+            <div><label>生成章节数</label><input id="gfCount" type="number" value="3" min="1" max="20"></div>
+            <div class="full"><label>主角设定</label><input id="gfProtagonist" placeholder="姓名、年龄、身份、性格..."></div>
+            <div class="full"><label>世界观</label><textarea id="gfWorld" placeholder="时代背景、特殊规则、势力分布..."></textarea></div>
+            <div class="full"><label>故事梗概</label><textarea id="gfOutline" placeholder="主线剧情的大致走向..."></textarea></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+            <button class="btn" id="btnGenerate" onclick="runGeneration()" style="background:linear-gradient(135deg,#f093fb,#f5576c)" disabled>开始生成</button>
+            <span style="font-size:12px;color:#888;align-self:center" id="generateStatus"></span>
+        </div>
+        <div id="generateResult" style="margin-top:16px"></div>
+    </div>
+
+</div>
+
+<script>
+(function() {
+'use strict';
+
+// ====== 配置：服务器同源部署 ======
+var SERVER_MODE = true;
+var CORS_PROXY = '';
+var CONTENT_API_URL = '/api/content?item_id=';
+var AI_PROXY = '';
+
+// ====== 状态 ======
+var book = null;
+var ids = [];
+var state = 'idle'; // idle | running | paused | done
+var current = 0, total = 0, contentParts = [];
+var startedAt = 0;
+var timer = null;
+var lastProgress = {t:0, n:0};
+
+function $(id){ return document.getElementById(id); }
+
+// ====== API 调用 ======
+// 如果配置了 FC_BASE，使用阿里云 FC REST 路径；否则用 CF Worker ?url= 代理
+function proxyFetch(url) {
+    if (typeof SERVER_MODE !== 'undefined' && SERVER_MODE) {
+        var apiUrl;
+        if (url.indexOf('/api/') === 0) {
+            apiUrl = url;
+        } else if (url.indexOf('search/search/v1') !== -1) {
+            var qq = url.match(/q=([^&]*)/);
+            apiUrl = '/api/search?q=' + encodeURIComponent(qq ? decodeURIComponent(qq[1]) : '');
+        } else if (url.indexOf('directory/detail') !== -1) {
+            var bbid = url.match(/bookId=(\d+)/);
+            apiUrl = '/api/directory?book_id=' + (bbid ? bbid[1] : '');
+        } else if (url.indexOf('101.35.133.34') !== -1) {
+            apiUrl = '/api/content?item_id=' + url.match(/item_id=(\d+)/)[1];
+        } else {
+            return fetchProxyFallback(url);
+        }
+        return fetch(apiUrl).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        });
+    }
+    if (typeof FC_BASE !== 'undefined' && FC_BASE) {
+        // 解析原始 URL 中的路径和参数，映射到 FC REST 接口
+        var fcUrl;
+        if (url.indexOf('search/search/v1') !== -1) {
+            var q = url.match(/q=([^&]*)/);
+            fcUrl = FC_BASE + '/api/search?q=' + encodeURIComponent(q ? decodeURIComponent(q[1]) : '');
+        } else if (url.indexOf('directory/detail') !== -1) {
+            var bid = url.match(/bookId=(\d+)/);
+            fcUrl = FC_BASE + '/api/directory?bookId=' + (bid ? bid[1] : '');
+        } else if (url.indexOf('101.35.133.34') !== -1) {
+            fcUrl = FC_BASE + '/api/content?item_id=' + url.match(/item_id=(\d+)/)[1];
+        } else {
+            // fallback to CF Worker
+            return fetchProxyFallback(url);
+        }
+        return fetch(fcUrl).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        });
+    }
+    return fetchProxyFallback(url);
+}
+
+function fetchProxyFallback(url) {
+    if (!CORS_PROXY) {
+        return Promise.reject(new Error('未配置代理'));
+    }
+    var controller = new AbortController();
+    var timeout = setTimeout(function() { controller.abort(); }, 25000);
+    return fetch(CORS_PROXY + encodeURIComponent(url), {signal: controller.signal}).then(function(r) {
+        clearTimeout(timeout);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    }).catch(function(e) {
+        clearTimeout(timeout);
+        if (e.name === 'AbortError') throw new Error('请求超时');
+        throw e;
+    });
+}
+
+function formatTime(s) {
+    if (s < 60) return Math.round(s) + 's';
+    if (s < 3600) return Math.floor(s/60) + 'm' + Math.round(s%60) + 's';
+    return Math.floor(s/3600) + 'h' + Math.floor((s%3600)/60) + 'm';
+}
+
+// ====== 搜索 ======
+function doSearch() {
+    var q = $('searchInput').value.trim();
+    if (!q) return;
+    var btn = $('searchBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>搜索中';
+    $('results').innerHTML = '';
+    resetAll();
+
+    // 检测链接/ID
+    var idMatch = q.match(/(\d{16,20})/);
+    if (idMatch) {
+        resolveId(q, idMatch[1]).then(function(info) {
+            if (info && info.book_id) {
+                book = info;
+                fetchDir().then(function() { showDownload(); });
+                btn.disabled = false; btn.textContent = '搜索';
+            } else if (info && info.error) {
+                $('results').innerHTML = '<div class="error">' + info.error + '</div>';
+                btn.disabled = false; btn.textContent = '搜索';
+            } else {
+                btn.disabled = false; btn.textContent = '搜索';
+            }
+        });
+        return;
+    }
+
+    // 搜索书名
+    proxyFetch('https://novel.snssdk.com/api/novel/channel/homepage/search/search/v1/?aid=1967&q=' + encodeURIComponent(q) + '&offset=0').then(function(data) {
+        var list = (data.data || {}).ret_data || data.books || [];
+        if (!list.length) { $('results').innerHTML = '<div class="empty">未找到</div>'; return; }
+        renderResults(list);
+        list.forEach(function(b) { fetchCount(b.book_id); });
+        btn.disabled = false; btn.textContent = '搜索';
+    }).catch(function(e) {
+        $('results').innerHTML = '<div class="error">搜索失败: ' + e.message + '</div>';
+        btn.disabled = false; btn.textContent = '搜索';
+    });
+}
+
+function resolveId(q, id) {
+    // /reader/ 链接: 抓取页面 HTML 提取 book_id
+    if (q.indexOf('/reader/') !== -1) {
+        return proxyFetchText('https://fanqienovel.com/reader/' + id).then(function(html) {
+            var m = html.match(/"bookId"\s*:\s*"(\d+)"/);
+            if (m) {
+                var tm = html.match(/"bookName"\s*:\s*"([^"]*)"/);
+                return {book_id: m[1], title: tm ? tm[1] : ''};
+            }
+            return {book_id: null, error: '无法从页面解析书籍信息，请复制书名搜索'};
+        }).catch(function(e) {
+            return {book_id: null, error: '无法连接: ' + e.message};
+        });
+    }
+    // /page/ 链接: ID 就是 book_id，抓取页面标题获取书名
+    if (q.indexOf('/page/') !== -1) {
+        fetchPageTitle(id);
+        return Promise.resolve({book_id: id});
+    }
+    return Promise.resolve({book_id: id});
+}
+
+function proxyFetchText(url) {
+    if (typeof SERVER_MODE !== 'undefined' && SERVER_MODE) {
+        return fetch('/api/proxy-text?url=' + encodeURIComponent(url)).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        });
+    }
+    if (!CORS_PROXY && (typeof FC_BASE === 'undefined' || !FC_BASE)) {
+        return Promise.reject(new Error('未配置代理'));
+    }
+    var fetchUrl;
+    if (typeof FC_BASE !== 'undefined' && FC_BASE) {
+        // For HTML text proxy, use CF Worker or skip (FC doesn't proxy raw HTML)
+        if (!CORS_PROXY) return Promise.reject(new Error('FC 模式不支持页面抓取，请同时配置 CORS_PROXY'));
+        fetchUrl = CORS_PROXY + encodeURIComponent(url);
+    } else {
+        fetchUrl = CORS_PROXY + encodeURIComponent(url);
+    }
+    var controller = new AbortController();
+    var timeout = setTimeout(function() { controller.abort(); }, 20000);
+    return fetch(fetchUrl, {signal: controller.signal}).then(function(r) {
+        clearTimeout(timeout);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+    }).catch(function(e) {
+        clearTimeout(timeout);
+        if (e.name === 'AbortError') throw new Error('请求超时');
+        throw e;
+    });
+}
+
+function fetchPageTitle(bookId) {
+    if (typeof SERVER_MODE !== 'undefined' && SERVER_MODE) {
+        fetch('/api/proxy-text?url=' + encodeURIComponent('https://fanqienovel.com/page/' + bookId)).then(function(r) {
+            return r.text();
+        }).then(function(html2) {
+            var m = html2.match(/<title>([^<]+)<\/title>/);
+            if (m && book && book.book_id === bookId) {
+                var t = m[1].replace(/完整版在线免费阅读.*$/, '').replace(/_番茄小说官网$/, '').trim();
+                book.title = t;
+                $('dlTitle').textContent = t;
+            }
+        }).catch(function() {});
+        return;
+    }
+    if (!CORS_PROXY) return;
+    fetch(CORS_PROXY + encodeURIComponent('https://fanqienovel.com/page/' + bookId)).then(function(r) {
+        return r.text();
+    }).then(function(html) {
+        var m = html.match(/<title>([^<]+)<\/title>/);
+        if (m && book && book.book_id === bookId) {
+            var t = m[1].replace(/完整版在线免费阅读.*$/, '').replace(/_番茄小说官网$/, '').trim();
+            book.title = t;
+            $('dlTitle').textContent = t;
+        }
+    }).catch(function() {});
+}
+
+function fetchCount(bookId) {
+    proxyFetch('https://fanqienovel.com/api/reader/directory/detail?bookId=' + bookId).then(function(data) {
+        var el = $('count-' + bookId);
+        if (el) {var cnt = (data.data && data.data.allItemIds) ? data.data.allItemIds.length : (data.ids ? data.ids.length : (data.total || 0));el.textContent = cnt + ' 章';}
+    }).catch(function() {
+        var el = $('count-' + bookId);
+        if (el) el.textContent = '?章';
+    });
+}
+
+function renderResults(list) {
+    var html = '';
+    list.forEach(function(b) {
+        var title = b.title || b.book_name || b.name || '';
+        var author = b.author || '';
+        html += '<div class="book-item" data-id="' + escHtml(b.book_id) + '" data-title="' + escHtml(title) + '" data-author="' + escHtml(author) + '">' +
+            '<div><div class="book-title">' + escHtml(title || b.book_id) + '</div><div class="book-meta">' + escHtml(author) + '</div></div>' +
+            '<div class="book-count" id="count-' + escHtml(b.book_id) + '">...</div></div>';
+    });
+    $('results').innerHTML = html;
+}
+
+function selectBook(bookId, title, author) {
+    document.querySelectorAll('.book-item').forEach(function(el){el.classList.remove('selected')});
+    var el = document.querySelector('.book-item[data-id="' + bookId + '"]');
+    if (el) el.classList.add('selected');
+    resetAll();
+    book = {book_id: bookId, title: title, author: author};
+    fetchDir().then(function() { showDownload(); });
+}
+
+function fetchDir() {
+    if (!book || !book.book_id) return Promise.resolve();
+    $('results').innerHTML = '<div class="empty">加载中...</div>';
+    return proxyFetch('https://fanqienovel.com/api/reader/directory/detail?bookId=' + book.book_id).then(function(data) {
+        ids = (data.data && data.data.allItemIds) || data.ids || [];
+        total = ids.length;
+        book.count = total;
+        $('results').innerHTML = '';
+    }).catch(function(e) {
+        $('results').innerHTML = '<div class="error">加载目录失败: ' + e.message + '</div>';
+    });
+}
+
+function showDownload() {
+    if (!book) return;
+    $('dlTitle').textContent = book.title || book.book_id;
+    $('dlMeta').textContent = (book.author ? book.author + ' | ' : '') + (total || 0) + ' 章';
+    $('dlSection').classList.add('active');
+    updateButtons();
+}
+
+// ====== 下载控制 ======
+function resetAll() {
+    current = 0; total = 0; contentParts = []; ids = [];
+    state = 'idle'; if (timer) { clearInterval(timer); timer = null; }
+    $('progressFill').style.width = '0%';
+    $('progressPct').textContent = '0%';
+    $('progressLabel').textContent = '准备中...';
+    $('detailChapters').textContent = '章节: 0/0';
+    $('detailSpeed').textContent = '速度: --';
+    $('detailETA').textContent = '预计剩余: --';
+    $('detailTime').textContent = '已用时: 0s';
+    $('dlSection').classList.remove('active');
+    $('dlError').innerHTML = '';
+    updateButtons();
+}
+
+function updateButtons() {
+    var h = '';
+    if (state === 'idle') h = '<button class="btn btn-dl" onclick="startDL()">下载整本 TXT</button>';
+    else if (state === 'running') h = '<button class="btn btn-pause" onclick="doPause()">暂停</button>';
+    else if (state === 'paused') {
+        h = '<button class="btn btn-resume" onclick="doResume()">继续下载</button>';
+        h += '<button class="btn btn-dl" onclick="saveFile()">完成并保存</button>';
+    } else if (state === 'done') h = '<button class="btn btn-dl" onclick="saveFile()">保存 TXT 文件</button>';
+    $('dlBtns').innerHTML = h;
+}
+
+function startDL() {
+    if (!ids.length) { $('dlError').innerHTML = '<div class="error">请先搜索书籍</div>'; return; }
+    state = 'running';
+    current = 0; contentParts = [];
+    startedAt = Date.now(); lastProgress = {t: startedAt, n:0};
+    updateButtons();
+    $('dlError').innerHTML = '';
+    $('progressLabel').textContent = '下载中...';
+    runWorker();
+}
+
+function doPause() {
+    state = 'paused';
+    updateButtons();
+    $('progressLabel').textContent = '已暂停 (' + current + '/' + total + ')';
+}
+
+function doResume() {
+    state = 'running';
+    startedAt = Date.now() - ((current / Math.max(lastProgress.n / Math.max((lastProgress.t - startedAt)/1000, 0.1), 1)) * 1000) || Date.now();
+    updateButtons();
+    $('progressLabel').textContent = '下载中...';
+    runWorker();
+}
+
+function saveFile() {
+    var text = contentParts.join('');
+    var blob = new Blob(['\uFEFF' + text], {type: 'text/plain;charset=utf-8'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (book ? (book.title || book.book_id) : 'fanqie') + '.txt';
+    a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href)}, 2000);
+}
+
+// ====== 下载 Worker ======
+var lastFetchTime = 0;
+
+function runWorker() {
+    if (state !== 'running') return;
+
+    function step() {
+        if (state !== 'running') return;
+        if (current >= total) {
+            state = 'done';
+            updateButtons();
+            $('progressLabel').textContent = '下载完成！共 ' + total + ' 章';
+            $('detailETA').textContent = '预计剩余: --';
+            $('progressFill').style.width = '100%';
+            $('progressPct').textContent = '100%';
+            $('dlError').innerHTML = '';
+            checkAIReady();
+            return;
+        }
+
+        var idx = current;
+        var itemId = ids[idx];
+
+        // 限速: 至少 600ms 间隔
+        var now = Date.now();
+        var wait = Math.max(0, 600 - (now - lastFetchTime));
+        lastFetchTime = now + wait;
+
+        setTimeout(function() {
+            if (state !== 'running') return;
+
+            proxyFetch(CONTENT_API_URL + itemId).then(function(data) {
+                var text = (data.data && data.data.content) ? data.data.content : (data.content || '[获取失败]');
+                contentParts.push('\n\n第' + (idx + 1) + '章\n\n' + text);
+                current++;
+                updateProgress();
+                step();
+            }).catch(function(e) {
+                contentParts.push('\n\n第' + (idx + 1) + '章\n\n[下载失败: ' + e.message + ']');
+                current++;
+                updateProgress();
+                // 如果是 403，这是代理被内容服务器封了，停止继续尝试
+                if (e.message.indexOf('403') !== -1) {
+                    state = 'paused';
+                    updateButtons();
+                    $('progressLabel').textContent = '下载受阻 (第' + current + '/' + total + ')';
+                    $('dlError').innerHTML = '<div class="error">内容服务器屏蔽了代理 IP，网页版暂不支持下载。<br/>请安装 <a href="https://raw.githubusercontent.com/scpxin/fanqie/master/userscript/fanqie.user.js" target="_blank">油猴脚本</a> 进行下载（脚本直接在你电脑上运行，不受 IP 限制）。</div>';
+                    return;
+                }
+                step();
+            });
+        }, wait);
+    }
+
+    step();
+}
+
+function updateProgress() {
+    var pct = total > 0 ? Math.round(current / total * 100) : 0;
+    $('progressFill').style.width = pct + '%';
+    $('progressPct').textContent = pct + '%';
+    $('detailChapters').textContent = '章节: ' + current + '/' + total;
+
+    var elapsed = (Date.now() - startedAt) / 1000;
+    $('detailTime').textContent = '已用时: ' + formatTime(elapsed);
+
+    if (elapsed > 0 && current > 0) {
+        $('detailSpeed').textContent = '速度: ' + (current / elapsed).toFixed(1) + ' 章/秒';
+    }
+    if (current > 0 && current < total) {
+        var remaining = (total - current) / (current / elapsed);
+        $('detailETA').textContent = '预计剩余: ' + formatTime(remaining);
+    }
+}
+
+// ====== 工具函数 ======
+$('searchInput').addEventListener('keydown', function(e){ if(e.key==='Enter') doSearch(); });
+
+$('results').addEventListener('click', function(e) {
+    var el = e.target.closest('.book-item');
+    if (!el) return;
+    selectBook(el.getAttribute('data-id'), el.getAttribute('data-title'), el.getAttribute('data-author'));
+});
+
+function escHtml(s){ var d=document.createElement('div'); d.textContent=s || ''; return d.innerHTML; }
+
+// ====== AI 功能 ======
+var models = [];
+
+function loadModels() {
+    try { models = JSON.parse(localStorage.getItem('fanqie_models') || '[]'); } catch(e) { models = []; }
+    // 首次使用：如果没有任何模型，自动添加智谱 GLM-4-Flash 预设
+    if (!models.length) {
+        models = [];
+    }
+}
+function saveModels() { localStorage.setItem('fanqie_models', JSON.stringify(models)); }
+function getActiveModelId() { return localStorage.getItem('fanqie_active_model') || (models.length ? models[0].id : ''); }
+function setActiveModelId(id) { localStorage.setItem('fanqie_active_model', id); }
+
+function openSettings() {
+    loadModels();
+    renderModelList();
+    $('settingsOverlay').style.display = 'flex';
+}
+function closeSettings() {
+    $('settingsOverlay').style.display = 'none';
+    hideModelForm();
+    updateModelSelects();
+    checkAIReady();
+}
+
+function renderModelList() {
+    var h = '';
+    var active = getActiveModelId();
+    if (!models.length) { h = '<div style="color:#999;padding:12px 0;text-align:center">暂无配置，点击下方预设一键添加</div>'; }
+    models.forEach(function(m) {
+        var isActive = m.id === active;
+        h += '<div class="model-item' + (isActive ? ' selected' : '') + '">';
+        h += '<div><div class="model-name">' + escHtml(m.name) + '</div><div class="model-endpoint">' + escHtml(m.endpoint) + '</div></div>';
+        h += '<div class="model-actions">';
+        if (!isActive) h += '<button class="model-act-btn sel" onclick="selectModel(\'' + m.id + '\')">使用</button>';
+        else h += '<span style="font-size:11px;color:#11998e;padding:2px 6px">当前</span>';
+        h += '<button class="model-act-btn del" onclick="deleteModel(\'' + m.id + '\')">删除</button>';
+        h += '</div></div>';
+    });
+    $('modelList').innerHTML = h + '<div style="margin-top:12px;border-top:1px dashed #ddd;padding-top:12px">' +
+        '<div style="font-size:12px;color:#888;margin-bottom:8px">模型预设（一键填入，只需补充 Key）:</div>' +
+        '<button class="add-model-btn" style="text-align:left;padding:8px 12px;margin-bottom:6px;font-size:13px" onclick="fillPreset(\'智谱 GLM-4-Flash\',\'https://open.bigmodel.cn/api/paas/v4/chat/completions\',\'glm-4-flash\')">智谱 GLM-4-Flash（免费，已注册）</button>' +
+        '<button class="add-model-btn" style="text-align:left;padding:8px 12px;margin-bottom:6px;font-size:13px" onclick="fillPreset(\'DeepSeek V3\',\'https://api.deepseek.com/v1/chat/completions\',\'deepseek-chat\')">DeepSeek V3（新用户送 10 元）</button>' +
+        '<button class="add-model-btn" style="text-align:left;padding:8px 12px;font-size:13px" onclick="fillPreset(\'通义千问 Turbo\',\'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions\',\'qwen-turbo\')">通义千问 Turbo（百万 token 免费/月）</button>' +
+    '</div>';
+}
+
+function selectModel(id) {
+    setActiveModelId(id);
+    renderModelList();
+    updateModelSelects();
+}
+
+function deleteModel(id) {
+    if (!confirm('确定删除此模型配置？')) return;
+    models = models.filter(function(m) { return m.id !== id; });
+    if (getActiveModelId() === id) setActiveModelId(models.length ? models[0].id : '');
+    saveModels();
+    renderModelList();
+    updateModelSelects();
+}
+
+function showAddModel() { $('modelForm').style.display = 'block'; }
+function fillPreset(name, endpoint, modelId) {
+    $('modelForm').style.display = 'block';
+    $('mfName').value = name;
+    $('mfEndpoint').value = endpoint;
+    $('mfModel').value = modelId;
+    $('mfKey').focus();
+}
+function hideModelForm() { $('modelForm').style.display = 'none'; $('mfName').value = $('mfEndpoint').value = $('mfKey').value = $('mfModel').value = ''; }
+
+function saveModel() {
+    var name = $('mfName').value.trim();
+    var endpoint = $('mfEndpoint').value.trim();
+    var key = $('mfKey').value.trim();
+    var model = $('mfModel').value.trim();
+    if (!name || !endpoint || !key || !model) { alert('请填写所有字段'); return; }
+    models.push({ id: 'm' + Date.now(), name: name, endpoint: endpoint, apiKey: key, model: model });
+    saveModels();
+    if (!getActiveModelId()) setActiveModelId(models[models.length - 1].id);
+    hideModelForm();
+    renderModelList();
+}
+
+function updateModelSelects() {
+    loadModels();
+    var active = getActiveModelId();
+    var opts = '<option value="">-- 选择模型 --</option>';
+    models.forEach(function(m) {
+        opts += '<option value="' + m.id + '"' + (m.id === active ? ' selected' : '') + '>' + escHtml(m.name) + '</option>';
+    });
+    var selA = $('analyzeModel');
+    var selG = $('generateModel');
+    selA.innerHTML = selG.innerHTML = opts;
+}
+
+function getModelById(id) {
+    for (var i = 0; i < models.length; i++) { if (models[i].id === id) return models[i]; }
+    return null;
+}
+
+function checkAIReady() {
+    var hasModel = !!getActiveModelId();
+    $('btnAnalyze').disabled = !hasModel;
+    $('btnGenerate').disabled = !hasModel;
+    if (state === 'done') {
+        $('aiAnalyzeSection').classList.add('active');
+        stepActive(2);
+        stepDone(0);
+        stepDone(1);
+    }
+}
+
+function stepActive(n) {
+    for (var i = 1; i <= 4; i++) $('step' + i).className = $('step' + i).className.replace(' active', '').replace(' done', '');
+    $('step' + n).classList.add('active');
+}
+function stepDone(n) { $('step' + n).classList.add('done'); }
+
+// ====== AI 风格分析 ======
+function runAnalysis() {
+    var modelId = $('analyzeModel').value || getActiveModelId();
+    if (!modelId) { alert('请先选择模型'); return; }
+    var model = getModelById(modelId);
+    if (!model) { alert('模型配置不存在'); return; }
+    if (!contentParts.length) { alert('请先下载小说内容'); return; }
+
+    $('btnAnalyze').disabled = true;
+    $('analyzeStatus').textContent = '分析中...';
+    $('analyzeResult').innerHTML = '';
+    stepActive(2);
+
+    // Select first 3 chapters (or fewer if book is short), truncate each to ~2000 chars
+    var sampleChapters = contentParts.slice(0, Math.min(3, contentParts.length));
+    var sampleText = sampleChapters.map(function(c, i) {
+        return c.replace(/\n/g, ' ').slice(0, 2000);
+    }).join('\n\n');
+
+    var messages = [
+        { role: 'system', content: '你是一位专业的小说分析家。请分析小说的写作风格特征，从以下维度输出结构化分析，每个维度用标签标记：\n【叙事视角】\n【句式特征】\n【词汇偏好】\n【对话风格】\n【节奏模式】\n【场景描写】\n每个维度50-100字，用中文输出。' },
+        { role: 'user', content: '请分析以下小说的写作风格：\n\n' + sampleText }
+    ];
+
+    callAI(model, messages, { temperature: 0.3, max_tokens: 2000 }).then(function(content) {
+        $('analyzeResult').innerHTML = '<div class="style-profile"><h3 style="margin-top:0">风格画像</h3>' +
+            content.split('\n').map(function(line) {
+                if (line.match(/^【.+】/)) return '<h4>' + escHtml(line) + '</h4>';
+                return '<p>' + escHtml(line) + '</p>';
+            }).join('') + '</div>';
+        $('analyzeStatus').textContent = '分析完成';
+        $('btnAnalyze').disabled = false;
+        stepDone(2);
+        stepActive(3);
+        $('aiGenerateSection').classList.add('active');
+        window._styleProfile = content;
+    }).catch(function(e) {
+        $('analyzeResult').innerHTML = '<div class="error">分析失败: ' + escHtml(e.message) + '</div>';
+        $('analyzeStatus').textContent = '失败';
+        $('btnAnalyze').disabled = false;
+    });
+}
+
+// ====== AI 仿写生成 ======
+function runGeneration() {
+    var modelId = $('generateModel').value || getActiveModelId();
+    if (!modelId) { alert('请先选择模型'); return; }
+    var model = getModelById(modelId);
+    if (!model) { alert('模型配置不存在'); return; }
+    if (!window._styleProfile) { alert('请先完成风格分析'); return; }
+
+    var genre = $('gfGenre').value.trim() || '未指定';
+    var count = parseInt($('gfCount').value) || 3;
+    var protagonist = $('gfProtagonist').value.trim() || '未指定';
+    var world = $('gfWorld').value.trim() || '未指定';
+    var outline = $('gfOutline').value.trim() || '未指定';
+
+    $('btnGenerate').disabled = true;
+    $('generateStatus').textContent = '生成中...';
+    $('generateResult').innerHTML = '';
+    stepActive(3);
+
+    var messages = [
+        { role: 'system', content: '你是一位专业的小说作家。请根据提供的风格画像和创作设定创作小说。严格按照要求的风格写作，每章 1000-2000 字。输出格式：\n第X章 章节标题\n（正文）\n\n直接开始创作，不要额外说明。' },
+        { role: 'user', content: '【风格画像】\n' + window._styleProfile + '\n\n【创作设定】\n题材: ' + genre + '\n主角: ' + protagonist + '\n世界观: ' + world + '\n故事梗概: ' + outline + '\n\n请生成' + count + '章小说。' }
+    ];
+
+    callAI(model, messages, { temperature: 0.8, max_tokens: 4096 }).then(function(content) {
+        window._generatedNovel = content;
+        var chapters = parseChapters(content);
+
+        var h = '<h3>生成结果</h3>';
+        if (chapters.length) {
+            chapters.forEach(function(ch, i) {
+                h += '<div class="chapter-card"><h4>' + escHtml(ch.title) + ' (' + ch.text.length + '字)</h4>';
+                h += '<p>' + escHtml(ch.text) + '</p></div>';
+            });
+            h += '<div style="margin-top:12px">';
+            h += '<button class="btn btn-dl" onclick="saveGenerated()">保存 TXT</button>';
+            h += '<button class="btn" style="background:#ccc;margin-left:8px" onclick="runGeneration()">重新生成</button>';
+            h += '</div>';
+        } else {
+            h += '<div class="stream-text">' + escHtml(content) + '</div>';
+            h += '<div style="margin-top:12px">';
+            h += '<button class="btn btn-dl" onclick="saveGenerated()">保存 TXT</button>';
+            h += '<button class="btn" style="background:#ccc;margin-left:8px" onclick="runGeneration()">重新生成</button>';
+            h += '</div>';
+        }
+
+        $('generateResult').innerHTML = h;
+        $('generateStatus').textContent = '生成完成';
+        $('btnGenerate').disabled = false;
+        stepDone(3);
+        stepActive(4);
+    }).catch(function(e) {
+        $('generateResult').innerHTML = '<div class="error">生成失败: ' + escHtml(e.message) + '</div>';
+        $('generateStatus').textContent = '失败';
+        $('btnGenerate').disabled = false;
+    });
+}
+
+function parseChapters(text) {
+    var chapters = [];
+    var re = /第([一二三四五六七八九十百千\d]+)章\s*(.*?)(?:\n|$)/g;
+    var match;
+    var lastIdx = 0;
+    while ((match = re.exec(text)) !== null) {
+        if (lastIdx > 0) {
+            chapters[chapters.length - 1].text = text.slice(lastIdx, match.index).trim();
+        }
+        chapters.push({ title: '第' + match[1] + '章' + (match[2] ? ' ' + match[2] : ''), text: '' });
+        lastIdx = match.index + match[0].length;
+    }
+    if (chapters.length && lastIdx < text.length) {
+        chapters[chapters.length - 1].text = text.slice(lastIdx).trim();
+    }
+    return chapters;
+}
+
+function saveGenerated() {
+    var text = window._generatedNovel || '';
+    if (!text) return;
+    var blob = new Blob(['\uFEFF' + text], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (book ? (book.title || book.book_id) : 'ai-novel') + '_AI仿写.txt';
+    a.click();
+    setTimeout(function() { URL.revokeObjectURL(a.href); }, 2000);
+}
+
+// ====== AI API 调用 ======
+function getAIEndpoint() {
+    if (typeof SERVER_MODE !== 'undefined' && SERVER_MODE) {
+        return '/api/ai/generate';
+    }
+    if (typeof FC_BASE !== 'undefined' && FC_BASE) {
+        return FC_BASE + '/api/ai/generate';
+    }
+    return AI_PROXY.indexOf('laf.dev') !== -1 ? AI_PROXY : (AI_PROXY + '/api/ai/generate');
+}
+
+function callAI(model, messages, options) {
+    return fetch(getAIEndpoint(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            endpoint: model.endpoint,
+            apiKey: model.apiKey,
+            model: model.model,
+            messages: messages,
+            options: options
+        })
+    }).then(function(r) {
+        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'HTTP ' + r.status); });
+        return r.json();
+    }).then(function(d) {
+        if (d.error) throw new Error(d.error);
+        if (!d.content) throw new Error('AI 返回空内容');
+        return d.content;
+    });
+}
+
+// 初始化
+loadModels();
+updateModelSelects();
+checkAIReady();
+
+// 监听下载完成 → 开启 AI 分析
+var _origSaveFile = saveFile;
+saveFile = function() {
+    _origSaveFile();
+    checkAIReady();
+};
+
+// 暴露到全局
+window.doSearch = doSearch;
+window.selectBook = selectBook;
+window.startDL = startDL;
+window.doPause = doPause;
+window.doResume = doResume;
+window.saveFile = saveFile;
+window.openSettings = openSettings;
+window.closeSettings = closeSettings;
+window.showAddModel = showAddModel;
+window.fillPreset = fillPreset;
+window.saveModel = saveModel;
+window.hideModelForm = hideModelForm;
+window.deleteModel = deleteModel;
+window.selectModel = selectModel;
+window.runAnalysis = runAnalysis;
+window.runGeneration = runGeneration;
+window.saveGenerated = saveGenerated;
+
+})();
+</script>
+</body>
+</html>

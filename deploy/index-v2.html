@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>番茄小说</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#333;min-height:100vh}
+        .header{background:linear-gradient(135deg,#ff6b35,#ff4444);color:#fff;padding:24px 20px;text-align:center}
+        .header h1{font-size:22px;margin-bottom:4px}
+        .header p{opacity:.85;font-size:12px}
+        .tabs{display:flex;max-width:720px;margin:12px auto 0;padding:0 16px;gap:4px}
+        .tab{flex:1;padding:10px;text-align:center;background:#fff;border-radius:8px 8px 0 0;font-size:13px;font-weight:600;cursor:pointer;color:#888;border-bottom:3px solid transparent;transition:.2s}
+        .tab.active{color:#ff6b35;border-bottom-color:#ff6b35}
+        .tab:hover{color:#ff6b35}
+        .container{max-width:720px;margin:0 auto;padding:0 16px 20px}
+        .panel{display:none}
+        .panel.active{display:block}
+        .card{background:#fff;border-radius:10px;padding:20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+        .card h2{font-size:15px;margin-bottom:10px;color:#333}
+        .search-box{display:flex;gap:8px;margin-bottom:6px}
+        .search-box input{flex:1;padding:10px 14px;border:2px solid #e0e0e0;border-radius:6px;font-size:14px;outline:none}
+        .search-box input:focus{border-color:#ff6b35}
+        .search-box button{padding:10px 20px;background:linear-gradient(135deg,#ff6b35,#ff4444);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+        .search-box button:disabled{opacity:.6;cursor:not-allowed}
+        .book-item{display:flex;justify-content:space-between;align-items:center;padding:12px;border:2px solid #f0f0f0;border-radius:8px;margin-bottom:6px;cursor:pointer;transition:.2s}
+        .book-item:hover{border-color:#ff6b35;background:#fff8f6}
+        .book-item.selected{border-color:#ff6b35;background:#fff3ee}
+        .book-title{font-size:14px;font-weight:600;color:#222}
+        .book-meta{font-size:11px;color:#888;margin-top:2px}
+        .book-count{font-size:11px;color:#ff6b35;font-weight:600;white-space:nowrap}
+        .empty{text-align:center;color:#999;padding:24px;font-size:12px}
+        .btn{border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;padding:7px 16px;color:#fff;display:inline-flex;align-items:center;gap:5px}
+        .btn:disabled{opacity:.5;cursor:not-allowed}
+        .btn-dl{background:linear-gradient(135deg,#11998e,#38ef7d)}
+        .btn-pause{background:linear-gradient(135deg,#f093fb,#f5576c)}
+        .btn-resume{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+        .btn-ai{background:linear-gradient(135deg,#667eea,#764ba2)}
+        .btn-save{background:linear-gradient(135deg,#f093fb,#f5576c)}
+        .btn-ghost{background:#f0f0f0;color:#555}
+        .progress{margin-top:10px}
+        .progress-top{display:flex;justify-content:space-between;margin-bottom:4px}
+        .progress-label{font-size:11px;color:#666}
+        .progress-pct{font-size:15px;font-weight:700;color:#11998e}
+        .progress-bar{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin-bottom:6px}
+        .progress-fill{height:100%;background:linear-gradient(90deg,#11998e,#38ef7d);border-radius:3px;transition:width .3s;width:0}
+        .progress-detail{display:flex;gap:12px;font-size:10px;color:#888;flex-wrap:wrap}
+        .spinner{display:inline-block;width:10px;height:10px;border:2px solid #fff3;border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .tip{font-size:10px;color:#aaa;margin-top:3px;line-height:1.5}
+        .error{background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:8px;border-radius:5px;margin-top:8px;font-size:11px}
+        .success{background:#d4edda;border:1px solid #c3e6cb;color:#155724;padding:8px;border-radius:5px;margin-top:8px;font-size:11px}
+        .settings-icon{position:absolute;top:10px;right:16px;background:none;border:none;font-size:18px;cursor:pointer;color:#fff;opacity:.8}
+        .settings-icon:hover{opacity:1}
+        .header{position:relative}
+        .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center}
+        .modal-card{background:#fff;border-radius:10px;padding:18px;min-width:300px;max-width:440px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+        .modal-card h3{font-size:15px;margin-bottom:10px}
+        .modal-close{float:right;background:none;border:none;font-size:18px;cursor:pointer;color:#999;margin-top:-2px}
+        .model-item{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border:1px solid #eee;border-radius:5px;margin-bottom:5px}
+        .model-item.selected{border-color:#667eea;background:#f0eeff}
+        .model-name{font-weight:600;font-size:12px}
+        .model-endpoint{font-size:9px;color:#888}
+        .model-act-btn{background:none;border:none;cursor:pointer;font-size:11px;padding:2px 4px;border-radius:3px}
+        .model-act-btn.sel{color:#11998e}
+        .model-act-btn.del{color:#e74c3c}
+        .add-model-btn{width:100%;padding:7px;border:2px dashed #ddd;border-radius:5px;background:none;cursor:pointer;font-size:12px;color:#888;margin-top:5px}
+        .add-model-btn:hover{border-color:#667eea;color:#667eea}
+        .form-group{margin-bottom:8px}
+        .form-group label{display:block;font-size:11px;font-weight:600;margin-bottom:2px;color:#555}
+        .form-group input{width:100%;padding:7px;border:1px solid #ddd;border-radius:4px;font-size:12px}
+        .preset-btns{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+        .preset-btn{text-align:left;padding:7px 10px;font-size:12px}
+        .style-profile{background:#f8f9fa;border-radius:5px;padding:12px}
+        .style-profile h4{font-size:13px;color:#333;margin:8px 0 3px}
+        .style-profile p{font-size:11px;color:#555;line-height:1.6;margin-bottom:2px}
+        .gen-form{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .gen-form .full{grid-column:1/-1}
+        .gen-form label{font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:2px}
+        .gen-form input,.gen-form textarea,.gen-form select{width:100%;padding:7px;border:1px solid #ddd;border-radius:4px;font-size:12px;font-family:inherit}
+        .gen-form textarea{resize:vertical;min-height:50px}
+        .select-row{display:flex;align-items:center;gap:5px;margin-bottom:8px}
+        .select-row select{flex:1;padding:7px;border:1px solid #ddd;border-radius:4px;font-size:12px}
+        .text-area{width:100%;min-height:120px;padding:10px;border:1px solid #ddd;border-radius:5px;font-size:12px;font-family:inherit;resize:vertical}
+        .source-tabs{display:flex;gap:4px;margin-bottom:8px}
+        .source-tab{padding:5px 12px;font-size:11px;border:1px solid #ddd;border-radius:4px;cursor:pointer;background:#fff;color:#666}
+        .source-tab.active{background:#667eea;color:#fff;border-color:#667eea}
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>番茄小说</h1>
+    <p>小说下载 · AI创作</p>
+    <button class="settings-icon" id="settingsBtn">&#9881;</button>
+</div>
+
+<div class="tabs">
+    <div class="tab active" id="tab0">小说下载</div>
+    <div class="tab" id="tab1">AI创作</div>
+</div>
+
+<div class="container">
+<!-- Panel 0: 小说下载 -->
+<div class="panel active" id="panel-0">
+    <div class="card">
+        <h2>搜索书籍</h2>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="书名 / 章节链接 / book_id">
+            <button id="searchBtn">搜索</button>
+        </div>
+        <div class="tip">输入书名、粘贴链接或直接输入 book_id</div>
+        <div id="results"></div>
+    </div>
+
+    <div class="card" id="bookSection" style="display:none">
+        <h2 id="bookTitle">书籍信息</h2>
+        <div style="font-size:11px;color:#888;margin-bottom:10px" id="bookMeta"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+            <button class="btn btn-dl" id="btnDownload">下载 TXT</button>
+            <button class="btn" style="background:#f0f0f0;color:#555" id="btnReset">重新搜索</button>
+        </div>
+        <div id="downloadStatus"></div>
+    </div>
+</div>
+
+<!-- Panel 1: AI创作 -->
+<div class="panel" id="panel-1">
+    <div class="card">
+        <h2>AI 风格分析</h2>
+        <div class="tip" style="margin-bottom:8px">分析小说的写作风格，为AI仿写提供风格画像。</div>
+        <div class="source-tabs">
+            <div class="source-tab active" id="srcTabPaste">粘贴文本</div>
+            <div class="source-tab" id="srcTabSaved">已下载书籍</div>
+        </div>
+        <div id="srcPaste">
+            <textarea id="analyzeText" class="text-area" placeholder="粘贴小说文本内容（至少几百字），AI将分析其写作风格..."></textarea>
+        </div>
+        <div id="srcSaved" style="display:none">
+            <div id="savedBooksList" style="margin-bottom:8px"></div>
+            <div id="savedBookContent" style="display:none">
+                <div style="font-size:11px;color:#888;margin-bottom:4px" id="savedBookMeta"></div>
+                <textarea id="savedTextArea" class="text-area" style="min-height:100px" readonly></textarea>
+            </div>
+        </div>
+        <div class="select-row" style="margin-top:8px">
+            <select id="analyzeModel"></select>
+            <button class="btn btn-ai" id="btnRunAnalyze">分析</button>
+        </div>
+        <div id="analyzeResult"></div>
+    </div>
+
+    <div class="card" id="generateSection" style="display:none">
+        <h2>AI 仿写生成</h2>
+        <div class="select-row">
+            <select id="generateModel"></select>
+        </div>
+        <div class="gen-form" id="genForm">
+            <div><label>题材类型</label><input id="gfGenre" placeholder="悬疑 / 玄幻..."></div>
+            <div><label>生成章节数</label><input id="gfCount" type="number" value="3" min="1" max="20"></div>
+            <div class="full"><label>主角设定</label><input id="gfProtagonist" placeholder="姓名、年龄、身份..."></div>
+            <div class="full"><label>世界观</label><textarea id="gfWorld" placeholder="时代背景、势力分布..."></textarea></div>
+            <div class="full"><label>故事梗概</label><textarea id="gfOutline" placeholder="主线剧情..."></textarea></div>
+        </div>
+        <div style="margin-top:8px"><button class="btn btn-ai" id="btnGenerate">生成</button></div>
+        <div id="generateResult"></div>
+    </div>
+</div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsOverlay" class="modal-overlay" style="display:none">
+    <div class="modal-card">
+        <button class="modal-close" id="settingsClose">&times;</button>
+        <h3>大模型配置</h3>
+        <div id="modelList"></div>
+        <button class="add-model-btn" id="showAddModelBtn">+ 添加模型</button>
+        <div id="modelForm" style="display:none">
+            <div class="form-group"><label>模型名称</label><input id="mfName" placeholder="如: DeepSeek V3"></div>
+            <div class="form-group"><label>API 地址</label><input id="mfEndpoint" placeholder="https://api.deepseek.com/v1/chat/completions"></div>
+            <div class="form-group"><label>API Key</label><input id="mfKey" type="password" placeholder="sk-xxx"></div>
+            <div class="form-group"><label>模型标识</label><input id="mfModel" placeholder="deepseek-chat"></div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+                <button class="btn btn-dl" id="saveModelBtn" style="flex:1">保存</button>
+                <button class="btn" id="hideModelFormBtn" style="flex:1;background:#ccc">取消</button>
+            </div>
+        </div>
+        <div class="preset-btns">
+            <button class="add-model-btn preset-btn" data-name="智谱 GLM-4-Flash" data-endpoint="https://open.bigmodel.cn/api/paas/v4/chat/completions" data-model="glm-4-flash">智谱 GLM-4-Flash（免费）</button>
+            <button class="add-model-btn preset-btn" data-name="DeepSeek V3" data-endpoint="https://api.deepseek.com/v1/chat/completions" data-model="deepseek-chat">DeepSeek V3</button>
+            <button class="add-model-btn preset-btn" data-name="通义千问 Turbo" data-endpoint="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions" data-model="qwen-turbo">通义千问 Turbo</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var BASE = "/fanqie";
+var book = null, ids = [], state = "idle", current = 0, total = 0;
+var startedAt = 0, sessionId = null, contentParts = [];
+var models = [];
+
+function $(id){ return document.getElementById(id); }
+
+function api(path, params) {
+    var url = BASE + path;
+    if (params) {
+        var qs = Object.keys(params).map(function(k){ return encodeURIComponent(k)+"="+encodeURIComponent(params[k]); }).join("&");
+        url += (url.indexOf("?")===-1?"?":"&") + qs;
+    }
+    return fetch(url).then(function(r){
+        if (!r.ok) return r.json().then(function(d){ throw new Error(d.error || "HTTP "+r.status); });
+        return r.json();
+    });
+}
+
+function apiPost(path, body) {
+    return fetch(BASE + path, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)}).then(function(r){
+        if (!r.ok) return r.json().then(function(d){ throw new Error(d.error || "HTTP "+r.status); });
+        return r.json();
+    });
+}
+
+function escHtml(s){ var d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
+
+// ====== Tab switching ======
+document.getElementById("tab0").onclick = function(){
+    document.getElementById("tab0").classList.add("active");
+    document.getElementById("tab1").classList.remove("active");
+    document.getElementById("panel-0").classList.add("active");
+    document.getElementById("panel-1").classList.remove("active");
+};
+document.getElementById("tab1").onclick = function(){
+    document.getElementById("tab1").classList.add("active");
+    document.getElementById("tab0").classList.remove("active");
+    document.getElementById("panel-1").classList.add("active");
+    document.getElementById("panel-0").classList.remove("active");
+    updateModelSelects();
+};
+
+// ====== 搜索 ======
+function doSearch() {
+    var q = $("searchInput").value.trim();
+    if (!q) return;
+    var btn = $("searchBtn");
+    btn.disabled = true;
+    btn.innerHTML = "<span class=\"spinner\"></span>...";
+    $("results").innerHTML = "";
+    $("bookSection").style.display = "none";
+
+    var idMatch = q.match(/(\d{16,20})/);
+    if (idMatch) {
+        api("/api/resolve", {q: q}).then(function(info){
+            if (info && info.book_id) {
+                book = info;
+                btn.disabled = false; btn.textContent = "搜索";
+                showBook();
+            } else {
+                $("results").innerHTML = "<div class=\"empty\">无法识别</div>";
+                btn.disabled = false; btn.textContent = "搜索";
+            }
+        }).catch(function(e){
+            $("results").innerHTML = "<div class=\"error\">"+e.message+"</div>";
+            btn.disabled = false; btn.textContent = "搜索";
+        });
+        return;
+    }
+
+    api("/api/search", {q: q}).then(function(data){
+        var list = data.books || [];
+        if (!list.length) { $("results").innerHTML = "<div class=\"empty\">未找到结果</div>"; btn.disabled=false; btn.textContent="搜索"; return; }
+        renderResults(list);
+        btn.disabled = false; btn.textContent = "搜索";
+    }).catch(function(e){
+        $("results").innerHTML = "<div class=\"error\">搜索失败: "+e.message+"</div>";
+        btn.disabled = false; btn.textContent = "搜索";
+    });
+}
+
+$("searchBtn").onclick = doSearch;
+$("searchInput").addEventListener("keydown", function(e){ if(e.key==="Enter") doSearch(); });
+$("btnReset").onclick = function(){
+    $("bookSection").style.display = "none";
+    $("results").innerHTML = "";
+    $("searchInput").value = "";
+    book = null;
+};
+
+function renderResults(list) {
+    var html = "";
+    list.forEach(function(b){
+        var title = b.title || b.book_name || "未知书名";
+        var author = b.author || "";
+        html += "<div class=\"book-item\" data-id=\""+escHtml(b.book_id)+"\" data-title=\""+escHtml(title)+"\" data-author=\""+escHtml(author)+"\">" +
+            "<div><div class=\"book-title\">"+escHtml(title)+"</div><div class=\"book-meta\">"+escHtml(author)+"</div></div>" +
+            "<div class=\"book-count\" id=\"count-"+escHtml(b.book_id)+"\">...</div></div>";
+    });
+    $("results").innerHTML = html;
+
+    list.forEach(function(b){
+        api("/api/directory", {book_id: b.book_id}).then(function(d){
+            var el = $("count-"+b.book_id);
+            if (el) el.textContent = d.total + " 章";
+        }).catch(function(){});
+    });
+
+    var items = document.querySelectorAll(".book-item");
+    for (var i = 0; i < items.length; i++) {
+        items[i].onclick = (function(id, title, author){
+            return function(){
+                for (var j = 0; j < items.length; j++) items[j].classList.remove("selected");
+                this.classList.add("selected");
+                book = {book_id: id, title: title, author: author};
+                showBook();
+            };
+        })(items[i].getAttribute("data-id"), items[i].getAttribute("data-title"), items[i].getAttribute("data-author"));
+    }
+}
+
+function showBook() {
+    if (!book) return;
+    $("bookSection").style.display = "block";
+    $("bookTitle").textContent = book.title || book.book_id;
+    $("bookMeta").textContent = (book.author ? book.author + " | " : "") + (book.count || "") + (book.count ? " 章" : "");
+    $("downloadStatus").innerHTML = "";
+    state = "idle"; current = 0; total = 0;
+    updateDownloadUI();
+}
+
+// ====== 下载 ======
+$("btnDownload").onclick = function(){
+    if (!book || state === "running") return;
+    if (state === "paused" && sessionId) { doResume(); return; }
+    state = "running"; current = 0;
+    startedAt = Date.now();
+    updateDownloadUI();
+    api("/api/download/start", {book_id: book.book_id, title: book.title}).then(function(d){
+        sessionId = d.session_id;
+        pollDownload();
+    }).catch(function(e){
+        state = "idle"; updateDownloadUI();
+        $("downloadStatus").innerHTML = "<div class=\"error\">启动下载失败: "+e.message+"</div>";
+    });
+};
+
+function pollDownload() {
+    if (!sessionId || state === "idle") return;
+    api("/api/download/status", {session_id: sessionId}).then(function(d){
+        current = d.current; total = d.total;
+        updateDownloadUI();
+        if (d.status === "done") { state = "done"; updateDownloadUI(); showComplete(); }
+        else if (d.status === "downloading") setTimeout(pollDownload, 1000);
+        else if (d.status === "paused") { state = "paused"; updateDownloadUI(); }
+        else if (d.status === "error") { state = "error"; updateDownloadUI(); }
+    }).catch(function(){ setTimeout(pollDownload, 2000); });
+}
+
+function doPause() {
+    if (!sessionId) return;
+    api("/api/download/pause", {session_id: sessionId}).then(function(){ state = "paused"; updateDownloadUI(); });
+}
+
+function doResume() {
+    if (!sessionId) return;
+    api("/api/download/resume", {session_id: sessionId}).then(function(){ state = "running"; updateDownloadUI(); pollDownload(); });
+}
+
+function updateDownloadUI() {
+    var pct = total > 0 ? Math.round(current/total*100) : 0;
+    var st = "";
+    if (state === "idle") st = "点击下方按钮开始";
+    else if (state === "running") st = "下载中 " + pct + "%";
+    else if (state === "paused") st = "已暂停 " + pct + "%";
+    else if (state === "done") st = "下载完成!";
+    else if (state === "error") st = "下载失败";
+    var btns = "";
+    if (state === "idle" || state === "done") btns = "<button class=\"btn btn-dl\" id=\"btnDl2\">" + (state==="done"?"重新下载":"开始下载") + "</button>";
+    else if (state === "running") btns = "<button class=\"btn btn-pause\" id=\"btnPause2\">暂停</button>";
+    else if (state === "paused") btns = "<button class=\"btn btn-resume\" id=\"btnResume2\">继续</button> <button class=\"btn btn-save\" id=\"btnSave2\">保存</button>";
+
+    var html = "<div class=\"progress\"><div class=\"progress-top\"><span class=\"progress-label\">"+st+"</span><span class=\"progress-pct\">"+pct+"%</span></div>" +
+        "<div class=\"progress-bar\"><div class=\"progress-fill\" style=\"width:"+pct+"%\"></div></div>" +
+        "<div class=\"progress-detail\"><span>"+current+"/"+total+" 章</span></div></div>";
+    if (btns) html += "<div style=\"margin-top:6px\">"+btns+"</div>";
+    $("downloadStatus").innerHTML = html;
+
+    // Re-bind dynamic buttons
+    var dl2 = $("btnDl2"); if (dl2) dl2.onclick = window.startDownloadClick;
+    var p2 = $("btnPause2"); if (p2) p2.onclick = doPause;
+    var r2 = $("btnResume2"); if (r2) r2.onclick = doResume;
+    var s2 = $("btnSave2"); if (s2) s2.onclick = saveFile;
+
+    if (state === "running") { $("btnDownload").textContent = "下载中..."; $("btnDownload").disabled = true; }
+    else { $("btnDownload").textContent = "下载 TXT"; $("btnDownload").disabled = false; }
+}
+
+function showComplete() {
+    updateDownloadUI();
+    $("btnDownload").textContent = "下载 TXT"; $("btnDownload").disabled = false;
+    $("downloadStatus").innerHTML += "<div class=\"success\">下载完成! <button class=\"btn btn-dl\" id=\"btnSave3\" style=\"margin-left:5px\">保存文件</button></div>";
+    var s3 = $("btnSave3"); if (s3) s3.onclick = saveFile;
+}
+
+function saveFile() {
+    if (sessionId) window.location.href = BASE + "/api/download/file?session_id=" + sessionId;
+}
+
+// 下载按钮复用
+window.startDownloadClick = function(){
+    if (!book || state === "running") return;
+    if (state === "paused" && sessionId) { doResume(); return; }
+    state = "running"; current = 0; startedAt = Date.now();
+    updateDownloadUI();
+    api("/api/download/start", {book_id: book.book_id, title: book.title}).then(function(d){
+        sessionId = d.session_id;
+        pollDownload();
+    }).catch(function(e){
+        state = "idle"; updateDownloadUI();
+        $("downloadStatus").innerHTML = "<div class=\"error\">启动下载失败: "+e.message+"</div>";
+    });
+};
+
+// ====== AI 功能 ======
+function loadModels() {
+    try { models = JSON.parse(localStorage.getItem("fanqie_models") || "[]"); } catch(e) { models = []; }
+}
+function saveModels() { localStorage.setItem("fanqie_models", JSON.stringify(models)); }
+function getActiveModelId() { return localStorage.getItem("fanqie_active_model") || (models.length ? models[0].id : ""); }
+function setActiveModelId(id) { localStorage.setItem("fanqie_active_model", id); }
+function getModelById(id) { for (var i=0;i<models.length;i++) if (models[i].id===id) return models[i]; return null; }
+
+// Settings
+$("settingsBtn").onclick = function(){ loadModels(); renderModelList(); $("settingsOverlay").style.display = "flex"; };
+$("settingsClose").onclick = function(){
+    $("settingsOverlay").style.display = "none";
+    $("modelForm").style.display = "none";
+    updateModelSelects();
+};
+$("settingsOverlay").onclick = function(e){ if(e.target===this) $("settingsOverlay").style.display = "none"; };
+
+function renderModelList() {
+    var h = "", active = getActiveModelId();
+    if (!models.length) h = "<div style=\"color:#999;padding:8px 0;text-align:center;font-size:11px\">暂无配置，选择预设一键添加</div>";
+    models.forEach(function(m) {
+        var isActive = m.id === active;
+        h += "<div class=\"model-item"+(isActive?" selected":"")+"\"><div><div class=\"model-name\">"+escHtml(m.name)+"</div><div class=\"model-endpoint\">"+escHtml(m.endpoint)+"</div></div><div>" +
+            (!isActive ? "<button class=\"model-act-btn sel\" data-sel=\""+m.id+"\">使用</button>" : "<span style=\"font-size:9px;color:#11998e\">当前</span>") +
+            "<button class=\"model-act-btn del\" data-del=\""+m.id+"\">删</button></div></div>";
+    });
+    $("modelList").innerHTML = h;
+    // Bind model actions
+    var selBtns = document.querySelectorAll("[data-sel]");
+    for (var i=0;i<selBtns.length;i++) selBtns[i].onclick = (function(id){ return function(){ setActiveModelId(id); renderModelList(); updateModelSelects(); }; })(selBtns[i].getAttribute("data-sel"));
+    var delBtns = document.querySelectorAll("[data-del]");
+    for (var i=0;i<delBtns.length;i++) delBtns[i].onclick = (function(id){ return function(){ if(!confirm("确定删除？"))return; models=models.filter(function(m){return m.id!==id;}); if(getActiveModelId()===id) setActiveModelId(models.length?models[0].id:""); saveModels(); renderModelList(); updateModelSelects(); }; })(delBtns[i].getAttribute("data-del"));
+}
+
+$("showAddModelBtn").onclick = function(){ $("modelForm").style.display = "block"; };
+
+function hideModelForm() { $("modelForm").style.display = "none"; $("mfName").value=""; $("mfEndpoint").value=""; $("mfKey").value=""; $("mfModel").value=""; }
+$("hideModelFormBtn").onclick = hideModelForm;
+$("saveModelBtn").onclick = function() {
+    var name=$("mfName").value.trim(), endpoint=$("mfEndpoint").value.trim(), key=$("mfKey").value.trim(), modelId=$("mfModel").value.trim();
+    if (!name||!endpoint||!key||!modelId) { alert("请填写所有字段"); return; }
+    models.push({id:"m"+Date.now(), name:name, endpoint:endpoint, apiKey:key, model:modelId});
+    saveModels(); if (!getActiveModelId()) setActiveModelId(models[models.length-1].id);
+    hideModelForm(); renderModelList(); updateModelSelects();
+};
+
+// Preset buttons
+var presetBtns = document.querySelectorAll(".preset-btn");
+for (var i=0;i<presetBtns.length;i++) {
+    presetBtns[i].onclick = (function(btn){
+        return function(){
+            $("modelForm").style.display = "block";
+            $("mfName").value = btn.getAttribute("data-name");
+            $("mfEndpoint").value = btn.getAttribute("data-endpoint");
+            $("mfModel").value = btn.getAttribute("data-model");
+            $("mfKey").focus();
+        };
+    })(presetBtns[i]);
+}
+
+function updateModelSelects() {
+    loadModels();
+    var active = getActiveModelId();
+    var optsA = "<option value=\"\">-- 选择模型 --</option>";
+    var optsG = "<option value=\"\">-- 选择模型 --</option>";
+    models.forEach(function(m){
+        var sel = m.id===active ? " selected=\"selected\"" : "";
+        optsA += "<option value=\""+m.id+"\""+sel+">"+escHtml(m.name)+"</option>";
+        optsG += "<option value=\""+m.id+"\""+sel+">"+escHtml(m.name)+"</option>";
+    });
+    $("analyzeModel").innerHTML = optsA;
+    $("generateModel").innerHTML = optsG;
+}
+
+$("btnRunAnalyze").onclick = function() {
+    var modelId = $("analyzeModel").value || getActiveModelId();
+    if (!modelId) { alert("请先选择模型"); return; }
+    var model = getModelById(modelId);
+    if (!model) { alert("模型不存在"); return; }
+    var text = $("analyzeText").value.trim();
+    if (!text) { alert("请先粘贴小说文本"); return; }
+    $("btnRunAnalyze").disabled = true;
+    $("analyzeResult").innerHTML = "<div class=\"tip\">分析中...</div>";
+
+    apiPost("/api/ai/analyze", {endpoint: model.endpoint, apiKey: model.apiKey, model: model.model, content: text}).then(function(d){
+        var content = d.result;
+        var h = "<div class=\"style-profile\"><h3 style=\"margin-top:0\">风格画像</h3>";
+        var lines = content.split("\n");
+        for (var i=0;i<lines.length;i++){
+            if (lines[i].match(/^【.+】/)) h += "<h4>"+escHtml(lines[i])+"</h4>";
+            else h += "<p>"+escHtml(lines[i])+"</p>";
+        }
+        h += "</div>";
+        $("analyzeResult").innerHTML = h;
+        $("btnRunAnalyze").disabled = false;
+        window._styleProfile = content;
+        $("generateSection").style.display = "block";
+        updateModelSelects();
+    }).catch(function(e){
+        $("analyzeResult").innerHTML = "<div class=\"error\">分析失败: "+escHtml(e.message)+"</div>";
+        $("btnRunAnalyze").disabled = false;
+    });
+};
+
+$("btnGenerate").onclick = function() {
+    var modelId = $("generateModel").value || getActiveModelId();
+    if (!modelId) { alert("请先选择模型"); return; }
+    var model = getModelById(modelId);
+    if (!model) { alert("模型不存在"); return; }
+    if (!window._styleProfile) { alert("请先完成风格分析"); return; }
+    var genre = $("gfGenre").value.trim() || "未指定";
+    var count = parseInt($("gfCount").value) || 3;
+    var protagonist = $("gfProtagonist").value.trim() || "未指定";
+    var world = $("gfWorld").value.trim() || "未指定";
+    var outline = $("gfOutline").value.trim() || "未指定";
+
+    $("btnGenerate").disabled = true;
+    $("generateResult").innerHTML = "<div class=\"tip\">生成中...</div>";
+
+    apiPost("/api/ai/generate", {endpoint: model.endpoint, apiKey: model.apiKey, model: model.model, styleProfile: window._styleProfile, genre: genre, count: count, protagonist: protagonist, world: world, outline: outline}).then(function(d){
+        var content = d.result;
+        window._generatedNovel = content;
+        var chapters = parseChapters(content);
+        var h = "";
+        if (chapters.length) {
+            for (var i=0;i<chapters.length;i++){
+                h += "<div class=\"chapter-card\"><h4>"+escHtml(chapters[i].title)+" ("+chapters[i].text.length+"字)</h4><p>"+escHtml(chapters[i].text)+"</p></div>";
+            }
+        } else {
+            h += "<div class=\"stream-text\">"+escHtml(content)+"</div>";
+        }
+        h += "<div style=\"margin-top:8px\"><button class=\"btn btn-save\" id=\"btnSaveGen\">保存 TXT</button></div>";
+        $("generateResult").innerHTML = h;
+        $("btnGenerate").disabled = false;
+        var sg = $("btnSaveGen"); if (sg) sg.onclick = saveGenerated;
+    }).catch(function(e){
+        $("generateResult").innerHTML = "<div class=\"error\">生成失败: "+escHtml(e.message)+"</div>";
+        $("btnGenerate").disabled = false;
+    });
+};
+
+function parseChapters(text) {
+    var chapters = [], re = /第([\u4e00-\u9fa5\d]+)章\s*(.*?)(?:\n|$)/g, match, lastIdx = 0;
+    while ((match = re.exec(text)) !== null) {
+        if (lastIdx > 0) chapters[chapters.length-1].text = text.slice(lastIdx, match.index).trim();
+        chapters.push({title:"第"+match[1]+"章"+(match[2]?" "+match[2]:""), text:""});
+        lastIdx = match.index + match[0].length;
+    }
+    if (chapters.length && lastIdx < text.length) chapters[chapters.length-1].text = text.slice(lastIdx).trim();
+    return chapters;
+}
+
+function saveGenerated() {
+    var text = window._generatedNovel || "";
+    if (!text) return;
+    var blob = new Blob(["\uFEFF"+text], {type:"text/plain;charset=utf-8"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "AI仿写.txt";
+    a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href)}, 2000);
+}
+
+// ====== AI Source Tab ======
+var aiSourceMode = "paste"; // "paste" | "saved"
+var savedBookContent = "";
+
+document.getElementById("srcTabPaste").onclick = function(){
+    aiSourceMode = "paste";
+    document.getElementById("srcTabPaste").classList.add("active");
+    document.getElementById("srcTabSaved").classList.remove("active");
+    document.getElementById("srcPaste").style.display = "block";
+    document.getElementById("srcSaved").style.display = "none";
+};
+document.getElementById("srcTabSaved").onclick = function(){
+    aiSourceMode = "saved";
+    document.getElementById("srcTabSaved").classList.add("active");
+    document.getElementById("srcTabPaste").classList.remove("active");
+    document.getElementById("srcPaste").style.display = "none";
+    document.getElementById("srcSaved").style.display = "block";
+    loadSavedBooks();
+};
+
+function loadSavedBooks() {
+    var container = document.getElementById("savedBooksList");
+    container.innerHTML = "<div class=\"tip\">加载中...</div>";
+    api("/api/downloads/list", {}).then(function(data){
+        var books = data.books || [];
+        if (!books.length) {
+            container.innerHTML = "<div class=\"empty\">暂无已下载书籍，请先在「小说下载」标签下载</div>";
+            return;
+        }
+        var html = "";
+        books.forEach(function(b){
+            var sizeKB = Math.round(b.size / 1024);
+            html += "<div class=\"book-item\" data-book-id=\""+escHtml(b.book_id)+"\">" +
+                "<div><div class=\"book-title\">"+escHtml(b.title)+"</div><div class=\"book-meta\">"+escHtml(b.book_id)+" | "+(b.total||0)+" 章 | "+sizeKB+"KB</div></div>" +
+                "<button class=\"btn btn-ai\" style=\"padding:4px 12px;font-size:11px\">选择</button></div>";
+        });
+        container.innerHTML = html;
+
+        var items = container.querySelectorAll(".book-item");
+        for (var i = 0; i < items.length; i++) {
+            items[i].onclick = (function(bookId, title){
+                return function(){
+                    for (var j = 0; j < items.length; j++) items[j].classList.remove("selected");
+                    this.classList.add("selected");
+                    loadBookContent(bookId, title);
+                };
+            })(items[i].getAttribute("data-book-id"), items[i].querySelector(".book-title").textContent);
+        }
+    }).catch(function(e){
+        container.innerHTML = "<div class=\"error\">加载失败: "+e.message+"</div>";
+    });
+}
+
+function loadBookContent(bookId, title) {
+    var metaDiv = document.getElementById("savedBookMeta");
+    var contentDiv = document.getElementById("savedBookContent");
+    var textarea = document.getElementById("savedTextArea");
+    contentDiv.style.display = "none";
+    metaDiv.textContent = "加载内容中...";
+
+    api("/api/downloads/content", {book_id: bookId}).then(function(data){
+        savedBookContent = data.content || "";
+        metaDiv.textContent = title + " (" + savedBookContent.length + " 字)";
+        textarea.value = savedBookContent.substring(0, 10000);  // 限制显示长度
+        contentDiv.style.display = "block";
+    }).catch(function(e){
+        metaDiv.textContent = "加载失败: " + e.message;
+    });
+}
+
+// Initialize saved book functions globally
+window.loadSavedBooks = loadSavedBooks;
+window.loadBookContent = loadBookContent;
+
+// Update analyze button to use selected source
+$("btnRunAnalyze").onclick = function() {
+    var modelId = $("analyzeModel").value || getActiveModelId();
+    if (!modelId) { alert("请先选择模型"); return; }
+    var model = getModelById(modelId);
+    if (!model) { alert("模型不存在"); return; }
+
+    var text = "";
+    if (aiSourceMode === "paste") {
+        text = $("analyzeText").value.trim();
+        if (!text) { alert("请先粘贴小说文本"); return; }
+    } else {
+        text = savedBookContent;
+        if (!text) { alert("请先选择一本已下载的书籍"); return; }
+    }
+
+    $("btnRunAnalyze").disabled = true;
+    $("analyzeResult").innerHTML = "<div class=\"tip\">分析中...</div>";
+
+    apiPost("/api/ai/analyze", {endpoint: model.endpoint, apiKey: model.apiKey, model: model.model, content: text}).then(function(d){
+        var content = d.result;
+        var h = "<div class=\"style-profile\"><h3 style=\"margin-top:0\">风格画像</h3>";
+        var lines = content.split("\n");
+        for (var i=0;i<lines.length;i++){
+            if (lines[i].match(/^【.+】/)) h += "<h4>"+escHtml(lines[i])+"</h4>";
+            else h += "<p>"+escHtml(lines[i])+"</p>";
+        }
+        h += "</div>";
+        $("analyzeResult").innerHTML = h;
+        $("btnRunAnalyze").disabled = false;
+        window._styleProfile = content;
+        $("generateSection").style.display = "block";
+        updateModelSelects();
+    }).catch(function(e){
+        $("analyzeResult").innerHTML = "<div class=\"error\">分析失败: "+escHtml(e.message)+"</div>";
+        $("btnRunAnalyze").disabled = false;
+    });
+};
+
+// ====== 初始化 ======
+loadModels();
+updateModelSelects();
+
+})();
+</script>
+</body>
+</html>
