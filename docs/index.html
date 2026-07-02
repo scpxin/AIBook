@@ -544,6 +544,10 @@ var models = [];
 
 function loadModels() {
     try { models = JSON.parse(localStorage.getItem('fanqie_models') || '[]'); } catch(e) { models = []; }
+    // 首次使用：如果没有任何模型，自动添加智谱 GLM-4-Flash 预设
+    if (!models.length) {
+        models = [];
+    }
 }
 function saveModels() { localStorage.setItem('fanqie_models', JSON.stringify(models)); }
 function getActiveModelId() { return localStorage.getItem('fanqie_active_model') || (models.length ? models[0].id : ''); }
@@ -564,7 +568,7 @@ function closeSettings() {
 function renderModelList() {
     var h = '';
     var active = getActiveModelId();
-    if (!models.length) { h = '<div style="color:#999;padding:12px 0;text-align:center">暂无配置，请添加模型</div>'; }
+    if (!models.length) { h = '<div style="color:#999;padding:12px 0;text-align:center">暂无配置，点击下方预设一键添加</div>'; }
     models.forEach(function(m) {
         var isActive = m.id === active;
         h += '<div class="model-item' + (isActive ? ' selected' : '') + '">';
@@ -575,7 +579,12 @@ function renderModelList() {
         h += '<button class="model-act-btn del" onclick="deleteModel(\'' + m.id + '\')">删除</button>';
         h += '</div></div>';
     });
-    $('modelList').innerHTML = h;
+    $('modelList').innerHTML = h + '<div style="margin-top:12px;border-top:1px dashed #ddd;padding-top:12px">' +
+        '<div style="font-size:12px;color:#888;margin-bottom:8px">模型预设（一键填入，只需补充 Key）:</div>' +
+        '<button class="add-model-btn" style="text-align:left;padding:8px 12px;margin-bottom:6px;font-size:13px" onclick="fillPreset(\'智谱 GLM-4-Flash\',\'https://open.bigmodel.cn/api/paas/v4/chat/completions\',\'glm-4-flash\')">智谱 GLM-4-Flash（免费，已注册）</button>' +
+        '<button class="add-model-btn" style="text-align:left;padding:8px 12px;margin-bottom:6px;font-size:13px" onclick="fillPreset(\'DeepSeek V3\',\'https://api.deepseek.com/v1/chat/completions\',\'deepseek-chat\')">DeepSeek V3（新用户送 10 元）</button>' +
+        '<button class="add-model-btn" style="text-align:left;padding:8px 12px;font-size:13px" onclick="fillPreset(\'通义千问 Turbo\',\'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions\',\'qwen-turbo\')">通义千问 Turbo（百万 token 免费/月）</button>' +
+    '</div>';
 }
 
 function selectModel(id) {
@@ -594,6 +603,13 @@ function deleteModel(id) {
 }
 
 function showAddModel() { $('modelForm').style.display = 'block'; }
+function fillPreset(name, endpoint, modelId) {
+    $('modelForm').style.display = 'block';
+    $('mfName').value = name;
+    $('mfEndpoint').value = endpoint;
+    $('mfModel').value = modelId;
+    $('mfKey').focus();
+}
 function hideModelForm() { $('modelForm').style.display = 'none'; $('mfName').value = $('mfEndpoint').value = $('mfKey').value = $('mfModel').value = ''; }
 
 function saveModel() {
@@ -824,6 +840,7 @@ window.saveFile = saveFile;
 window.openSettings = openSettings;
 window.closeSettings = closeSettings;
 window.showAddModel = showAddModel;
+window.fillPreset = fillPreset;
 window.saveModel = saveModel;
 window.hideModelForm = hideModelForm;
 window.deleteModel = deleteModel;
