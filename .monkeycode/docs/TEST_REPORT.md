@@ -1,4 +1,4 @@
-# 番茄小说下载+AI创作平台 — 测试报告
+# AI创作平台 — 测试报告
 
 **测试日期**: 2026-07-04  
 **测试环境**: 腾讯云 Ubuntu 22.04, Docker (backend Python + web Nginx)  
