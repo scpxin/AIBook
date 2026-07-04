@@ -139,3 +139,15 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
   - AI 客户端 `timeout`: 600s
   - 前端 `API_TIMEOUT`: 600000ms
   - 三者必须同步调整，缺一不可
+
+### GitHub 版本管理
+- Date: 2026-07-04
+- Context: 建立 GitHub 版本控制，方便回滚
+- Category: 工作流协作
+- Instructions:
+  - 远程仓库：`https://github.com/scpxin/AIBook.git`
+  - 每次提交后必须 `git push origin master` 推送到 GitHub
+  - 提交前先验证 HTML 结构（html.parser 检查 div 标签配对）
+  - 功能修改 → feat: / 修复 → fix: / 重构 → refactor:
+  - 推送命令：`git push origin master`
+  - 回滚时：`git log --oneline` 查找 commit hash → `git reset --hard <hash>` → `git push -f origin master`
