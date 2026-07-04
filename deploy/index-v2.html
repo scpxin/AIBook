@@ -1124,6 +1124,10 @@ createApp({
                     const first = d4.options[0];
                     novel.genre = typeof first === 'object' ? (first.name || first.title || first.text || first.genre || JSON.stringify(first)) : first;
                 }
+                await saveStepSummary('inspiration', {
+                    title: novel.title, description: novel.description,
+                    theme: novel.theme, genre: novel.genre
+                });
             } catch(e) {
                 inspireError.value = e.message;
             }
@@ -1161,6 +1165,7 @@ createApp({
                     }
                 });
                 novel.world = text.trim();
+                await saveStepSummary('world', { world: novel.world });
             } catch(e) {
                 novel.world = '生成失败: ' + e.message;
             }
@@ -1184,6 +1189,7 @@ createApp({
                     }
                 });
                 novel.characters = text.trim();
+                await saveStepSummary('characters', { characters: novel.characters });
             } catch(e) {
                 novel.characters = '生成失败: ' + e.message;
             }
@@ -1207,6 +1213,7 @@ createApp({
                 novel.outlineText = text.trim();
                 parseOutline();
                 await saveOutlineToDb();
+                await saveStepSummary('outline', { outlineText: novel.outlineText, outline: novel.outline });
             } catch(e) {
                 novel.outlineText = '生成失败: ' + e.message;
             }
@@ -1228,6 +1235,30 @@ createApp({
                 } catch (e) {
                     console.error('大纲保存失败:', e.message);
                 }
+            }
+        }
+
+        async function saveStepSummary(step, summaryData) {
+            if (!currentProjectId.value) return;
+            try {
+                await apiPost('/api/step-summary/save', {
+                    projectId: currentProjectId.value,
+                    step: step,
+                    summary: summaryData
+                });
+            } catch (e) {
+                console.error('步骤摘要保存失败:', e.message);
+            }
+        }
+
+        async function loadStepSummaries() {
+            if (!currentProjectId.value) return {};
+            try {
+                const r = await apiPost('/api/step-summary/get', { projectId: currentProjectId.value });
+                return r.summaries || {};
+            } catch (e) {
+                console.error('加载步骤摘要失败:', e.message);
+                return {};
             }
         }
 
@@ -1783,6 +1814,7 @@ createApp({
             generateWorld, generateChars, generateOutline, generateNextChapter, generateAllChapters, exportNovel,
             saveChapterToDb, saveAllChaptersToDb, loadChaptersFromDb,
             saveOutlineToDb, loadOutlinesFromDb,
+            saveStepSummary, loadStepSummaries,
             pauseGeneration, resumeGeneration,
             analyzeStyleText, loadSavedBooks, analyzeSavedBook,
             analyzeTab, analyzeText, analyzeModelIdx, analyzeLoading, analyzeResult, analyzeResultLines,
