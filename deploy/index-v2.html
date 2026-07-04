@@ -317,8 +317,14 @@
                             <input type="checkbox" v-model="novel.useCraft"> 使用网文技法增强（融入钩子设计、爽点节奏、去AI味）
                         </label>
                     </div>
-                    <div v-if="chapterProgress" class="tip">{{ chapterProgress }}</div>
-                    <div style="font-size:11px;color:#888;margin-bottom:6px">已生成 {{ novel.chapters.length }}/{{ novel.outline.length }} 章（点击章节内容可编辑）</div>
+                     <div v-if="chapterProgress" class="tip">{{ chapterProgress }}</div>
+                     <div v-if="genStatus.total > 0 && chapterLoading" style="margin-bottom:6px">
+                         <div style="font-size:11px;color:#666;margin-bottom:3px">生成进度: {{ genStatus.completed }}/{{ genStatus.total }} 章 (失败: {{ genStatus.failed }})</div>
+                         <div style="width:100%;height:6px;background:#eee;border-radius:3px;overflow:hidden">
+                             <div :style="{width: (genStatus.completed / genStatus.total * 100) + '%', height: '100%', background: '#11998e', borderRadius: '3px', transition: 'width 0.3s'}"></div>
+                         </div>
+                     </div>
+                     <div style="font-size:11px;color:#888;margin-bottom:6px">已生成 {{ novel.chapters.length }}/{{ novel.outline.length }} 章（点击章节内容可编辑）</div>
                     <div v-for="(c, idx) in novel.chapters" :key="idx" style="margin-bottom:10px;border:1px solid #e0e0e0;border-radius:6px;overflow:hidden">
                         <div style="background:#f8f9fa;padding:6px 10px;font-weight:600;font-size:12px;display:flex;justify-content:space-between;align-items:center">
                             <span>第{{ idx+1 }}章 {{ novel.outline[idx] ? novel.outline[idx].title : '' }}</span>
@@ -869,6 +875,7 @@ createApp({
         const chapterProgress = ref('');
         const chapterPaused = ref(false);
         const chapterPauseIdx = ref(0);
+        const genStatus = ref({ total: 0, completed: 0, failed: 0, current: 0 });
 
         // Style analysis
         const styleExpanded = ref(false);
@@ -1342,6 +1349,13 @@ createApp({
                 alert('所有章节已生成完毕');
                 return;
             }
+            try {
+                await apiPost('/api/chapters/generation/start', {
+                    projectId: currentProjectId.value,
+                    totalChapters: novel.outline.length
+                });
+            } catch (e) { /* ignore */ }
+            genStatus.value = { total: novel.outline.length, completed: startIdx, failed: 0, current: startIdx + 1 };
             let i = startIdx;
             chapterPaused.value = false;
             chapterPauseIdx.value = i;
@@ -1350,17 +1364,34 @@ createApp({
                     chapterPauseIdx.value = i;
                     return;
                 }
-                if (i >= novel.outline.length) return;
+                if (i >= novel.outline.length) {
+                    genStatus.value.current = 0;
+                    return;
+                }
                 if (i < novel.chapters.length && novel.chapters[i] && novel.chapters[i].length > 100) {
                     i++;
                     next();
                     return;
                 }
-                await generateOneChapter(i);
+                genStatus.value.current = i + 1;
+                const success = await generateOneChapter(i);
                 if (chapterPaused.value) {
                     chapterPauseIdx.value = i;
                     return;
                 }
+                if (novel.chapters[i] && novel.chapters[i].length > 100) {
+                    genStatus.value.completed++;
+                } else {
+                    genStatus.value.failed++;
+                }
+                try {
+                    await apiPost('/api/chapters/generation/update', {
+                        projectId: currentProjectId.value,
+                        currentChapter: i + 1,
+                        completedChapters: genStatus.value.completed,
+                        failedChapters: genStatus.value.failed
+                    });
+                } catch (e) { /* ignore */ }
                 i++;
                 next();
             }
@@ -1370,6 +1401,7 @@ createApp({
         function pauseGeneration() {
             chapterPaused.value = true;
             chapterProgress.value = '已暂停（点击"继续生成"恢复）';
+            apiPost('/api/chapters/generation/pause', { projectId: currentProjectId.value }).catch(() => {});
         }
 
         async function resumeGeneration() {
@@ -1831,7 +1863,7 @@ createApp({
             doSearch, selectBook, resetSearch, startDownload, doPause, doResume, saveFile,
             stepLabels, novel, novelModelIdx, inspireLoading, inspireError,
             inspireTitleOptions, inspireDescOptions, charsLoading, outlineLoading,
-            chapterLoading, chapterProgress, chapterPaused,
+            chapterLoading, chapterProgress, chapterPaused, genStatus,
             styleExpanded, styleTab, styleText, styleLoading, savedBooks, selectedSavedBook, savedBookAnalyzing,
             refreshModelSelects, showStep, hasStepContent, getNovelModel,
             generateInspire, selectInspireTitle, selectInspireDesc,
