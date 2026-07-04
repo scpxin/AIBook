@@ -1222,12 +1222,22 @@ createApp({
             parseOutline();
             if (!novel.outline.length) { alert('请先在「大纲」步骤中输入或生成大纲'); return; }
             if (novel.chapters.length >= novel.outline.length) { alert('所有章节已生成完毕'); return; }
+            if (!currentProjectId.value) {
+                const autoName = novel.title || '未命名项目';
+                projectName.value = autoName;
+                await saveProject();
+            }
             await generateOneChapter(novel.chapters.length);
         }
 
         async function generateAllChapters() {
             parseOutline();
             if (!novel.outline.length) { alert('请先在「大纲」步骤中输入或生成大纲'); return; }
+            if (!currentProjectId.value) {
+                const autoName = novel.title || '未命名项目';
+                projectName.value = autoName;
+                await saveProject();
+            }
             let i = novel.chapters.length;
             async function next() {
                 if (i >= novel.outline.length) return;
@@ -1236,6 +1246,30 @@ createApp({
                 next();
             }
             next();
+        }
+
+        async function saveChapterToDb(idx) {
+            if (!currentProjectId.value) return;
+            if (!novel.chapters[idx]) return;
+            const o = novel.outline[idx];
+            try {
+                await apiPost('/api/chapters/save', {
+                    projectId: currentProjectId.value,
+                    chapterNumber: idx + 1,
+                    title: o ? (o.title || ('第' + (idx + 1) + '章')) : ('第' + (idx + 1) + '章'),
+                    content: novel.chapters[idx],
+                    status: 'done'
+                });
+            } catch (e) {
+                console.error('章节保存失败:', e.message);
+            }
+        }
+
+        async function saveAllChaptersToDb() {
+            if (!currentProjectId.value) return;
+            for (let i = 0; i < novel.chapters.length; i++) {
+                if (novel.chapters[i]) await saveChapterToDb(i);
+            }
         }
 
         async function generateOneChapter(idx) {
@@ -1258,6 +1292,7 @@ createApp({
                 });
                 novel.chapters[idx] = d.content;
                 chapterProgress.value = '';
+                await saveChapterToDb(idx);
             } catch(e) {
                 chapterProgress.value = '第' + (idx + 1) + '章生成失败: ' + e.message;
             }
@@ -1643,6 +1678,7 @@ createApp({
             refreshModelSelects, showStep, hasStepContent, getNovelModel,
             generateInspire, selectInspireTitle, selectInspireDesc,
             generateWorld, generateChars, generateOutline, generateNextChapter, generateAllChapters, exportNovel,
+            saveChapterToDb, saveAllChaptersToDb,
             analyzeStyleText, loadSavedBooks, analyzeSavedBook,
             analyzeTab, analyzeText, analyzeModelIdx, analyzeLoading, analyzeResult, analyzeResultLines,
             analyzeSavedBooks, selectedAnalyzeBook, analyzeBookContent, styleProfile,
