@@ -892,13 +892,97 @@ createApp({
         const projectName = ref('');
         const selectedProjectId = ref('');
         const projectList = ref([]);
-        const STORAGE_KEY = 'fanqie_projects';
+        const currentProjectId = ref('');
+        const projectList = ref([]);
 
-        function loadProjectList() {
+        async function loadProjectList() {
             try {
-                const raw = localStorage.getItem(STORAGE_KEY);
-                projectList.value = raw ? JSON.parse(raw) : [];
+                const r = await apiPost('/api/projects/list', {});
+                projectList.value = (r.projects || []).map(p => ({
+                    id: p.id, name: p.name, step: p.step,
+                    updated_at: p.updated_at, tags: p.tags
+                }));
             } catch { projectList.value = []; }
+        }
+
+        async function saveProject() {
+            if (!projectName.value.trim()) {
+                alert('请输入项目名称');
+                return;
+            }
+            const check = verifyProject();
+            if (!check.ok) {
+                alert('保存失败：项目不完整\n\n' + check.errors.join('\n') + '\n\n请先补全缺失内容。');
+                return;
+            }
+            const novelData = JSON.parse(JSON.stringify({
+                title: novel.title, description: novel.description,
+                theme: novel.theme, genre: novel.genre,
+                world: novel.world, characters: novel.characters,
+                outlineText: novel.outlineText, outline: novel.outline,
+                chapters: novel.chapters, step: novel.step,
+                targetWords: novel.targetWords, useCraft: novel.useCraft,
+                chapterCount: novel.chapterCount, charCount: novel.charCount,
+                perspective: novel.perspective, styleProfile: novel.styleProfile
+            }));
+            try {
+                const r = await apiPost('/api/projects/save', {
+                    id: currentProjectId.value || undefined,
+                    name: projectName.value.trim(),
+                    step: novel.step || 0,
+                    data: novelData,
+                    tags: ''
+                });
+                currentProjectId.value = r.id;
+                selectedProjectId.value = r.id;
+                await loadProjectList();
+                alert('项目已保存: ' + r.name);
+            } catch (e) {
+                alert('保存失败: ' + e.message);
+            }
+        }
+
+        async function loadProject() {
+            if (!selectedProjectId.value) return;
+            try {
+                const r = await apiPost('/api/projects/load', { id: selectedProjectId.value });
+                if (r.error) { alert(r.error); return; }
+                currentProjectId.value = r.id;
+                projectName.value = r.name || '';
+                const n = r.data || {};
+                Object.assign(novel, {
+                    title: n.title || '', description: n.description || '',
+                    theme: n.theme || '', genre: n.genre || '',
+                    world: n.world || '', characters: n.characters || '',
+                    outlineText: n.outlineText || '', outline: n.outline || [],
+                    chapters: n.chapters || [], step: n.step || 0,
+                    targetWords: n.targetWords || 3000, useCraft: n.useCraft || false,
+                    chapterCount: n.chapterCount || 10, charCount: n.charCount || 3,
+                    perspective: n.perspective || '第三人称', styleProfile: n.styleProfile || ''
+                });
+                alert('已加载项目: ' + r.name);
+            } catch (e) {
+                alert('加载失败: ' + e.message);
+            }
+        }
+
+        async function deleteProject() {
+            if (!selectedProjectId.value) return;
+            const proj = projectList.value.find(p => p.id === selectedProjectId.value);
+            if (!proj) return;
+            if (!confirm('确定删除项目 "' + proj.name + '"？')) return;
+            try {
+                await apiPost('/api/projects/delete', { id: selectedProjectId.value });
+                if (currentProjectId.value === selectedProjectId.value) {
+                    currentProjectId.value = '';
+                    projectName.value = '';
+                }
+                selectedProjectId.value = '';
+                await loadProjectList();
+                alert('已删除');
+            } catch (e) {
+                alert('删除失败: ' + e.message);
+            }
         }
 
         function saveProject() {
@@ -1570,8 +1654,8 @@ createApp({
             detectResult, fixedContent, deconstructResult, qualityResult,
             runDetectAI, runFixAI, copyFixed, runDeconstruct, runQualityScore,
             // 项目保存/加载
-            projectName, selectedProjectId, projectList,
-            saveProject, loadProject, deleteProject, newProject
+            projectName, selectedProjectId, currentProjectId, projectList,
+            saveProject, loadProject, deleteProject, newProject, loadProjectList
         };
     }
 }).mount('#app');
