@@ -140,16 +140,17 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
   - 前端 `API_TIMEOUT`: 600000ms
   - 三者必须同步调整，缺一不可
 
-### GitHub 版本管理
-- Date: 2026-07-04
-- Context: 建立 GitHub 版本控制，方便回滚
-- Category: 工作流协作
+### 项目结构（v3.0 前后端分离）
+- Date: 2026-07-05
+- Context: 重构为前后端分离架构，Docker多服务隔离
+- Category: 运维部署
 - Instructions:
-  - 远程仓库：`https://github.com/scpxin/AIBook.git`
-  - 每次提交后必须 `git push origin master` 推送到 GitHub
-  - 提交前先验证 HTML 结构（html.parser 检查 div 标签配对）
-  - 功能修改 → feat: / 修复 → fix: / 重构 → refactor:
-  - 推送命令：`git push origin master`
-  - 回滚时：`git log --oneline` 查找 commit hash → `git reset --hard <hash>` → `git push -f origin master`
-  - **每次修改后必须同步更新 README.md**：包括功能列表、API接口、项目结构、版本历史等
-  - README.md 与实际代码保持同步，不能过时
+  - **backend_v2/**: FastAPI后端，依赖: novel_creator/, app/, requirements.txt, Dockerfile
+  - **frontend/**: Vue 3 + Vite前端，依赖: src/, package.json, vite.config.ts, Dockerfile, nginx.conf
+  - **部署命令**: `docker compose -f deploy/docker-compose.v2.yml up -d --build`
+  - **服务器路径**: `/home/ubuntu/fanqie-v2/`（docker-compose.yml, app/, novel_creator/, dist/, frontend-nginx.conf）
+  - **容器名**: fanqie-v2-frontend(Nginx:80), fanqie-v2-backend(Python:8000)
+  - **数据卷**: fanqie-v2_db-data → /app/data (SQLite + downloads + projects + logs)
+  - **前端构建**: `npm run build` 输出到 dist/，配合 frontend-nginx.conf 中的 alias
+  - **后端启动**: `uvicorn app.main:app` 需要 DB_PATH=/app/data/fanqie.db
+  - **API兼容**: v2后端与旧前端API完全兼容，保留index-v2.html和server-v2.py作为fallback
