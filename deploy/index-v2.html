@@ -902,7 +902,6 @@ createApp({
         // ====== 项目保存/加载 ======
         const projectName = ref('');
         const selectedProjectId = ref('');
-        const projectList = ref([]);
         const currentProjectId = ref('');
         const projectList = ref([]);
 
@@ -947,10 +946,24 @@ createApp({
                 currentProjectId.value = r.id;
                 selectedProjectId.value = r.id;
                 await loadProjectList();
-                alert('项目已保存: ' + r.name);
+            alert('项目已保存: ' + r.name);
             } catch (e) {
                 alert('保存失败: ' + e.message);
             }
+        }
+
+        function verifyProject() {
+            const errors = [];
+            const n = novel;
+            if (!n.title || !n.title.trim()) errors.push('✦ 标题为空');
+            if (!n.description || !n.description.trim()) errors.push('✦ 简介为空');
+            if (!n.world || !n.world.trim()) errors.push('✦ 世界观为空');
+            if (!n.characters || !n.characters.trim()) errors.push('✦ 角色未设定');
+            if (!n.outlineText || !n.outlineText.trim()) errors.push('✦ 大纲为空');
+            else if (!Array.isArray(n.outline) || n.outline.length === 0) errors.push('✦ 大纲解析为空（至少需要1章）');
+            if (!Array.isArray(n.chapters) || n.chapters.length === 0) errors.push('✦ 章节内容为空（至少需要1章）');
+            else if (Array.isArray(n.outline) && n.chapters.length < n.outline.length) errors.push('✦ 章节进度不足（已完成 ' + n.chapters.length + ' / ' + n.outline.length + ' 章）');
+            return errors.length === 0 ? { ok: true, errors: [] } : { ok: false, errors: errors };
         }
 
         async function loadProject() {
@@ -971,9 +984,9 @@ createApp({
                     chapterCount: n.chapterCount || 10, charCount: n.charCount || 3,
                     perspective: n.perspective || '第三人称', styleProfile: n.styleProfile || ''
                 });
-                alert('已加载项目: ' + r.name);
                 await loadOutlinesFromDb();
                 await loadChaptersFromDb();
+                alert('已加载项目: ' + r.name);
             } catch (e) {
                 alert('加载失败: ' + e.message);
             }
@@ -996,83 +1009,6 @@ createApp({
             } catch (e) {
                 alert('删除失败: ' + e.message);
             }
-        }
-
-        function saveProject() {
-            if (!projectName.value.trim()) {
-                alert('请输入项目名称');
-                return;
-            }
-            // 完整性验证
-            const check = verifyProject();
-            if (!check.ok) {
-                alert('保存失败：项目不完整\n\n' + check.errors.join('\n') + '\n\n请先补全缺失内容。');
-                return;
-            }
-            const data = {
-                id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-                name: projectName.value.trim(),
-                savedAt: new Date().toLocaleString('zh-CN'),
-                novel: JSON.parse(JSON.stringify({
-                    title: novel.title, description: novel.description,
-                    theme: novel.theme, genre: novel.genre,
-                    world: novel.world, characters: novel.characters,
-                    outlineText: novel.outlineText, outline: novel.outline,
-                    chapters: novel.chapters, step: novel.step,
-                    targetWords: novel.targetWords, useCraft: novel.useCraft,
-                    chapterCount: novel.chapterCount, charCount: novel.charCount,
-                    perspective: novel.perspective, styleProfile: novel.styleProfile
-                }))
-            };
-            const list = projectList.value.filter(p => p.name !== data.name);
-            list.unshift(data);
-            projectList.value = list;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-            selectedProjectId.value = data.id;
-            alert('项目已保存: ' + data.name);
-        }
-
-        function verifyProject() {
-            const errors = [];
-            const n = novel;
-            if (!n.title || !n.title.trim()) errors.push('✦ 标题为空');
-            if (!n.description || !n.description.trim()) errors.push('✦ 简介为空');
-            if (!n.world || !n.world.trim()) errors.push('✦ 世界观为空');
-            if (!n.characters || !n.characters.trim()) errors.push('✦ 角色未设定');
-            if (!n.outlineText || !n.outlineText.trim()) errors.push('✦ 大纲为空');
-            else if (!Array.isArray(n.outline) || n.outline.length === 0) errors.push('✦ 大纲解析为空（至少需要1章）');
-            if (!Array.isArray(n.chapters) || n.chapters.length === 0) errors.push('✦ 章节内容为空（至少需要1章）');
-            else if (Array.isArray(n.outline) && n.chapters.length < n.outline.length) errors.push('✦ 章节进度不足（已完成 ' + n.chapters.length + ' / ' + n.outline.length + ' 章）');
-            return errors.length === 0 ? { ok: true, errors: [] } : { ok: false, errors: errors };
-        }
-
-        function loadProject() {
-            if (!selectedProjectId.value) return;
-            const proj = projectList.value.find(p => p.id === selectedProjectId.value);
-            if (!proj) { alert('项目不存在'); return }
-            const n = proj.novel;
-            Object.assign(novel, {
-                title: n.title || '', description: n.description || '',
-                theme: n.theme || '', genre: n.genre || '',
-                world: n.world || '', characters: n.characters || '',
-                outlineText: n.outlineText || '', outline: n.outline || [],
-                chapters: n.chapters || [], step: n.step || 0,
-                targetWords: n.targetWords || 3000, useCraft: n.useCraft || false,
-                chapterCount: n.chapterCount || 10, charCount: n.charCount || 3,
-                perspective: n.perspective || '第三人称', styleProfile: n.styleProfile || ''
-            });
-            projectName.value = proj.name;
-            alert('已加载项目: ' + proj.name);
-        }
-
-        function deleteProject() {
-            if (!selectedProjectId.value) return;
-            const proj = projectList.value.find(p => p.id === selectedProjectId.value);
-            if (!proj) return;
-            if (!confirm('确定删除项目 "' + proj.name + '"？')) return;
-            projectList.value = projectList.value.filter(p => p.id !== selectedProjectId.value);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(projectList.value));
-            selectedProjectId.value = '';
         }
 
         function newProject() {
@@ -1408,6 +1344,8 @@ createApp({
             chapterPaused.value = false;
             await generateAllChapters();
         }
+
+        async function loadChaptersFromDb() {
             if (!currentProjectId.value) return;
             try {
                 const r = await apiPost('/api/chapters/get', { projectId: currentProjectId.value });
