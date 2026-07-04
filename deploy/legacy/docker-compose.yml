@@ -1,0 +1,45 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fanqie-backend
+    environment:
+      - PORT=8000
+      - DOWNLOAD_DIR=/app/downloads
+      - DB_PATH=/app/data/fanqie.db
+    volumes:
+      - fanqie-downloads:/app/downloads
+      - ./fanqie-data:/app/data
+      - ./fanqie-projects:/app/projects
+    restart: unless-stopped
+    networks:
+      - fanqie-net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/search?q=test')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  web:
+    image: nginx:alpine
+    container_name: fanqie-web
+    ports:
+      - "80:80"
+    volumes:
+      - ./index-v2.html:/usr/share/nginx/html/index.html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fanqie-net
+
+volumes:
+  fanqie-downloads:
+
+networks:
+  fanqie-net:
+    driver: bridge

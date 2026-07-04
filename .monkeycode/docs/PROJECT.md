@@ -47,6 +47,71 @@
 
 ```
 deploy/
+├── docker-compose.yml          # Docker Compose 编排（v3.0）
+├── backend_v2/                 # FastAPI 后端
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── app/
+│       ├── main.py             # FastAPI 入口 + 路由注册 + 中间件
+│       ├── config.py           # 环境变量配置
+│       ├── database.py         # 数据库初始化
+│       ├── models/
+│       │   └── schemas.py      # Pydantic 请求/响应模型（58个）
+│       ├── api/                # API 路由模块（8个文件）
+│       │   ├── projects.py     # 项目管理 CRUD
+│       │   ├── chapters.py     # 章节管理 + 生成控制
+│       │   ├── outlines.py     # 大纲管理 + 生成控制
+│       │   ├── step_summaries.py # 步骤摘要
+│       │   ├── novel.py        # AI 小说生成
+│       │   ├── craft.py        # 网文技法
+│       │   ├── download.py     # 小说下载
+│       │   └── ai.py           # AI 工具
+│       └── services/
+│           ├── novel_generator.py  # NovelGenerator 包装
+│           └── download_service.py # 下载会话管理
+├── frontend/                   # Vue 3 前端工程
+│   ├── Dockerfile              # 多阶段构建(Vite build + Nginx serve)
+│   ├── nginx.conf              # SPA 路由 + API 代理
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── index.html
+│   └── src/
+│       ├── main.ts             # createApp + Pinia + Router
+│       ├── App.vue             # 根组件 + 淡蓝主题
+│       ├── router/index.ts     # Vue Router
+│       ├── api/                # API 客户端封装
+│       │   ├── client.ts       # fetch 封装 + 超时 + SSE
+│       │   ├── project.ts      # 项目 CRUD
+│       │   ├── chapter.ts      # 章节管理
+│       │   ├── outline.ts      # 大纲管理
+│       │   ├── novel.ts        # 小说创作
+│       │   └── download.ts     # 下载
+│       ├── stores/             # Pinia 状态管理
+│       │   ├── settings.ts     # 模型配置
+│       │   ├── project.ts      # 当前项目
+│       │   └── download.ts     # 下载会话
+│       ├── components/         # 通用组件
+│       │   ├── AppHeader.vue   # 头部
+│       │   ├── TabBar.vue      # 标签导航
+│       │   ├── ModalBase.vue   # 模态框
+│       │   └── ModelConfig.vue # 模型配置
+│       └── views/              # 页面组件
+│           ├── Download.vue    # 下载
+│           ├── Create.vue      # AI 创作
+│           └── Craft.vue       # 网文技法
+├── novel_creator/              # AI 小说创作核心模块
+│   ├── database.py             # SQLite + WAL + schema 迁移
+│   ├── generator.py            # NovelGenerator 生成器
+│   ├── prompts.py              # Novel 流程 prompt
+│   ├── craft_prompts.py        # 网文技法 prompt
+│   └── ai_client.py            # OpenAI 兼容客户端
+└── legacy/                     # 旧版归档（参考用）
+    ├── server-v2.py            # 旧版后端
+    ├── index-v2.html           # 旧版前端
+    ├── docker-compose.yml      # 旧版编排
+    └── ...                     # 其他旧版文件
+```
+deploy/
 ├── docker-compose.v2.yml      # 前后端分离编排（推荐）
 ├── docker-compose.yml          # 旧版编排（兼容）
 ├── backend_v2/                 # FastAPI 后端

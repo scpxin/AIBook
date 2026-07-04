@@ -14,3 +14,17 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Python
+__pycache__/
+*.pyc
+
+# Legacy (kept for reference, do NOT ignore)
+# legacy/
+
+# Build artifacts (generated, not source)
+frontend/dist/
