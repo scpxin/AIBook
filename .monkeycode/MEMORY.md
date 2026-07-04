@@ -151,3 +151,5 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
   - 功能修改 → feat: / 修复 → fix: / 重构 → refactor:
   - 推送命令：`git push origin master`
   - 回滚时：`git log --oneline` 查找 commit hash → `git reset --hard <hash>` → `git push -f origin master`
+  - **每次修改后必须同步更新 README.md**：包括功能列表、API接口、项目结构、版本历史等
+  - README.md 与实际代码保持同步，不能过时
