@@ -1,0 +1,2667 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI小说创作平台</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        [v-cloak] { display: none !important; }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#333;min-height:100vh;font-size:14px}
+        .header{background:linear-gradient(135deg,#4da6ff,#2b7de0);color:#fff;padding:24px 20px;text-align:center}
+        .header h1{font-size:24px;margin-bottom:4px}
+        .header p{opacity:.85;font-size:14px}
+        .tabs{display:flex;max-width:720px;margin:12px auto 0;padding:0 16px;gap:4px}
+        .tab{flex:1;padding:12px;text-align:center;background:#fff;border-radius:8px 8px 0 0;font-size:15px;font-weight:600;cursor:pointer;color:#888;border-bottom:3px solid transparent;transition:.2s}
+        .tab.active{color:#4da6ff;border-bottom-color:#4da6ff}
+        .tab:hover{color:#4da6ff}
+        .container{max-width:720px;margin:0 auto;padding:0 16px 20px}
+        .card{background:#fff;border-radius:10px;padding:20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+        .card h2{font-size:17px;margin-bottom:10px;color:#333}
+        .search-box{display:flex;gap:8px;margin-bottom:6px}
+        .search-box input{flex:1;padding:10px 14px;border:2px solid #e0e0e0;border-radius:6px;font-size:15px;outline:none}
+        .search-box input:focus{border-color:#4da6ff}
+        .search-box button{padding:10px 20px;background:linear-gradient(135deg,#4da6ff,#2b7de0);color:#fff;border:none;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer}
+        .search-box button:disabled{opacity:.6;cursor:not-allowed}
+        .book-item{display:flex;justify-content:space-between;align-items:center;padding:12px;border:2px solid #f0f0f0;border-radius:8px;margin-bottom:6px;cursor:pointer;transition:.2s}
+        .book-item:hover{border-color:#4da6ff;background:#f0f8ff}
+        .book-item.selected{border-color:#4da6ff;background:#e8f4fd}
+        .book-title{font-size:16px;font-weight:600;color:#222}
+        .book-meta{font-size:13px;color:#888;margin-top:2px}
+        .book-count{font-size:13px;color:#4da6ff;font-weight:600;white-space:nowrap}
+        .empty{text-align:center;color:#999;padding:24px;font-size:14px}
+        .btn{border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;padding:8px 18px;color:#fff;display:inline-flex;align-items:center;gap:5px}
+        .btn:disabled{opacity:.5;cursor:not-allowed}
+        .btn-dl{background:linear-gradient(135deg,#11998e,#38ef7d)}
+        .btn-pause{background:linear-gradient(135deg,#f093fb,#f5576c)}
+        .btn-resume{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+        .btn-ai{background:linear-gradient(135deg,#667eea,#764ba2)}
+        .btn-save{background:linear-gradient(135deg,#f093fb,#f5576c)}
+        .btn-ghost{background:#f0f0f0;color:#555}
+        .progress{margin-top:10px}
+        .progress-top{display:flex;justify-content:space-between;margin-bottom:4px}
+        .progress-label{font-size:13px;color:#666}
+        .progress-pct{font-size:17px;font-weight:700;color:#2b7de0}
+        .progress-bar{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin-bottom:6px}
+        .progress-fill{height:100%;background:linear-gradient(90deg,#4da6ff,#2b7de0);border-radius:3px;transition:width .3s;width:0}
+        .progress-detail{display:flex;gap:12px;font-size:12px;color:#888;flex-wrap:wrap}
+        .spinner{display:inline-block;width:10px;height:10px;border:2px solid #fff3;border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .novel-steps{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+        .novel-step{padding:6px 12px;border-radius:15px;font-size:13px;background:#f0f0f0;color:#888;cursor:pointer;transition:.2s;user-select:none}
+        .novel-step.active{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+        .novel-step.done{background:#38ef7d;color:#fff}
+        .novel-step.locked{background:#e0e0e0;color:#aaa;cursor:not-allowed}
+        .step-badge{font-size:10px;margin-left:4px;display:inline-block}
+        .done-badge{color:#fff}
+        .active-badge{color:#fff;animation:pulse 1s infinite}
+        .locked-badge{font-size:10px}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+        .inspire-option{padding:8px 12px;border:2px solid #e0e0e0;border-radius:6px;margin-bottom:4px;cursor:pointer;font-size:14px;transition:.2s}
+        .inspire-option:hover{border-color:#667eea;background:#f0f3ff}
+        .inspire-option.selected{border-color:#667eae;background:#e8edfe}
+        .novel-btn-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+        .tip{font-size:12px;color:#aaa;margin-top:3px;line-height:1.5}
+        .error{background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:8px;border-radius:5px;margin-top:8px;font-size:13px}
+        .gen-progress{position:fixed;top:0;left:0;width:100%;z-index:9999;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:10px 16px;box-shadow:0 4px 12px rgba(0,0,0,.2);display:flex;align-items:center;gap:12px;font-size:13px}
+        .gen-progress .gp-spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:gp-spin .8s linear infinite;flex-shrink:0}
+        @keyframes gp-spin{to{transform:rotate(360deg)}}
+        .gen-progress .gp-text{flex:1;line-height:1.4}
+        .gen-progress .gp-title{font-weight:600;margin-bottom:2px}
+        .gen-progress .gp-sub{opacity:.85;font-size:11px}
+        .gen-progress .gp-preview{font-size:11px;opacity:.7;margin-top:4px;padding:4px 8px;background:rgba(0,0,0,.15);border-radius:4px;max-height:40px;overflow:hidden;line-height:1.3;font-family:monospace;}
+        .gen-progress .gp-time{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px;opacity:.9}
+        .gen-progress .gp-bar{position:absolute;bottom:0;left:0;height:3px;background:rgba(255,255,255,.4);transition:width .3s}
+        .gen-progress .gp-bar-anim{background:linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent);background-size:200% 100%;animation:gp-shimmer 1.5s infinite}
+        @keyframes gp-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .success{background:#d4edda;border:1px solid #c3e6cb;color:#155724;padding:8px;border-radius:5px;margin-top:8px;font-size:13px}
+        .settings-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.5);border-radius:20px;font-size:15px;font-weight:600;cursor:pointer;color:#fff;transition:.2s;margin-top:8px}
+        .settings-btn:hover{background:rgba(255,255,255,.35);border-color:#fff}
+        .header{position:relative}
+        .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center}
+        .modal-card{background:#fff;border-radius:10px;padding:18px;min-width:300px;max-width:440px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2);position:relative}
+        .modal-card h3{font-size:17px;margin-bottom:10px}
+        .modal-close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:22px;cursor:pointer;color:#999;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px;z-index:1}
+        .modal-close:hover{background:#f0f0f0;color:#333}
+        .model-item{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border:1px solid #eee;border-radius:5px;margin-bottom:5px}
+        .model-item.selected{border-color:#667eea;background:#f0eeff}
+        .model-name{font-weight:600;font-size:14px}
+        .model-endpoint{font-size:11px;color:#888}
+        .model-act-btn{background:none;border:none;cursor:pointer;font-size:13px;padding:2px 4px;border-radius:3px}
+        .model-act-btn.sel{color:#11998e}
+        .model-act-btn.del{color:#e74c3c}
+        .model-act-btn.edit{color:#667eea}
+        .header-btns{display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:wrap}
+        .project-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:13px}
+        .project-btn:hover{background:rgba(255,255,255,.35)}
+        .btn-sm{padding:5px 10px;font-size:13px;border:1px solid #4da6ff;background:#4da6ff;color:#fff;border-radius:4px;cursor:pointer}
+        .btn-sm:disabled{opacity:.6;cursor:not-allowed}
+        .btn-sm.btn-secondary{background:#6c757d;border-color:#6c757d}
+        .btn-sm.btn-danger{background:#dc3545;border-color:#dc3545;padding:3px 8px}
+        .btn-danger{background:#dc3545;border-color:#dc3545;color:#fff}
+        .project-toolbar{display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap;padding:8px;background:#f8f9fa;border-radius:6px}
+        .project-name-input{flex:1;min-width:120px;padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px}
+        .project-saved-name{font-size:12px;color:#28a745;font-weight:500}
+        .project-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto}
+        .project-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #eee;border-radius:6px;cursor:pointer}
+        .project-item:hover{border-color:#4da6ff;background:#f0f8ff}
+        .project-item-info{flex:1}
+        .project-item-name{font-weight:600;font-size:15px;margin-bottom:3px}
+        .project-item-meta{display:flex;gap:8px;font-size:12px;color:#666;flex-wrap:wrap}
+        .project-item-date{font-size:11px;color:#999;margin-top:3px}
+        .model-act-btn:hover{background:#f0f0f0}
+        .model-actions{display:flex;gap:2px;align-items:center;flex-shrink:0}
+        .current-badge{font-size:10px;color:#fff;background:#667eea;padding:1px 6px;border-radius:8px;margin-left:6px}
+        .current-label{font-size:11px;color:#667eea;font-weight:600}
+        .model-form{background:#f8f9fa;padding:10px;border-radius:6px;margin-top:8px}
+        .form-title{font-size:14px;margin:0 0 8px;color:#555}
+        .form-validation{font-size:12px;color:#e74c3c;margin-top:4px}
+        .preset-header{font-size:12px;color:#888;margin-top:12px;margin-bottom:4px;font-weight:500}
+        .add-model-btn{width:100%;padding:7px;border:2px dashed #ddd;border-radius:5px;background:none;cursor:pointer;font-size:14px;color:#888;margin-top:5px}
+        .add-model-btn:hover{border-color:#667eea;color:#667eea}
+        .form-group{margin-bottom:8px}
+        .form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:2px;color:#555}
+        .form-group input{width:100%;padding:7px;border:1px solid #ddd;border-radius:4px;font-size:14px}
+        .preset-btns{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+        .preset-btn{text-align:left;padding:7px 10px;font-size:14px}
+        .style-profile{background:#f8f9fa;border-radius:5px;padding:12px}
+        .style-profile h4{font-size:15px;color:#333;margin:8px 0 3px}
+        .style-profile p{font-size:13px;color:#555;line-height:1.6;margin-bottom:2px}
+        .gen-form{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .gen-form .full{grid-column:1/-1}
+        .gen-form label{font-size:13px;font-weight:600;color:#555;display:block;margin-bottom:2px}
+        .gen-form input,.gen-form textarea,.gen-form select{width:100%;padding:7px;border:1px solid #ddd;border-radius:4px;font-size:14px;font-family:inherit}
+        .gen-form textarea{resize:vertical;min-height:50px}
+        .select-row{display:flex;align-items:center;gap:5px;margin-bottom:8px}
+        .select-row select{flex:1;padding:7px;border:1px solid #ddd;border-radius:4px;font-size:14px}
+        .text-area{width:100%;min-height:120px;padding:10px;border:1px solid #ddd;border-radius:5px;font-size:14px;font-family:inherit;resize:vertical}
+        .source-tabs{display:flex;gap:4px;margin-bottom:8px}
+        .source-tab{padding:5px 12px;font-size:13px;border:1px solid #ddd;border-radius:4px;cursor:pointer;background:#fff;color:#666}
+        .source-tab.active{background:#4da6ff;color:#fff;border-color:#4da6ff}
+        .chapter-edit:focus{outline:none;box-shadow:inset 0 0 0 2px #4da6ff}
+        .btn-craft{background:linear-gradient(135deg,#f7971e,#ffd200);color:#333}
+        .score-big{font-size:36px;font-weight:700;text-align:center;padding:10px}
+        .score-S{color:#e74c3c}.score-A{color:#e67e22}.score-B{color:#f1c40f}.score-C{color:#3498db}.score-D{color:#95a5a6}
+        .tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;margin-right:3px;margin-bottom:3px}
+        .tag-red{background:#fee;color:#c0392b}.tag-orange{background:#fef3e2;color:#e67e22}.tag-green{background:#e8f8f0;color:#27ae60}.tag-blue{background:#e8f4fd;color:#2980b9}
+        .issue-item{border:1px solid #f5c6cb;border-radius:5px;padding:6px 10px;margin-bottom:5px;background:#fff5f5;font-size:13px}
+        .issue-excerpt{color:#721c24;font-style:italic;margin-top:2px}
+        .craft-subtabs{display:flex;gap:4px;margin-bottom:8px;border-bottom:2px solid #f0f0f0;padding-bottom:6px}
+        .craft-subtab{padding:5px 12px;font-size:13px;color:#888;cursor:pointer;border-radius:4px 4px 0 0}
+        .craft-subtab.active{color:#4da6ff;border-bottom:2px solid #4da6ff;font-weight:600}
+        .craft-subtab:hover{color:#4da6ff}
+        .analysis-card{border:1px solid #e0e0e0;border-radius:6px;padding:12px;margin-bottom:8px}
+        .analysis-card h4{font-size:14px;margin-bottom:6px;color:#333}
+        .bar-chart{display:flex;align-items:center;gap:4px;margin:3px 0}
+        .bar-bg{flex:1;height:8px;background:#eee;border-radius:4px;overflow:hidden}
+        .bar-fill{height:100%;border-radius:4px}
+        .bar-label{width:60px;font-size:12px;color:#666}
+        .bar-value{width:30px;font-size:12px;font-weight:600;text-align:right}
+        .chapter-stats{display:flex;gap:8px;margin:6px 0;flex-wrap:wrap}
+        .cs-item{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500}
+        .cs-total{background:#e8f4fd;color:#2980b9}
+        .cs-done{background:#e8f8f0;color:#27ae60}
+        .cs-error{background:#fee;color:#c0392b}
+        .cs-progress{background:#fff8e1;color:#f39c12;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .chapter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:10px 0}
+        .chapter-card{border:1px solid #e0e0e0;border-radius:6px;overflow:hidden;transition:.2s;cursor:pointer;background:#fff}
+        .chapter-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
+        .chapter-card.status-done{border-color:#27ae60}
+        .chapter-card.status-error{border-color:#e74c3c}
+        .chapter-card.status-generating{border-color:#f39c12;animation:borderPulse 1.5s infinite}
+        @keyframes borderPulse{0%,100%{border-color:#f39c12}50%{border-color:#fff8e1}}
+        .cc-header{display:flex;align-items:center;gap:4px;padding:6px 8px;background:#f8f9fa;font-size:12px;font-weight:600;border-bottom:1px solid #eee}
+        .cc-num{flex-shrink:0;color:#667eea}
+        .cc-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400;color:#555}
+        .cc-status-badge{font-size:10px;padding:1px 5px;border-radius:8px;flex-shrink:0}
+        .badge-done{background:#d4edda;color:#155724}
+        .badge-error{background:#f8d7da;color:#721c24}
+        .badge-generating{background:#fff3cd;color:#856404}
+        .cc-content{padding:6px 8px;min-height:40px}
+        .cc-preview{font-size:11px;color:#888;line-height:1.4}
+        .cc-textarea{width:100%;min-height:100px;border:1px solid #ddd;border-radius:4px;padding:6px;font-size:12px;font-family:inherit;resize:vertical;box-sizing:border-box}
+        .cc-actions{display:flex;align-items:center;gap:4px;padding:4px 8px;border-top:1px solid #eee;background:#fafafa}
+        .cc-wordcount{flex:1;font-size:10px;color:#999}
+        .cc-btn{padding:2px 6px;border:1px solid #ddd;border-radius:3px;background:#fff;cursor:pointer;font-size:12px;line-height:1}
+        .cc-btn:hover{background:#e8f4fd;border-color:#4da6ff}
+        .cc-btn-del:hover{background:#fee;border-color:#e74c3c}
+        .chapter-pending{text-align:center;padding:8px}
+        .gen-summary{margin:8px 0;padding:8px 12px;background:#f0f8ff;border-left:3px solid #4da6ff;border-radius:4px;font-size:12px;color:#555;line-height:1.6}
+        .cc-timing{font-size:10px;color:#aaa;margin-left:4px}
+        .outline-section{margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid #f0f0f0}
+        .outline-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:10px 0}
+        .outline-card{border:1px solid #e0e0e0;border-radius:6px;overflow:hidden;transition:.2s;background:#fff}
+        .outline-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
+        .outline-card.status-done{border-color:#9b59b6}
+        .outline-card.status-error{border-color:#e74c3c}
+        .outline-card.status-generating{border-color:#f39c12;animation:borderPulse 1.5s infinite}
+        .oc-header{display:flex;align-items:center;gap:4px;padding:6px 8px;background:#faf5ff;font-size:12px;font-weight:600;border-bottom:1px solid #eee}
+        .oc-num{flex-shrink:0;color:#9b59b6}
+        .oc-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400;color:#555}
+        .oc-content{padding:6px 8px;min-height:40px}
+        .oc-preview{font-size:11px;color:#888;line-height:1.4}
+        .oc-textarea{width:100%;min-height:80px;border:1px solid #ddd;border-radius:4px;padding:6px;font-size:12px;font-family:inherit;resize:vertical;box-sizing:border-box}
+        .oc-meta{display:flex;flex-wrap:wrap;gap:3px;padding:4px 8px;border-top:1px solid #f0f0f0}
+        .oc-tag{font-size:10px;padding:1px 6px;border-radius:8px;background:#f3e8ff;color:#9b59b6;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    </style>
+</head>
+<body>
+
+<div id="app" v-cloak>
+    <!-- 项目加载模态框 -->
+    <div v-if="showProjectModal" class="modal-overlay" @click.self="showProjectModal = false">
+        <div class="modal-card" style="max-width:600px">
+            <button class="modal-close" @click="showProjectModal = false">&times;</button>
+            <h3>📂 加载项目</h3>
+            <div v-if="projects.length === 0" class="tip">暂无保存的项目</div>
+            <div v-else class="project-list">
+                <div v-for="p in projects" :key="p.id" class="project-item">
+                    <div class="project-item-info" @click="loadProject(p.id)">
+                        <div class="project-item-name">{{ p.name }}</div>
+                        <div class="project-item-meta">
+                            <span v-if="p.title">《{{ p.title }}》</span>
+                            <span>步骤: {{ stepLabels[p.step] || '-' }}</span>
+                            <span v-if="p.has_outline">📋 大纲</span>
+                            <span v-if="p.chapter_count > 0">📖 {{ p.chapter_count }}章</span>
+                            <span v-if="p.char_count > 0">👤 {{ p.char_count }}角色</span>
+                        </div>
+                        <div class="project-item-date">更新: {{ p.updated_at }}</div>
+                    </div>
+                    <button class="btn-sm btn-danger" @click="deleteProject(p.id)" title="删除">🗑</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="genProgress.show" class="gen-progress">
+        <div class="gp-spinner"></div>
+        <div class="gp-text">
+            <div class="gp-title">{{ genProgress.title }}</div>
+            <div class="gp-sub">{{ genProgress.subtitle }}</div>
+            <div v-if="genProgress.streamPreview" class="gp-preview">{{ genProgress.streamPreview }}...</div>
+        </div>
+        <div class="gp-time">{{ genProgress.timeText }}</div>
+        <div class="gp-bar gp-bar-anim" :style="{width: genProgress.pct + '%'}"></div>
+    </div>
+    <div class="header">
+        <h1>AI小说创作平台</h1>
+        <p>小说下载 · AI创作 · 网文技法</p>
+        <div class="header-btns">
+            <button class="settings-btn project-btn" @click="openLoadModal()">&#128194; 项目: {{ currentProjectName || '未保存' }}</button>
+            <button class="settings-btn" @click="showSettings = true">&#9881; 大模型配置</button>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab" :class="{active: activeTab === 0}" @click="activeTab = 0">小说下载</div>
+        <div class="tab" :class="{active: activeTab === 1}" @click="activeTab = 1">AI创作</div>
+        <div class="tab" :class="{active: activeTab === 2}" @click="activeTab = 2; loadCraftSavedBooks()">网文技法</div>
+    </div>
+
+    <div class="container">
+        <!-- Tab 0: 小说下载 -->
+        <div v-show="activeTab === 0">
+            <div class="card">
+                <h2>搜索书籍</h2>
+                <div class="search-box">
+                    <input type="text" v-model="searchQuery" placeholder="书名 / 章节链接 / book_id" @keydown.enter="doSearch">
+                    <button @click="doSearch" :disabled="searchLoading"><span v-if="searchLoading" class="spinner"></span>搜索</button>
+                </div>
+                <div class="tip">输入书名、粘贴链接或直接输入 book_id</div>
+                <div v-for="r in searchResults" :key="r.book_id" class="book-item" :class="{selected: book && book.book_id === r.book_id}" @click="selectBook(r)">
+                    <div>
+                        <div class="book-title">{{ r.title || r.book_name || '未知书名' }}</div>
+                        <div class="book-meta">{{ r.author || '' }}</div>
+                    </div>
+                    <div class="book-count">{{ bookCounts[r.book_id] || '...' }}</div>
+                </div>
+                <div v-if="searchError" class="error">{{ searchError }}</div>
+            </div>
+
+            <div class="card" v-if="book">
+                <h2>{{ book.title || book.book_id }}</h2>
+                <div style="font-size:11px;color:#888;margin-bottom:10px">{{ book.author ? book.author + ' | ' : '' }}{{ book.count || '' }}{{ book.count ? ' 章' : '' }}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+                    <button class="btn btn-dl" @click="startDownload" :disabled="dlState === 'running'">{{ dlState === 'done' ? '重新下载' : '下载 TXT' }}</button>
+                    <button class="btn btn-ghost" style="background:#f0f0f0;color:#555" @click="resetSearch">重新搜索</button>
+                </div>
+                <div v-if="dlState !== 'idle'">
+                    <div class="progress">
+                        <div class="progress-top">
+                            <span class="progress-label">{{ dlStatusText }}</span>
+                            <span class="progress-pct">{{ dlPct }}%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill" :style="{width: dlPct + '%'}"></div></div>
+                        <div class="progress-detail"><span>{{ dlCurrent }}/{{ dlTotal }} 章</span></div>
+                    </div>
+                    <div style="margin-top:6px" v-if="dlState === 'running'">
+                        <button class="btn btn-pause" @click="doPause">暂停</button>
+                    </div>
+                    <div style="margin-top:6px" v-if="dlState === 'paused'">
+                        <button class="btn btn-resume" @click="doResume">继续</button>
+                        <button class="btn btn-save" @click="saveFile">保存</button>
+                    </div>
+                    <div style="margin-top:6px" v-if="dlState === 'done'">
+                        <div class="success">下载完成! <button class="btn btn-dl" @click="saveFile" style="margin-left:5px">保存文件</button></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 1: AI创作 -->
+        <div v-show="activeTab === 1">
+            <!-- AI 小说创作 -->
+            <div class="card">
+                <h2>AI 小说创作</h2>
+                <div class="tip" style="margin-bottom:8px">从灵感到大纲到章节，AI 辅助完成小说创作全流程。点击上方步骤标签可随时切换，所有内容均可自由编辑。</div>
+
+                <!-- 项目工具栏 -->
+                <div class="project-toolbar">
+                    <button class="btn-sm" @click="saveProject()" :disabled="saveStatus === 'saving'">
+                        {{ saveStatus === 'saving' ? '⏳ 保存中...' : saveStatus === 'saved' ? '✓ 已保存' : '💾 保存项目' }}
+                    </button>
+                    <button class="btn-sm btn-secondary" @click="openLoadModal()">📂 加载项目</button>
+                    <button class="btn-sm btn-secondary" @click="newProject()">🆕 新建</button>
+                    <input v-model="saveNameInput" placeholder="项目名称（可选）" class="project-name-input" />
+                    <span v-if="currentProjectName" class="project-saved-name">当前: {{ currentProjectName }}</span>
+                </div>
+
+                <!-- 步骤指示器 -->
+                <div class="novel-steps">
+                    <div v-for="(s, i) in stepLabels" :key="i" class="novel-step"
+                         :class="{active: novel.step === i, done: hasStepContent(i), locked: !canGoToStep(i) && i > 0}"
+                         @click="canGoToStep(i) || i === 0 ? showStep(i) : null"
+                         :title="canGoToStep(i) || i === 0 ? '' : '请先完成前置步骤'">
+                        {{ s }}
+                        <span v-if="hasStepContent(i)" class="step-badge done-badge">&#10003;</span>
+                        <span v-else-if="novel.step === i" class="step-badge active-badge">...</span>
+                        <span v-else-if="!canGoToStep(i) && i > 0" class="step-badge locked-badge">&#128274;</span>
+                    </div>
+                </div>
+
+                <!-- Step 0: 灵感 -->
+                <div v-show="novel.step === 0">
+                    <div class="select-row" style="margin-bottom:8px">
+                        <select v-model="novelModelId" style="flex:1;padding:7px;border:1px solid #ddd;border-radius:4px;font-size:12px">
+                            <option v-for="m in models" :key="m.id" :value="m.id">{{ m.name }}</option>
+                        </select>
+                        <button class="btn btn-ai" @click="generateInspire" :disabled="inspireLoading"><span v-if="inspireLoading" class="spinner"></span>生成灵感</button>
+                    </div>
+
+                    <!-- 风格分析（可选） -->
+                    <div style="margin-bottom:10px">
+                        <div class="select-row" style="margin-bottom:6px">
+                            <button class="btn btn-ghost" @click="styleExpanded = !styleExpanded">{{ styleExpanded ? '- 收起风格分析' : '+ 参考风格分析（可选）' }}</button>
+                            <span v-if="novel.styleProfile" style="font-size:10px;color:#11998e;padding:2px 8px;background:#e8f5e9;border-radius:10px">✓ 已分析</span>
+                        </div>
+                        <div v-show="styleExpanded">
+                            <div class="source-tabs">
+                                <div class="source-tab" :class="{active: styleTab === 'paste'}" @click="styleTab = 'paste'">粘贴文本</div>
+                                <div class="source-tab" :class="{active: styleTab === 'saved'}" @click="styleTab = 'saved'; loadSavedBooks()">已下载书籍</div>
+                            </div>
+                            <div v-show="styleTab === 'paste'">
+                                <textarea v-model="styleText" class="text-area" style="min-height:80px;margin-top:6px" placeholder="粘贴小说文本（至少几百字），分析后将自动融入创作..."></textarea>
+                                <div style="margin-top:6px"><button class="btn btn-ai" @click="analyzeStyleText" :disabled="styleLoading"><span v-if="styleLoading" class="spinner"></span>{{ styleLoading ? '分析中...' : '分析风格' }}</button></div>
+                            </div>
+                            <div v-show="styleTab === 'saved'">
+                                <div v-for="b in savedBooks" :key="b.book_id" class="book-item" :class="{selected: selectedSavedBook === b.book_id}" @click="analyzeSavedBook(b)">
+                                    <div>
+                                        <div class="book-title">{{ b.title }}</div>
+                                        <div class="book-meta">{{ b.book_id }} | {{ b.total || 0 }} 章 | {{ Math.round(b.size/1024) }}KB</div>
+                                    </div>
+                                    <button class="btn btn-ai" style="padding:4px 12px;font-size:11px" :disabled="savedBookAnalyzing">{{ selectedSavedBook === b.book_id && savedBookAnalyzing ? '分析中...' : '分析' }}</button>
+                                </div>
+                                <div v-if="!savedBooks.length" class="empty">暂无已下载书籍</div>
+                            </div>
+                            <div v-if="novel.styleProfile" style="margin-top:6px">
+                                <div style="font-size:11px;color:#666;margin-bottom:2px">风格摘要：</div>
+                                <div style="font-size:11px;color:#555;background:#f8f9fa;padding:8px;border-radius:4px;max-height:80px;overflow-y:auto">{{ styleProfileSummary }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 无风格分析时的自定义提示词输入框 -->
+                    <div v-if="!novel.styleProfile" style="margin-bottom:10px">
+                        <div style="font-size:12px;color:#555;margin-bottom:4px;font-weight:500">提示词（可选：输入你的灵感想法，如"末世+系统+基建"）：</div>
+                        <textarea v-model="customPrompt" class="text-area" style="min-height:60px;font-size:12px" placeholder="输入你的灵感方向、关键词、想法，AI将基于此生成灵感..."></textarea>
+                    </div>
+
+                    <div v-if="inspireError" class="error">{{ inspireError }}</div>
+                    <div v-for="opt in inspireTitleOptions" :key="opt.idx" class="inspire-option" :class="{selected: opt.selected}" @click="selectInspireTitle(opt)">{{ opt.text }}</div>
+                    <div v-for="opt in inspireDescOptions" :key="opt.idx" class="inspire-option" :class="{selected: opt.selected}" @click="selectInspireDesc(opt)">{{ opt.text }}</div>
+                    <div class="select-row" style="margin-top:8px">
+                        <input v-model="novel.title" placeholder="书名" style="flex:1;padding:8px 12px;border:2px solid #e0e0e0;border-radius:6px;font-size:13px">
+                        <input v-model="novel.description" placeholder="简介" style="flex:1;padding:8px 12px;border:2px solid #e0e0e0;border-radius:6px;font-size:13px">
+                    </div>
+                    <div class="select-row" style="margin-top:6px">
+                        <input v-model="novel.theme" placeholder="主题" style="flex:1;padding:8px 12px;border:2px solid #e0e0e0;border-radius:6px;font-size:13px">
+                        <input v-model="novel.genre" placeholder="类型" style="flex:1;padding:8px 12px;border:2px solid #e0e0e0;border-radius:6px;font-size:13px">
+                    </div>
+                    <div class="novel-btn-row">
+                        <button class="btn btn-dl" @click="showStep(1)" :disabled="!novel.title" :title="novel.title ? '' : '请先生成或输入书名'">下一步：构建世界观 &rarr;</button>
+                    </div>
+                </div>
+
+                <!-- Step 1: 世界观 -->
+                <div v-show="novel.step === 1">
+                    <div class="tip" style="margin-bottom:6px">世界观设定（可自由编辑）：</div>
+                    <textarea v-model="novel.world" class="text-area" style="min-height:200px" placeholder="点击「重新生成」按钮自动生成，或直接在此输入..."></textarea>
+                    <div class="novel-btn-row">
+                        <button class="btn btn-ghost" @click="showStep(0)">&larr; 上一步：灵感</button>
+                        <button class="btn btn-ai" @click="generateWorld">重新生成</button>
+                        <button class="btn btn-ghost" @click="showStep(2)" :disabled="!novel.world" :title="novel.world ? '' : '请先生成世界观'">下一步：角色 &rarr;</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: 角色 -->
+                <div v-show="novel.step === 2">
+                    <div class="select-row" style="margin-bottom:8px">
+                        <input v-model.number="novel.charCount" type="number" min="3" max="30" style="width:80px;padding:8px;border:2px solid #e0e0e0;border-radius:6px">
+                        <button class="btn btn-ai" @click="generateChars" :disabled="charsLoading"><span v-if="charsLoading" class="spinner"></span>重新生成角色</button>
+                    </div>
+                    <div class="tip" style="margin-bottom:6px">角色设定（每行一个角色，格式：名字 - 身份 - 性格，可自由编辑）：</div>
+                    <textarea v-model="novel.characters" class="text-area" style="min-height:200px" placeholder="点击「重新生成角色」按钮自动生成，或直接在此输入..."></textarea>
+                    <div class="novel-btn-row">
+                        <button class="btn btn-ghost" @click="showStep(1)">&larr; 上一步：世界观</button>
+                        <button class="btn btn-ghost" @click="showStep(3)" :disabled="!novel.characters" :title="novel.characters ? '' : '请先生成角色'">下一步：大纲 &rarr;</button>
+                    </div>
+                </div>
+
+                <!-- Step 3: 大纲 -->
+                <div v-show="novel.step === 3">
+                    <!-- 总纲区域 -->
+                    <div class="outline-section">
+                        <div class="select-row" style="margin-bottom:8px">
+                            <input v-model.number="novel.chapterCount" type="number" min="1" max="20" style="width:80px;padding:8px;border:2px solid #e0e0e0;border-radius:6px">
+                            <select v-model="novel.perspective" style="padding:7px;border:1px solid #ddd;border-radius:4px;font-size:12px"><option>第三人称</option><option>第一人称</option></select>
+                            <button class="btn btn-ai" @click="generateBookOverview" :disabled="outlineLoading"><span v-if="outlineLoading" class="spinner"></span>生成总纲</button>
+                            <button class="btn btn-save" @click="generateAllChapterOutlines" :disabled="outlineLoading || !bookOverview || !currentProjectId">一键生成全部细纲</button>
+                            <button class="btn btn-pause" @click="pauseOutlineGeneration" v-if="outlineLoading && !outlinePauseFlag" style="background:linear-gradient(135deg,#f39c12,#e67e22)">暂停</button>
+                            <button class="btn btn-ai" @click="resumeOutlineGeneration" v-if="outlinePauseFlag" style="background:linear-gradient(135deg,#27ae60,#2ecc71)">继续</button>
+                            <button class="btn btn-sm btn-danger" @click="stopOutlineGenerationBtn" v-if="outlineLoading">停止</button>
+                        </div>
+                        <div class="tip" style="margin-bottom:4px">全书总纲（先生成总纲，再基于总纲生成各章细纲）：</div>
+                        <textarea v-model="bookOverview" class="text-area" style="min-height:120px;margin-bottom:8px" placeholder="点击「生成总纲」按钮自动生成，或手动输入总纲JSON..."></textarea>
+                    </div>
+                    <!-- 大纲状态统计 -->
+                    <div class="chapter-stats" v-if="novel.chapterCount">
+                        <span class="cs-item cs-total">共{{ novel.chapterCount }}章</span>
+                        <span class="cs-item cs-done">✓ {{ dbOutlines.filter(o=>o.status==='done').length }}</span>
+                        <span class="cs-item cs-error" v-if="dbOutlines.filter(o=>o.status==='error').length">✗ {{ dbOutlines.filter(o=>o.status==='error').length }}</span>
+                        <span class="cs-item" style="background:#e8f4fd;color:#2980b9" v-if="outlineGenStats.startTime && outlineLoading">⏱ {{ '已用 ' + getOutlineElapsed() }}</span>
+                        <span class="cs-item" style="background:#fff3cd;color:#856404" v-if="outlinePauseFlag">⏸ 已暂停</span>
+                    </div>
+                    <!-- 大纲生成总结 -->
+                    <div class="gen-summary" v-if="!outlineLoading && outlineGenStats.startTime && dbOutlines.length">
+                        大纲生成完成：{{ dbOutlines.filter(o=>o.status==='done').length }} 章成功，耗时 {{ getOutlineTotalTime() }}
+                        <span v-if="getOutlineAvgTime()">，平均每章 {{ getOutlineAvgTime() }}</span>
+                    </div>
+                    <!-- 细纲网格 -->
+                    <div class="outline-grid" v-if="dbOutlines.length">
+                        <div v-for="o in dbOutlines" :key="o.chapter_number" class="outline-card" :class="'status-' + o.status">
+                            <div class="oc-header">
+                                <span class="oc-num">第{{ o.chapter_number }}章</span>
+                                <span class="oc-title">{{ o.title || '-' }}</span>
+                                <span class="cc-status-badge" :class="'badge-' + o.status">{{ o.status === 'done' ? '✓' : o.status === 'error' ? '✗' : '⏳' }}</span>
+                            </div>
+                            <div class="oc-content" @click="o.expanded = !o.expanded">
+                                <textarea v-if="o.expanded" :value="o.summary" @input="o.summary = $event.target.value; _debounced('o_'+o.chapter_number, () => saveOutlineToDb(o.chapter_number, o, 'done'), 800)" class="oc-textarea"></textarea>
+                                <div v-else>
+                                    <div class="oc-preview">{{ o.summary ? o.summary.slice(0, 120) + (o.summary.length > 120 ? '...' : '') : '点击生成细纲' }}</div>
+                                    <span class="cc-timing" v-if="outlineGenStats.chapterTimes && outlineGenStats.chapterTimes[o.chapter_number]">⏱ {{ fmtTime(outlineGenStats.chapterTimes[o.chapter_number]) }}</span>
+                                </div>
+                            </div>
+                            <div class="oc-meta" v-if="o.scenes && o.scenes.length">
+                                <span class="oc-tag" v-for="(s, si) in o.scenes.slice(0, 3)" :key="si">{{ (typeof s === 'string' ? s : (s.name || s.hint || JSON.stringify(s))).slice(0, 12) }}</span>
+                            </div>
+                            <div class="cc-actions">
+                                <span class="cc-wordcount">{{ o.summary ? o.summary.length + '字' : '' }}</span>
+                                <button class="cc-btn" @click.stop="generateChapterOutline(o.chapter_number)" title="重新生成">🔄</button>
+                                <button class="cc-btn cc-btn-del" @click.stop="deleteOutlineFromDb(o.chapter_number)" title="删除">🗑</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="tip">请先生成总纲，然后点击"一键生成全部细纲"</div>
+                    <!-- 兼容旧版纯文本大纲编辑 -->
+                    <details style="margin-top:12px">
+                        <summary style="font-size:12px;color:#888;cursor:pointer">手动编辑大纲文本（兼容旧版）</summary>
+                        <textarea v-model="novel.outlineText" @input="parseOutline()" class="text-area" style="min-height:120px;margin-top:6px" placeholder="每行一章，格式：第X章 标题 - 概要"></textarea>
+                    </details>
+                    <div class="novel-btn-row">
+                        <button class="btn btn-ghost" @click="showStep(2)">&larr; 上一步：角色</button>
+                        <button class="btn btn-ghost" @click="showStep(4)" :disabled="!novel.outline.length" :title="novel.outline.length ? '' : '请先生成大纲'">下一步：章节 &rarr;</button>
+                    </div>
+                </div>
+
+                <!-- Step 4: 章节 -->
+                <div v-show="novel.step === 4">
+                    <div class="select-row" style="margin-bottom:8px">
+                        <input v-model.number="novel.targetWords" type="number" min="500" max="10000" step="500" style="width:100px;padding:8px;border:2px solid #e0e0e0;border-radius:6px">
+                        <button class="btn btn-ai" @click="generateNextChapter" :disabled="chapterLoading"><span v-if="chapterLoading" class="spinner"></span>生成下一章</button>
+                        <button class="btn btn-save" @click="generateAllChapters" :disabled="chapterLoading || !currentProjectId">一键生成全部</button>
+                        <button class="btn btn-pause" @click="pauseGeneration" v-if="chapterLoading && !genPauseFlag" style="background:linear-gradient(135deg,#f39c12,#e67e22)">暂停</button>
+                        <button class="btn btn-ai" @click="resumeGeneration" v-if="genPauseFlag" style="background:linear-gradient(135deg,#27ae60,#2ecc71)">继续</button>
+                        <button class="btn btn-sm btn-danger" @click="stopGenerationBtn" v-if="chapterLoading">停止</button>
+                        <button class="btn btn-save" @click="exportNovelFromDb" :disabled="!dbChapters.length">导出TXT</button>
+                    </div>
+                    <div style="margin-bottom:6px">
+                        <label style="font-size:11px;color:#666;cursor:pointer;display:inline-flex;align-items:center;gap:4px">
+                            <input type="checkbox" v-model="novel.useCraft"> 使用网文技法增强（融入钩子设计、爽点节奏、去AI味）
+                        </label>
+                    </div>
+                    <div v-if="chapterProgress" class="tip">{{ chapterProgress }}</div>
+                    <!-- 章节状态统计 -->
+                    <div class="chapter-stats" v-if="novel.outline.length">
+                        <span class="cs-item cs-total">共{{ novel.outline.length }}章</span>
+                        <span class="cs-item cs-done">✓ {{ dbChapters.filter(c=>c.status==='done').length }}</span>
+                        <span class="cs-item cs-error" v-if="dbChapters.filter(c=>c.status==='error').length">✗ {{ dbChapters.filter(c=>c.status==='error').length }}</span>
+                        <span class="cs-item" style="background:#e8f4fd;color:#2980b9" v-if="genStats.startTime && chapterLoading">⏱ {{ '已用 ' + getElapsed() }}</span>
+                        <span class="cs-item" style="background:#fff3cd;color:#856404" v-if="genPauseFlag">⏸ 已暂停</span>
+                        <span class="cs-item cs-progress" v-if="chapterLoading">{{ chapterProgress }}</span>
+                    </div>
+                    <!-- 生成总结 -->
+                    <div class="gen-summary" v-if="!chapterLoading && genStats.startTime && dbChapters.length">
+                        生成完成：{{ dbChapters.filter(c=>c.status==='done').length }} 章成功，耗时 {{ getTotalTime() }}
+                        <span v-if="getAvgTime()">，平均每章 {{ getAvgTime() }}</span>
+                    </div>
+                    <!-- 章节网格 -->
+                    <div class="chapter-grid" v-if="dbChapters.length">
+                        <div v-for="ch in dbChapters" :key="ch.chapter_number" class="chapter-card" :class="'status-' + ch.status">
+                            <div class="cc-header">
+                                <span class="cc-num">第{{ ch.chapter_number }}章</span>
+                                <span class="cc-title">{{ ch.title || '-' }}</span>
+                                <span class="cc-status-badge" :class="'badge-' + ch.status">{{ ch.status === 'done' ? '✓' : ch.status === 'error' ? '✗' : '⏳' }}</span>
+                            </div>
+                            <div class="cc-content" @click="ch.expanded = !ch.expanded">
+                                <textarea v-if="ch.expanded" :value="ch.content" @input="ch.content = $event.target.value; ch.word_count = ch.content.length; _debounced('c_'+ch.chapter_number, () => saveChapterToDb(ch.chapter_number, ch.title, ch.content, 'done'), 800)" class="cc-textarea"></textarea>
+                                <div v-else>
+                                    <div class="cc-preview">{{ ch.content ? ch.content.slice(0, 120) + (ch.content.length > 120 ? '...' : '') : '点击重新生成' }}</div>
+                                    <span class="cc-timing" v-if="genStats.chapterTimes && genStats.chapterTimes[ch.chapter_number]">⏱ {{ fmtTime(genStats.chapterTimes[ch.chapter_number]) }}</span>
+                                </div>
+                            </div>
+                            <div class="cc-actions">
+                                <span class="cc-wordcount">{{ formatWordCount(ch) }}</span>
+                                <button class="cc-btn" @click.stop="regenerateChapter(ch.chapter_number)" title="重新生成">🔄</button>
+                                <button class="cc-btn cc-btn-del" @click.stop="deleteChapterFromDb(ch.chapter_number)" title="删除">🗑</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="tip">暂无章节，点击"生成下一章"或"一键生成全部"开始</div>
+                    <!-- 未生成章节占位 -->
+                    <div class="chapter-pending" v-if="dbChapters.length < novel.outline.length && novel.outline.length">
+                        <span style="font-size:12px;color:#888">还有 {{ novel.outline.length - dbChapters.filter(c=>c.status==='done').length }} 章待生成</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI 风格分析 -->
+            <div class="card">
+                <h2>AI 风格分析</h2>
+                <div class="tip" style="margin-bottom:8px">分析小说的写作风格，为AI仿写提供风格画像。</div>
+                <div class="source-tabs">
+                    <div class="source-tab" :class="{active: analyzeTab === 'paste'}" @click="analyzeTab = 'paste'">粘贴文本</div>
+                    <div class="source-tab" :class="{active: analyzeTab === 'saved'}" @click="analyzeTab = 'saved'; loadAnalyzeSavedBooks()">已下载书籍</div>
+                </div>
+                <div v-show="analyzeTab === 'paste'">
+                    <textarea v-model="analyzeText" class="text-area" placeholder="粘贴小说文本内容（至少几百字），AI将分析其写作风格..."></textarea>
+                </div>
+                <div v-show="analyzeTab === 'saved'">
+                    <div v-for="b in analyzeSavedBooks" :key="b.book_id" class="book-item" :class="{selected: selectedAnalyzeBook === b.book_id}" @click="selectAnalyzeBook(b)">
+                        <div>
+                            <div class="book-title">{{ b.title }}</div>
+                            <div class="book-meta">{{ b.book_id }} | {{ b.total || 0 }} 章 | {{ Math.round(b.size/1024) }}KB</div>
+                        </div>
+                        <button class="btn btn-ai" style="padding:4px 12px;font-size:11px">选择</button>
+                    </div>
+                    <div v-if="selectedAnalyzeBook && analyzeBookContent" style="margin-top:6px">
+                        <textarea :value="analyzeBookContent.slice(0, 10000)" class="text-area" style="min-height:100px" readonly></textarea>
+                    </div>
+                </div>
+                <div class="select-row" style="margin-top:8px">
+                    <select v-model="analyzeModelIdx" style="flex:1;padding:7px;border:1px solid #ddd;border-radius:4px;font-size:12px">
+                        <option v-for="(m, i) in models" :key="m.id" :value="i">{{ m.name }}</option>
+                    </select>
+                    <button class="btn btn-ai" @click="runAnalyze" :disabled="analyzeLoading"><span v-if="analyzeLoading" class="spinner"></span>分析</button>
+                </div>
+                <div v-if="analyzeResult" class="style-profile">
+                    <h3 style="margin-top:0">风格画像</h3>
+                    <div v-for="(line, i) in analyzeResultLines" :key="i">
+                        <h4 v-if="line.match(/^【.+】/)">{{ line }}</h4>
+                        <p v-else>{{ line }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI 仿写生成 -->
+            <div class="card" v-if="styleProfile">
+                <h2>AI 仿写生成</h2>
+                <div class="select-row">
+                    <select v-model="generateModelIdx" style="flex:1;padding:7px;border:1px solid #ddd;border-radius:4px;font-size:12px">
+                        <option v-for="(m, i) in models" :key="m.id" :value="i">{{ m.name }}</option>
+                    </select>
+                </div>
+                <div class="gen-form">
+                    <div><label>题材类型</label><input v-model="genForm.genre" placeholder="悬疑 / 玄幻..."></div>
+                    <div><label>生成章节数</label><input v-model.number="genForm.count" type="number" min="1" max="20"></div>
+                    <div class="full"><label>主角设定</label><input v-model="genForm.protagonist" placeholder="姓名、年龄、身份..."></div>
+                    <div class="full"><label>世界观</label><textarea v-model="genForm.world" placeholder="时代背景、势力分布..."></textarea></div>
+                    <div class="full"><label>故事梗概</label><textarea v-model="genForm.outline" placeholder="主线剧情..."></textarea></div>
+                </div>
+                <div style="margin-top:8px"><button class="btn btn-ai" @click="runGenerate" :disabled="genLoading"><span v-if="genLoading" class="spinner"></span>生成</button></div>
+                <div v-if="genResult" style="margin-top:8px">
+                    <div v-for="(ch, i) in genChapters" :key="i" style="margin-bottom:8px">
+                        <h4>{{ ch.title }} ({{ ch.text.length }}字)</h4>
+                        <p style="font-size:12px;color:#555">{{ ch.text.slice(0, 200) }}...</p>
+                    </div>
+                    <button class="btn btn-save" @click="saveGenerated">保存 TXT</button>
+                </div>
+            </div>
+        </div>
+        <!-- Tab 2: 网文技法 -->
+        <div v-show="activeTab === 2">
+            <div class="card">
+                <h2>网文技法工具箱</h2>
+                <div class="tip" style="margin-bottom:8px">拆文分析 · 去AI味 · 质量评分 · 融入网文写作技法</div>
+                <div class="craft-subtabs">
+                    <div class="craft-subtab" :class="{active: craftTab === 'detect'}" @click="craftTab = 'detect'">去AI味检测</div>
+                    <div class="craft-subtab" :class="{active: craftTab === 'deconstruct'}" @click="craftTab = 'deconstruct'">拆文分析</div>
+                    <div class="craft-subtab" :class="{active: craftTab === 'quality'}" @click="craftTab = 'quality'">质量评分</div>
+                </div>
+
+                <!-- 输入区域（公共） -->
+                <div class="source-tabs" v-if="craftTab !== 'deconstruct'">
+                    <div class="source-tab" :class="{active: craftSource === 'paste'}" @click="craftSource = 'paste'">粘贴文本</div>
+                    <div class="source-tab" :class="{active: craftSource === 'saved'}" @click="craftSource = 'saved'; loadCraftSavedBooks()">已下载书籍</div>
+                </div>
+                <div v-if="craftTab === 'deconstruct'" class="source-tabs">
+                    <div class="source-tab" :class="{active: craftSource === 'paste'}" @click="craftSource = 'paste'">粘贴前三章</div>
+                    <div class="source-tab" :class="{active: craftSource === 'saved'}" @click="craftSource = 'saved'; loadCraftSavedBooks()">选择已下载书籍</div>
+                </div>
+
+                <div v-show="craftSource === 'paste'">
+                    <textarea v-model="craftText" class="text-area" :placeholder="craftTab === 'quality' ? '粘贴小说文本（至少1000字，评分准确度随字数增加）...' : craftTab === 'deconstruct' ? '粘贴小说前三章原文用于拆解黄金三章、钩子设计、爽点节奏...' : '粘贴小说文本，检测模板化开头、书面腔、情绪标签化等AI味痕迹...'"></textarea>
+                </div>
+                <div v-show="craftSource === 'saved'">
+                    <div v-for="b in craftSavedBooks" :key="b.book_id" class="book-item" :class="{selected: selectedCraftBook === b.book_id}" @click="selectCraftBook(b)">
+                        <div>
+                            <div class="book-title">{{ b.title }}</div>
+                            <div class="book-meta">{{ b.book_id }} | {{ b.total || 0 }} 章 | {{ Math.round(b.size/1024) }}KB</div>
+                        </div>
+                        <button class="btn btn-ai" style="padding:4px 12px;font-size:11px">选择</button>
+                    </div>
+                    <div v-if="!craftSavedBooks.length" class="empty">暂无已下载书籍</div>
+                </div>
+
+                <div class="select-row" style="margin-top:8px">
+                    <select v-model="craftModelIdx" style="flex:1;padding:7px;border:1px solid #ddd;border-radius:4px;font-size:12px">
+                        <option v-for="(m, i) in models" :key="m.id" :value="i">{{ m.name }}</option>
+                    </select>
+                    <button v-if="craftTab === 'detect'" class="btn btn-craft" @click="runDetectAI" :disabled="craftLoading"><span v-if="craftLoading" class="spinner"></span>检测AI味</button>
+                    <button v-if="craftTab === 'deconstruct'" class="btn btn-craft" @click="runDeconstruct" :disabled="craftLoading"><span v-if="craftLoading" class="spinner"></span>拆解分析</button>
+                    <button v-if="craftTab === 'quality'" class="btn btn-craft" @click="runQualityScore" :disabled="craftLoading"><span v-if="craftLoading" class="spinner"></span>质量评分</button>
+                </div>
+            </div>
+
+            <!-- 去AI味结果 -->
+            <div class="card" v-if="detectResult">
+                <h2>AI味检测结果</h2>
+                <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+                    <div style="text-align:center">
+                        <div class="score-big" :class="'score-' + (detectResult.ai_score >= 80 ? 'S' : detectResult.ai_score >= 60 ? 'A' : detectResult.ai_score >= 40 ? 'B' : detectResult.ai_score >= 20 ? 'C' : 'D')">{{ detectResult.ai_score }}</div>
+                        <div style="font-size:10px;color:#888">AI味浓度(0-100)</div>
+                    </div>
+                    <div style="flex:1">
+                        <div style="font-size:12px;color:#555;margin-bottom:4px">{{ detectResult.summary }}</div>
+                        <div style="font-size:11px;color:#888">{{ detectResult.overall_assessment }}</div>
+                    </div>
+                </div>
+                <div v-if="detectResult.issues && detectResult.issues.length" style="margin-bottom:10px">
+                    <div style="font-size:11px;font-weight:600;margin-bottom:4px">检测到 {{ detectResult.issues.length }} 处问题：</div>
+                    <div v-for="(iss, i) in detectResult.issues" :key="i" class="issue-item">
+                        <div style="display:flex;justify-content:space-between">
+                            <span class="tag" :class="'tag-' + (iss.severity >= 4 ? 'red' : iss.severity >= 3 ? 'orange' : 'blue')">{{ iss.type }}</span>
+                            <span style="font-size:9px;color:#888">严重度 {{ iss.severity }}/5 | {{ iss.position }}</span>
+                        </div>
+                        <div class="issue-excerpt">{{ iss.excerpt }}</div>
+                    </div>
+                </div>
+                <div v-if="detectResult.issues && detectResult.issues.length">
+                    <button class="btn btn-craft" @click="runFixAI" :disabled="craftLoading"><span v-if="craftLoading" class="spinner"></span>一键修复AI味</button>
+                </div>
+            </div>
+
+            <!-- 修复结果 -->
+            <div class="card" v-if="fixedContent">
+                <h2>修复结果</h2>
+                <div style="margin-bottom:8px"><span class="tag tag-green">已修复</span>以下为去除AI味后的文本：</div>
+                <textarea v-model="fixedContent" class="text-area" style="min-height:300px"></textarea>
+                <div style="margin-top:8px"><button class="btn btn-save" @click="copyFixed">复制修复文本</button></div>
+            </div>
+
+            <!-- 拆文分析结果 -->
+            <div class="card" v-if="deconstructResult">
+                <h2>黄金三章拆解</h2>
+                <div v-if="deconstructResult.overall_score" style="margin-bottom:12px">
+                    <div style="font-size:11px;font-weight:600;margin-bottom:6px">综合评分</div>
+                    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px">
+                        <div v-for="(dim, key) in deconstructResult.overall_score" :key="key" style="text-align:center;padding:6px;background:#f8f9fa;border-radius:4px">
+                            <div style="font-size:16px;font-weight:700;color:#ff6b35">{{ dim }}</div>
+                            <div style="font-size:9px;color:#888;margin-top:2px">{{ {hook:'开篇',protagonist:'人设',satisfaction:'爽点',world:'世界观',ending:'悬念'}[key] }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div v-if="deconstructResult.chapter_1" class="analysis-card">
+                    <h4>第1章拆解</h4>
+                    <div style="font-size:11px;line-height:1.8">
+                        <div><span class="tag tag-blue">钩子</span>{{ deconstructResult.chapter_1.hook_type }} · 效果: {{ deconstructResult.chapter_1.hook_effect }}</div>
+                        <div style="margin-top:4px"><span class="tag tag-orange">人设</span>{{ deconstructResult.chapter_1.protagonist_method }} · {{ deconstructResult.chapter_1.protagonist_impression }}</div>
+                        <div style="margin-top:4px"><span class="tag tag-red">爽点</span>{{ deconstructResult.chapter_1.satisfaction_type }} · 铺放比{{ deconstructResult.chapter_1.satisfaction_ratio || '—' }}</div>
+                        <div style="margin-top:4px"><span class="tag tag-green">悬念</span>{{ deconstructResult.chapter_1.ending_hook }} · 期待度: {{ deconstructResult.chapter_1.ending_expectation }}</div>
+                    </div>
+                </div>
+                <div v-if="deconstructResult.chapter_2" class="analysis-card">
+                    <h4>第2章拆解</h4>
+                    <div style="font-size:11px;line-height:1.8">
+                        <div><span class="tag tag-blue">钩子</span>{{ deconstructResult.chapter_2.hook_type || '承接上文' }}</div>
+                        <div style="margin-top:4px"><span class="tag tag-red">爽点</span>{{ deconstructResult.chapter_2.satisfaction_type || '无' }} · 铺放比{{ deconstructResult.chapter_2.satisfaction_ratio || '—' }}</div>
+                        <div style="margin-top:4px"><span class="tag tag-green">悬念</span>{{ deconstructResult.chapter_2.ending_hook }}</div>
+                    </div>
+                </div>
+                <div v-if="deconstructResult.chapter_3" class="analysis-card">
+                    <h4>第3章拆解</h4>
+                    <div style="font-size:11px;line-height:1.8">
+                        <div><span class="tag tag-red">爽点</span>{{ deconstructResult.chapter_3.satisfaction_type || '无' }} · 铺放比{{ deconstructResult.chapter_3.satisfaction_ratio || '—' }}</div>
+                        <div style="margin-top:4px"><span class="tag tag-green">悬念</span>{{ deconstructResult.chapter_3.ending_hook }}</div>
+                    </div>
+                </div>
+                <div v-if="deconstructResult.key_lessons" class="analysis-card">
+                    <h4>核心教训</h4>
+                    <div v-for="(l, i) in deconstructResult.key_lessons" :key="i" style="font-size:11px;color:#555;margin:2px 0">{{ i+1 }}. {{ l }}</div>
+                </div>
+                <div v-if="deconstructResult.overall_summary" style="font-size:11px;color:#666;margin-top:8px;font-style:italic">{{ deconstructResult.overall_summary }}</div>
+            </div>
+
+            <!-- 质量评分结果 -->
+            <div class="card" v-if="qualityResult">
+                <h2>质量评分报告</h2>
+                <div style="display:flex;align-items:center;gap:20px;margin-bottom:14px">
+                    <div style="text-align:center">
+                        <div class="score-big" :class="'score-' + qualityResult.grade">{{ qualityResult.total_score }}</div>
+                        <div style="font-size:14px;font-weight:700" :class="'score-' + qualityResult.grade">评级 {{ qualityResult.grade }}</div>
+                    </div>
+                    <div style="flex:1">
+                        <div style="font-size:12px;color:#555;margin-bottom:6px">{{ qualityResult.verdict }}</div>
+                        <div v-if="qualityResult.dimensions">
+                            <div v-for="(dim, key) in qualityResult.dimensions" :key="key" class="bar-chart">
+                                <span class="bar-label">{{ {opening:'开篇',protagonist:'人设',satisfaction:'爽感',info_push:'信息',cliffhanger:'钩子'}[key] }}</span>
+                                <div class="bar-bg"><div class="bar-fill" :style="{width: dim.score + '%', background: dim.score >= 80 ? '#27ae60' : dim.score >= 60 ? '#f1c40f' : '#e74c3c'}"></div></div>
+                                <span class="bar-value">{{ dim.score }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:12px">
+                    <div style="flex:1">
+                        <div style="font-size:11px;font-weight:600;color:#27ae60;margin-bottom:3px">优势</div>
+                        <div v-for="(s, i) in qualityResult.strengths" :key="i" style="font-size:11px;color:#555;margin:2px 0">&#10003; {{ s }}</div>
+                    </div>
+                    <div style="flex:1">
+                        <div style="font-size:11px;font-weight:600;color:#e74c3c;margin-bottom:3px">短板</div>
+                        <div v-for="(w, i) in qualityResult.weaknesses" :key="i" style="font-size:11px;color:#555;margin:2px 0">&#10007; {{ w }}</div>
+                    </div>
+                </div>
+                <div v-if="qualityResult.suggestions" style="margin-top:8px">
+                    <div style="font-size:11px;font-weight:600;color:#3498db;margin-bottom:3px">改进建议</div>
+                    <div v-for="(s, i) in qualityResult.suggestions" :key="i" style="font-size:11px;color:#555;margin:2px 0">{{ i+1 }}. {{ s }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div v-if="showSettings" class="modal-overlay" @click.self="closeSettings">
+        <div class="modal-card">
+            <button class="modal-close" @click="closeSettings" title="关闭 (Esc)">&times;</button>
+            <h3>大模型配置</h3>
+
+            <div v-if="!models.length" style="color:#999;padding:8px 0;text-align:center;font-size:11px">暂无配置，点击下方预设一键添加，或手动填写</div>
+
+            <!-- 模型列表 -->
+            <div v-for="m in models" :key="m.id" class="model-item" :class="{selected: m.id === activeModelId}">
+                <div>
+                    <div class="model-name">
+                        {{ m.name }}
+                        <span v-if="m.id === activeModelId" class="current-badge">当前</span>
+                    </div>
+                    <div class="model-endpoint">{{ m.model }} | {{ m.endpoint }}</div>
+                </div>
+                <div class="model-actions">
+                    <button v-if="m.id !== activeModelId" class="model-act-btn sel" @click="setActiveModel(m.id)">使用</button>
+                    <span v-else class="current-label">使用中</span>
+                    <button class="model-act-btn edit" @click="editModel(m)">编辑</button>
+                    <button class="model-act-btn del" @click="deleteModel(m.id)">删除</button>
+                </div>
+            </div>
+
+            <!-- 添加/编辑表单 -->
+            <button v-if="!showAddForm" class="add-model-btn" @click="startAddModel">+ 自定义模型</button>
+            <div v-if="showAddForm" class="model-form">
+                <h4 class="form-title">{{ editingId ? '编辑模型' : '添加模型' }}</h4>
+                <div class="form-group"><label>模型名称</label><input v-model="form.name" placeholder="如: DeepSeek V3"></div>
+                <div class="form-group"><label>API 地址</label><input v-model="form.endpoint" placeholder="https://api.deepseek.com/v1/chat/completions"></div>
+                <div class="form-group"><label>API Key</label><input v-model="form.apiKey" type="password" placeholder="sk-xxx"></div>
+                <div class="form-group"><label>模型标识</label><input v-model="form.model" placeholder="如: deepseek-chat, glm-4-flash"></div>
+                <div class="form-validation" v-if="formValidation">{{ formValidation }}</div>
+                <div style="display:flex;gap:6px;margin-top:8px">
+                    <button class="btn btn-dl" style="flex:1" @click="saveModel">{{ editingId ? '更新' : '保存' }}</button>
+                    <button class="btn" style="flex:1;background:#ccc" @click="cancelEdit">取消</button>
+                </div>
+            </div>
+
+            <!-- 预设模型一键添加 -->
+            <div class="preset-header">预设模型（一键添加，仅需填写 API Key）</div>
+            <div class="preset-btns">
+                <button class="add-model-btn preset-btn" @click="addPresetModel('智谱 GLM-4-Flash', 'https://open.bigmodel.cn/api/paas/v4/chat/completions', 'glm-4-flash')">智谱 GLM-4-Flash</button>
+                <button class="add-model-btn preset-btn" @click="addPresetModel('DeepSeek V3', 'https://api.deepseek.com/v1/chat/completions', 'deepseek-chat')">DeepSeek V3</button>
+                <button class="add-model-btn preset-btn" @click="addPresetModel('通义千问 Turbo', 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', 'qwen-turbo')">通义千问 Turbo</button>
+                <button class="add-model-btn preset-btn" @click="addPresetModel('MiniMax-Text-01', 'https://api.minimax.chat/v1/text/chatcompletion_v2', 'MiniMax-Text-01')">MiniMax</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Error handler to display JS errors on page
+window.onerror = function(msg, url, line, col, err) {
+    let el = document.getElementById('js-error-display');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'js-error-display';
+        el.style.cssText = 'position:fixed;top:0;left:0;width:100%;max-height:200px;overflow:auto;background:#e74c3c;color:#fff;padding:10px;z-index:99999;font-size:12px;font-family:monospace;white-space:pre-wrap;';
+        document.body.appendChild(el);
+    }
+    el.textContent += 'Line ' + line + ': ' + msg + '\n';
+};
+const { createApp, ref, reactive, computed, onMounted, nextTick, watch } = Vue;
+
+const app = createApp({
+    setup() {
+        const BASE = '/fanqie';
+        const activeTab = ref(0);
+
+        // ====== Models ======
+        const models = ref([]);
+        const activeModelId = ref('');
+        const showSettings = ref(false);
+        const showAddForm = ref(false);
+        const editingId = ref('');
+        const formValidation = ref('');
+        const form = reactive({ name: '', endpoint: '', apiKey: '', model: '' });
+
+        function loadModels() {
+            try { models.value = JSON.parse(localStorage.getItem('fanqie_models') || '[]'); } catch(e) { models.value = []; }
+            activeModelId.value = localStorage.getItem('fanqie_active_model') || (models.value.length ? models.value[0].id : '');
+            novelModelId.value = activeModelId.value;
+        }
+        function saveModels() { localStorage.setItem('fanqie_models', JSON.stringify(models.value)); }
+
+        function setActiveModel(id) {
+            activeModelId.value = id;
+            novelModelId.value = id;
+            localStorage.setItem('fanqie_active_model', id);
+        }
+
+        function getActiveModel() {
+            return models.value.find(m => m.id === activeModelId.value) || models.value[0] || null;
+        }
+
+        function closeSettings() {
+            showSettings.value = false;
+            showAddForm.value = false;
+            resetForm();
+        }
+
+        function resetForm() {
+            editingId.value = '';
+            form.name = ''; form.endpoint = ''; form.apiKey = ''; form.model = '';
+            formValidation.value = '';
+        }
+
+        function startAddModel() {
+            resetForm();
+            showAddForm.value = true;
+        }
+
+        function cancelEdit() {
+            if (editingId.value && (form.name || form.apiKey || form.endpoint || form.model)) {
+                if (!confirm('放弃当前编辑？')) return;
+            }
+            resetForm();
+            showAddForm.value = false;
+        }
+
+        function editModel(m) {
+            editingId.value = m.id;
+            form.name = m.name;
+            form.endpoint = m.endpoint;
+            form.apiKey = m.apiKey;
+            form.model = m.model;
+            formValidation.value = '';
+            showAddForm.value = true;
+        }
+
+        function deleteModel(id) {
+            if (!confirm('确定删除此模型配置？')) return;
+            const wasActive = activeModelId.value === id;
+            models.value = models.value.filter(m => m.id !== id);
+            if (wasActive) setActiveModel(models.value.length ? models.value[0].id : '');
+            saveModels();
+        }
+
+        function saveModel() {
+            const name = form.name.trim();
+            if (!name) {
+                formValidation.value = '请填写模型名称';
+                return;
+            }
+
+            const dup = models.value.find(m => m.name === name && m.id !== editingId.value);
+            if (dup) {
+                formValidation.value = '已存在同名模型 "' + name + '"';
+                return;
+            }
+
+            formValidation.value = '';
+
+            const modelData = {
+                name: name,
+                endpoint: form.endpoint.trim(),
+                apiKey: form.apiKey.trim(),
+                model: form.model.trim()
+            };
+
+            if (editingId.value) {
+                const idx = models.value.findIndex(m => m.id === editingId.value);
+                if (idx >= 0) {
+                    models.value[idx] = { id: editingId.value, ...modelData };
+                }
+            } else {
+                models.value.push({ id: 'm' + Date.now(), ...modelData });
+            }
+
+            saveModels();
+            if (!activeModelId.value && models.value.length) {
+                setActiveModel(models.value[models.value.length - 1].id);
+            }
+            resetForm();
+            showAddForm.value = false;
+        }
+
+        function addPresetModel(name, endpoint, model) {
+            const dup = models.value.find(m => m.name === name);
+            if (dup) {
+                setActiveModel(dup.id);
+                return;
+            }
+            const id = 'm' + Date.now();
+            models.value.push({ id, name, endpoint, apiKey: '', model });
+            saveModels();
+            setActiveModel(id);
+        }
+
+        function fillPreset(name, endpoint, model) {
+            editingId.value = '';
+            form.name = name;
+            form.endpoint = endpoint;
+            form.model = model;
+            form.apiKey = '';
+            formValidation.value = '';
+            showAddForm.value = true;
+        }
+
+        // ====== Search & Download ======
+        const searchQuery = ref('');
+        const searchLoading = ref(false);
+        const searchResults = ref([]);
+        const searchError = ref('');
+        const bookCounts = ref({});
+        const book = ref(null);
+        const dlState = ref('idle');
+        const dlCurrent = ref(0);
+        const dlTotal = ref(0);
+        const dlSessionId = ref(null);
+        const dlPct = computed(() => dlTotal.value > 0 ? Math.round(dlCurrent.value / dlTotal.value * 100) : 0);
+        const dlStatusText = computed(() => {
+            if (dlState.value === 'running') return '下载中 ' + dlPct.value + '%';
+            if (dlState.value === 'paused') return '已暂停 ' + dlPct.value + '%';
+            if (dlState.value === 'done') return '下载完成!';
+            if (dlState.value === 'error') return '下载失败';
+            return '点击下方按钮开始';
+        });
+
+        const API_TIMEOUT = 600000; // 10 minutes for AI calls
+
+        async function api(path, params) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+            let url = BASE + path;
+            if (params) {
+                const qs = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+                url += (url.indexOf('?') === -1 ? '?' : '&') + qs;
+            }
+            try {
+                const r = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!r.ok) {
+                    const text = await r.text();
+                    let d = {};
+                    try { d = JSON.parse(text); } catch {}
+                    throw new Error(d.error || `服务器错误 (${r.status})`);
+                }
+                return r.json();
+            } catch (e) {
+                clearTimeout(timeoutId);
+                if (e.name === 'AbortError') throw new Error('请求超时，请检查网络或服务器状态');
+                throw e;
+            }
+        }
+
+        async function apiPost(path, body) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+            try {
+                const r = await fetch(BASE + path, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (!r.ok) {
+                    let msg;
+                    const text = await r.text();
+                    try {
+                        const d = JSON.parse(text);
+                        msg = d.error || `服务器错误 (${r.status})`;
+                    } catch {
+                        msg = `服务器错误 (${r.status}): ${text.slice(0, 200)}`;
+                    }
+                    throw new Error(msg);
+                }
+                return r.json();
+            } catch (e) {
+                clearTimeout(timeoutId);
+                if (e.name === 'AbortError') throw new Error('请求超时，请检查网络或服务器状态');
+                throw e;
+            }
+        }
+
+        async function apiPostStream(path, body, onChunk, externalSignal) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+            // 外部信号（暂停/停止）也能中断请求
+            if (externalSignal) {
+                if (externalSignal.aborted) controller.abort();
+                else externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+            }
+            try {
+                const r = await fetch(BASE + path, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (!r.ok) {
+                    const text = await r.text();
+                    let d = {};
+                    try { d = JSON.parse(text); } catch {}
+                    throw new Error(d.error || `服务器错误 (${r.status})`);
+                }
+                const reader = r.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                while (true) {
+                    if (externalSignal && externalSignal.aborted) break;
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            try {
+                                const obj = JSON.parse(data);
+                                onChunk(obj);
+                            } catch {}
+                        }
+                    }
+                }
+            } catch (e) {
+                clearTimeout(timeoutId);
+                if (e.name === 'AbortError') throw new Error('请求已取消');
+                throw e;
+            }
+        }
+
+        async function doSearch() {
+            if (!searchQuery.value.trim()) return;
+            searchLoading.value = true;
+            searchError.value = '';
+            searchResults.value = [];
+            book.value = null;
+            bookCounts.value = {};
+
+            try {
+                const idMatch = searchQuery.value.match(/(\d{16,20})/);
+                if (idMatch) {
+                    const info = await api('/api/resolve', { q: searchQuery.value });
+                    if (info && info.book_id) { book.value = info; searchLoading.value = false; return; }
+                }
+                const data = await api('/api/search', { q: searchQuery.value });
+                searchResults.value = data.books || [];
+                searchResults.value.forEach(b => {
+                    api('/api/directory', { book_id: b.book_id }).then(d => { bookCounts.value[b.book_id] = d.total + ' 章'; }).catch(() => {});
+                });
+            } catch(e) {
+                searchError.value = e.message;
+            }
+            searchLoading.value = false;
+        }
+
+        function selectBook(b) {
+            book.value = { book_id: b.book_id, title: b.title || b.book_name, author: b.author, count: bookCounts.value[b.book_id] };
+            dlState.value = 'idle';
+            dlCurrent.value = 0;
+            dlTotal.value = 0;
+        }
+
+        function resetSearch() {
+            book.value = null;
+            searchResults.value = [];
+            searchQuery.value = '';
+            dlState.value = 'idle';
+        }
+
+        async function startDownload() {
+            if (!book.value || dlState.value === 'running') return;
+            if (dlState.value === 'paused' && dlSessionId.value) { doResume(); return; }
+            dlState.value = 'running';
+            dlCurrent.value = 0;
+            try {
+                const d = await api('/api/download/start', { book_id: book.value.book_id, title: book.value.title });
+                dlSessionId.value = d.session_id;
+                pollDownload();
+            } catch(e) {
+                dlState.value = 'idle';
+                alert('启动下载失败: ' + e.message);
+            }
+        }
+
+        let pollRetries = 0;
+        async function pollDownload() {
+            if (!dlSessionId.value || dlState.value === 'idle') return;
+            try {
+                const d = await api('/api/download/status', { session_id: dlSessionId.value });
+                dlCurrent.value = d.current;
+                dlTotal.value = d.total;
+                pollRetries = 0;
+                if (d.status === 'done') { dlState.value = 'done'; }
+                else if (d.status === 'downloading') { setTimeout(pollDownload, 1000); }
+                else if (d.status === 'paused') { dlState.value = 'paused'; }
+                else if (d.status === 'error') { dlState.value = 'error'; }
+            } catch(e) {
+                pollRetries++;
+                if (pollRetries < 10) { setTimeout(pollDownload, 2000); }
+                else { dlState.value = 'error'; }
+            }
+        }
+
+        async function doPause() {
+            if (!dlSessionId.value) return;
+            await api('/api/download/pause', { session_id: dlSessionId.value });
+            dlState.value = 'paused';
+        }
+
+        async function doResume() {
+            if (!dlSessionId.value) return;
+            await api('/api/download/resume', { session_id: dlSessionId.value });
+            dlState.value = 'running';
+            pollDownload();
+        }
+
+        function saveFile() {
+            if (dlSessionId.value) window.location.href = BASE + '/api/download/file?session_id=' + dlSessionId.value;
+        }
+
+        // ====== Novel Creation ======
+        const stepLabels = ['1.灵感', '2.世界观', '3.角色', '4.总纲+细纲', '5.章节正文'];
+        const novel = reactive({
+            step: 0, title: '', description: '', theme: '', genre: '',
+            world: '', characters: '', bookOverview: '', outlineText: '', outline: [],
+            chapters: [], currentChapter: 0, charCount: 10, chapterCount: 3,
+            perspective: '第三人称', targetWords: 3000, styleProfile: '', useCraft: true
+        });
+        const novelModelId = ref('');
+        const inspireLoading = ref(false);
+        const inspireError = ref('');
+        const inspireTitleOptions = ref([]);
+        const customPrompt = ref('');
+        const inspireDescOptions = ref([]);
+        const charsLoading = ref(false);
+        const outlineLoading = ref(false);
+        const chapterLoading = ref(false);
+        const chapterProgress = ref('');
+        // 流式控制：共享 AbortController 和暂停状态
+        const streamAbort = ref(null);
+        const pausedChapterIdx = ref(-1);
+        const pausedChapterNumber = ref('');
+        const storyContext = reactive({ summaries: [], unresolvedForeshadowing: [] });
+        const genProgress = reactive({
+            show: false, title: '', subtitle: '', timeText: '', pct: 0,
+            startTime: 0, timer: null, streamPreview: '', streamChars: 0,
+            estimates: { world: 35000, chars: 60000, outline: 45000, chapter: 60000 }
+        });
+
+        // ===== 项目管理 =====
+        const currentProjectId = ref('');
+        const currentProjectName = ref('');
+        const projects = ref([]);
+        const showProjectModal = ref(false);
+        const saveNameInput = ref('');
+        const saveStatus = ref(''); // '', 'saving', 'saved', 'error'
+        const autoSaveTimer = ref(null);
+
+        async function loadProjectList() {
+            try {
+                const d = await apiPost('/api/projects/list', {});
+                projects.value = d.projects || [];
+            } catch(e) {
+                console.error('加载项目列表失败:', e);
+            }
+        }
+
+        async function saveProject() {
+            if (isSaving) return;
+            isSaving = true;
+            saveStatus.value = 'saving';
+            const name = saveNameInput.value.trim() || novel.title || '未命名项目';
+            try {
+                const r = await apiPost('/api/projects/save', {
+                    id: currentProjectId.value || undefined,
+                    name: name,
+                    step: novel.step,
+                    data: {
+                        title: novel.title,
+                        description: novel.description,
+                        theme: novel.theme,
+                        genre: novel.genre,
+                        world: novel.world,
+                        characters: novel.characters,
+                        bookOverview: novel.bookOverview,
+                        outlineText: novel.outlineText,
+                        outline: novel.outline,
+                        chapters: novel.chapters,
+                        charCount: novel.charCount,
+                        chapterCount: novel.chapterCount,
+                        perspective: novel.perspective,
+                        targetWords: novel.targetWords,
+                        styleProfile: novel.styleProfile,
+                        useCraft: novel.useCraft,
+                        storyContext: {
+                            summaries: storyContext.summaries,
+                            unresolvedForeshadowing: storyContext.unresolvedForeshadowing,
+                        },
+                    }
+                });
+                currentProjectId.value = r.id;
+                saveStatus.value = 'saved';
+                currentProjectName.value = name;
+                setTimeout(() => { saveStatus.value = ''; }, 2000);
+                // 异步加载项目列表，不阻塞
+                loadProjectList();
+            } catch(e) {
+                saveStatus.value = 'error';
+                console.error('保存失败:', e);
+                setTimeout(() => { saveStatus.value = ''; }, 3000);
+            }
+            isSaving = false;
+        }
+
+        async function openLoadModal() {
+            await loadProjectList();
+            showProjectModal.value = true;
+        }
+
+        async function loadProject(id) {
+            try {
+                const p = await apiPost('/api/projects/load', { id });
+                if (p.error) { alert(p.error); return; }
+
+                // 恢复项目数据到 novel 状态
+                const d = p.data || {};
+                novel.title = d.title || '';
+                novel.description = d.description || '';
+                novel.theme = d.theme || '';
+                novel.genre = d.genre || '';
+                novel.world = d.world || '';
+                novel.characters = d.characters || '';
+                novel.bookOverview = d.bookOverview || '';
+                novel.outlineText = d.outlineText || '';
+                novel.outline = d.outline || [];
+                novel.chapters = d.chapters || [];
+                novel.charCount = d.charCount || 10;
+                novel.chapterCount = d.chapterCount || 3;
+                novel.perspective = d.perspective || '第三人称';
+                novel.targetWords = d.targetWords || 3000;
+                novel.styleProfile = d.styleProfile || '';
+                novel.useCraft = d.useCraft !== undefined ? d.useCraft : true;
+                novel.step = p.step || 0;
+
+                currentProjectId.value = p.id;
+                currentProjectName.value = p.name || '';
+
+                // 恢复 storyContext
+                if (d.storyContext) {
+                    storyContext.summaries = d.storyContext.summaries || [];
+                    storyContext.unresolvedForeshadowing = d.storyContext.unresolvedForeshadowing || [];
+                } else {
+                    storyContext.summaries = [];
+                    storyContext.unresolvedForeshadowing = [];
+                    if (novel.chapters.length > 0) {
+                        for (let i = 0; i < novel.chapters.length; i++) {
+                            const o = novel.outline[i];
+                            storyContext.summaries.push(
+                                '第' + (i + 1) + '章 ' + (o ? o.title : '') + ': ' + (o && o.summary ? o.summary.slice(0, 150) : '')
+                            );
+                        }
+                    }
+                }
+
+                showProjectModal.value = false;
+                saveStatus.value = 'saved';
+                setTimeout(() => { saveStatus.value = ''; }, 2000);
+
+                // 从数据库加载章节和大纲
+                await loadChaptersFromDb();
+                await loadOutlinesFromDb();
+                // 加载步骤摘要，若无则从项目数据重建
+                const summaries = await loadStepSummaries();
+                if (!summaries.inspiration && novel.title) {
+                    await saveStepSummary('inspiration', {
+                        title: novel.title, description: novel.description,
+                        theme: novel.theme, genre: novel.genre,
+                        core_premise: (novel.description || '').slice(0, 100)
+                    });
+                }
+                if (!summaries.world && novel.world) {
+                    await saveStepSummary('world', {
+                        key_locations: [], power_system: '',
+                        summary_text: (novel.world || '').slice(0, 500)
+                    });
+                }
+                if (!summaries.characters && novel.characters) {
+                    await saveStepSummary('characters', { char_names: [], char_count: 0 });
+                }
+                // 加载总纲
+                const overviewOl = dbOutlines.value.find(o => o.chapter_number === 0);
+                if (overviewOl && overviewOl.book_overview) {
+                    bookOverview.value = overviewOl.book_overview;
+                }
+            } catch(e) {
+                alert('加载失败: ' + e.message);
+            }
+        }
+
+        async function deleteProject(id) {
+            if (!confirm('确定要删除这个项目吗？此操作不可恢复。')) return;
+            try {
+                await apiPost('/api/projects/delete', { id });
+                if (currentProjectId.value === id) {
+                    currentProjectId.value = '';
+                    currentProjectName.value = '';
+                }
+                loadProjectList();
+            } catch(e) {
+                alert('删除失败: ' + e.message);
+            }
+        }
+
+        async function newProject() {
+            if (novel.title && !confirm('当前有未保存的内容，确定要新建项目吗？')) return;
+            currentProjectId.value = '';
+            currentProjectName.value = '';
+            novel.step = 0; novel.title = ''; novel.description = ''; novel.theme = ''; novel.genre = '';
+            novel.world = ''; novel.characters = ''; novel.bookOverview = ''; novel.outlineText = '';
+            novel.outline = []; novel.chapters = []; novel.currentChapter = 0;
+            novel.charCount = 10; novel.chapterCount = 3;
+            storyContext.summaries = [];
+            storyContext.unresolvedForeshadowing = [];
+        }
+
+        // 自动保存：当 novel 内容变化时延迟保存（完全非阻塞）
+        let isSaving = false;
+        function scheduleAutoSave() {
+            if (autoSaveTimer.value) clearTimeout(autoSaveTimer.value);
+            autoSaveTimer.value = setTimeout(() => {
+                if (chapterLoading.value || outlineLoading.value) { scheduleAutoSave(); return; }
+                if (isSaving || !currentProjectId.value || !novel.title) return;
+                isSaving = true;
+                saveStatus.value = 'saving';
+                // 异步非阻塞，不 await
+                autoSave().finally(() => { isSaving = false; });
+            }, 30000); // 30秒自动保存
+        }
+
+        async function autoSave() {
+            const name = saveNameInput.value.trim() || novel.title || '未命名项目';
+            const payload = {
+                id: currentProjectId.value || undefined,
+                name: name,
+                step: novel.step,
+                data: {
+                    title: novel.title,
+                    description: novel.description,
+                    theme: novel.theme,
+                    genre: novel.genre,
+                    world: novel.world,
+                    characters: novel.characters,
+                    bookOverview: novel.bookOverview,
+                    outlineText: novel.outlineText,
+                    outline: novel.outline,
+                    chapters: novel.chapters.filter(c => typeof c === 'string' || typeof c === 'object').slice(0),
+                    charCount: novel.charCount,
+                    chapterCount: novel.chapterCount,
+                    perspective: novel.perspective,
+                    targetWords: novel.targetWords,
+                    styleProfile: novel.styleProfile,
+                    useCraft: novel.useCraft,
+                    storyContext: {
+                        summaries: storyContext.summaries,
+                        unresolvedForeshadowing: storyContext.unresolvedForeshadowing,
+                    },
+                }
+            };
+            try {
+                const r = await apiPost('/api/projects/save', payload);
+                currentProjectId.value = r.id;
+                const now = new Date();
+                saveStatus.value = 'saved ' + now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+            } catch(e) {
+                console.error('Auto-save failed:', e);
+            }
+            setTimeout(() => { if (saveStatus.value.startsWith('saved')) saveStatus.value = ''; }, 5000);
+        }
+
+        // 自动保存：标记 setup 完成后才启用 watch
+        let setupDone = false;
+        setTimeout(() => { setupDone = true; }, 100);
+        // Debounce utility for textarea DB saves
+        const _debounceTimers = {};
+        function _debounced(key, fn, delay) {
+            clearTimeout(_debounceTimers[key]);
+            _debounceTimers[key] = setTimeout(fn, delay);
+        }
+        watch(() => [novel.title, novel.description, novel.theme, novel.genre, novel.world, novel.characters, novel.outlineText, novel.outline.length, novel.chapters.length, novel.bookOverview], () => {
+            if (setupDone) scheduleAutoSave();
+        });
+
+        const genStats = ref({ startTime: 0, chapterTimes: {} });
+
+        function genStart(title, subtitle, estMs) {
+            genProgress.show = true;
+            genProgress.title = title;
+            genProgress.subtitle = subtitle || '';
+            genProgress.startTime = Date.now();
+            genProgress.pct = 0;
+            genProgress.streamPreview = '';
+            genProgress.streamChars = 0;
+            genStats.value.startTime = Date.now();
+            if (genProgress.timer) clearInterval(genProgress.timer);
+            const start = Date.now();
+            genProgress.timer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - start) / 1000);
+                const mm = String(Math.floor(elapsed / 60)).padStart(1, '0');
+                const ss = String(elapsed % 60).padStart(2, '0');
+                const est = estMs || 60000;
+                const remaining = Math.max(0, Math.floor((est - (Date.now() - start)) / 1000));
+                const rm = String(Math.floor(remaining / 60)).padStart(1, '0');
+                const rs = String(remaining % 60).padStart(2, '0');
+                genProgress.timeText = mm + ':' + ss + ' / ~' + rm + ':' + rs;
+            }, 500);
+        }
+
+        function genUpdate(msg) {
+            genProgress.subtitle = msg;
+        }
+
+        function genEnd() {
+            if (genProgress.timer) clearInterval(genProgress.timer);
+            genProgress.timer = null;
+            genProgress.show = false;
+            genProgress.streamPreview = '';
+            genProgress.streamChars = 0;
+        }
+
+        function fmtTime(s) {
+            if (s < 60) return s + '秒';
+            if (s < 3600) return Math.floor(s / 60) + '分' + (s % 60) + '秒';
+            return Math.floor(s / 3600) + '时' + Math.floor((s % 3600) / 60) + '分';
+        }
+
+        // Style analysis
+        const styleExpanded = ref(false);
+        const styleTab = ref('paste');
+        const styleText = ref('');
+        const styleLoading = ref(false);
+        const savedBooks = ref([]);
+        const selectedSavedBook = ref('');
+        const savedBookAnalyzing = ref(false);
+
+        const styleProfileSummary = computed(() => {
+            if (!novel.styleProfile) return '';
+            try {
+                const obj = JSON.parse(novel.styleProfile);
+                return obj.overall_summary || obj.summary || novel.styleProfile.slice(0, 200);
+            } catch(e) {
+                return novel.styleProfile.slice(0, 200);
+            }
+        });
+
+        function showStep(n) {
+            novel.step = n;
+        }
+
+        function hasStepContent(i) {
+            if (i === 0) return !!(novel.title && novel.description && novel.theme && novel.genre);
+            if (i === 1) return !!novel.world;
+            if (i === 2) return !!novel.characters;
+            if (i === 3) return !!novel.outlineText;
+            if (i === 4) return novel.chapters.length > 0;
+            return false;
+        }
+
+        function canGoToStep(n) {
+            if (n <= 1) return !!novel.title;
+            if (n === 2) return !!novel.title && !!novel.world;
+            if (n === 3) return !!novel.title && !!novel.world && !!novel.characters;
+            if (n === 4) return !!novel.title && !!novel.world && !!novel.characters && novel.outline.length > 0;
+            return false;
+        }
+
+        function getNovelModel() {
+            return models.value.find(m => m.id === novelModelId.value) || models.value[0] || null;
+        }
+
+        // Inspiration - 并行优化：3轮代替4轮串行
+        async function generateInspire() {
+            const m = getNovelModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            inspireLoading.value = true;
+            inspireError.value = '';
+            inspireTitleOptions.value = [];
+            inspireDescOptions.value = [];
+            genStart('正在生成灵感', '书名 → 简介 → 主题+类型', 90000);
+
+            const hasStyle = !!novel.styleProfile;
+            const userInput = hasStyle ? '' : (customPrompt.value || '');
+            const titleInput = hasStyle ? '[风格参考]\n' + novel.styleProfile + '\n\n[用户输入]\n' : (customPrompt.value || '');
+            const descInput = hasStyle ? '[风格参考]\n' + novel.styleProfile + '\n\n' : (customPrompt.value || '');
+            const base = { endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, styleProfile: novel.styleProfile };
+
+            try {
+                genUpdate('正在生成书名...');
+                const d1 = await apiPost('/api/novel/inspiration/title', { ...base, userInput: titleInput });
+                inspireTitleOptions.value = (d1.options || []).map((opt, i) => ({
+                    idx: i, text: typeof opt === 'object' ? (opt.name || opt.title || opt.text || JSON.stringify(opt)) : opt, selected: i === 0
+                }));
+                if (d1.options && d1.options[0]) {
+                    const first = d1.options[0];
+                    novel.title = typeof first === 'object' ? (first.name || first.title || first.text || JSON.stringify(first)) : first;
+                }
+
+                // 第2轮：简介（依赖书名）
+                genUpdate('正在生成简介...');
+                const d2 = await apiPost('/api/novel/inspiration/description', { ...base, title: novel.title, userInput: descInput });
+                inspireDescOptions.value = (d2.options || []).map((opt, i) => ({
+                    idx: i, text: typeof opt === 'object' ? (opt.name || opt.title || opt.text || opt.description || JSON.stringify(opt)) : opt, selected: i === 0
+                }));
+                if (d2.options && d2.options[0]) {
+                    const first = d2.options[0];
+                    novel.description = typeof first === 'object' ? (first.name || first.title || first.text || first.description || JSON.stringify(first)) : first;
+                }
+
+                // 第3轮：主题 + 类型 并行（都依赖书名+简介）
+                genUpdate('正在生成主题和类型...');
+                const themeInput = hasStyle ? '[风格参考]\n' + novel.styleProfile : userInput;
+                const [d3, d4] = await Promise.all([
+                    apiPost('/api/novel/inspiration/theme', { ...base, title: novel.title, description: novel.description, userInput: themeInput }),
+                    apiPost('/api/novel/inspiration/genre', { ...base, title: novel.title, description: novel.description, userInput: themeInput }),
+                ]);
+                if (d3.options && d3.options[0]) {
+                    const first = d3.options[0];
+                    novel.theme = typeof first === 'object' ? (first.name || first.title || first.text || first.theme || JSON.stringify(first)) : first;
+                }
+                if (d4.options && d4.options[0]) {
+                    const first = d4.options[0];
+                    novel.genre = typeof first === 'object' ? (first.name || first.title || first.text || first.genre || JSON.stringify(first)) : first;
+                }
+                // 保存灵感步骤摘要
+                await saveStepSummary('inspiration', {
+                    title: novel.title, description: novel.description,
+                    theme: novel.theme, genre: novel.genre,
+                    core_premise: (novel.description || '').slice(0, 100)
+                });
+            } catch(e) {
+                inspireError.value = e.message;
+            }
+            genEnd();
+            inspireLoading.value = false;
+        }
+
+        function selectInspireTitle(opt) {
+            inspireTitleOptions.value.forEach(o => o.selected = false);
+            opt.selected = true;
+            novel.title = opt.text;
+        }
+        function selectInspireDesc(opt) {
+            inspireDescOptions.value.forEach(o => o.selected = false);
+            opt.selected = true;
+            novel.description = opt.text;
+        }
+
+        // ===== 步骤摘要管理 =====
+        async function saveStepSummary(step, summary) {
+            if (!currentProjectId.value) return;
+            try {
+                await apiPost('/api/step-summary/save', {
+                    projectId: currentProjectId.value, step, summary: summary || {}
+                });
+            } catch(e) { console.error('保存步骤摘要失败:', e); }
+        }
+
+        async function loadStepSummaries() {
+            if (!currentProjectId.value) return {};
+            try {
+                const d = await apiPost('/api/step-summary/get', { projectId: currentProjectId.value });
+                return d.summaries || {};
+            } catch(e) { return {}; }
+        }
+
+        // World
+        async function generateWorld() {
+            const m = getNovelModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            novel.world = '正在生成世界观，请稍候...';
+            genStart('正在生成世界观', '时间背景 / 空间环境 / 情感基调 / 世界规则', genProgress.estimates.world);
+            try {
+                const d = await apiPost('/api/novel/worldbuilding', { endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, title: novel.title, theme: novel.theme, genre: novel.genre, description: novel.description, styleProfile: novel.styleProfile });
+                let text = '';
+                const labels = { time_period: '【时间背景】', location: '【空间环境】', atmosphere: '【情感基调】', rules: '【世界规则】' };
+                ['time_period', 'location', 'atmosphere', 'rules'].forEach(k => {
+                    if (d[k]) {
+                        let val = d[k];
+                        if (typeof val === 'object') {
+                            val = val.description || val.detail || val.content || val.name || JSON.stringify(val);
+                        }
+                        text += labels[k] + '\n' + val + '\n\n';
+                    }
+                });
+                novel.world = text.trim();
+            } catch(e) {
+                novel.world = '生成失败: ' + e.message;
+            }
+            genEnd();
+            // 保存世界观步骤摘要
+            await saveStepSummary('world', {
+                key_locations: [],
+                power_system: '',
+                summary_text: (novel.world || '').slice(0, 500)
+            });
+        }
+
+        // Characters
+        async function generateChars() {
+            const m = getNovelModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            charsLoading.value = true;
+            novel.characters = '正在生成角色，请稍候...';
+            const charEst = genProgress.estimates.chars + Math.max(0, novel.charCount - 6) * 5000;
+            genStart('正在生成角色', novel.charCount + ' 个角色', charEst);
+            let chars = [];
+            try {
+                const d = await apiPost('/api/novel/characters', {
+                    endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
+                    worldData: { time_period: novel.world, location: '', atmosphere: '', rules: novel.world },
+                    theme: novel.theme, genre: novel.genre, count: novel.charCount, styleProfile: novel.styleProfile
+                });
+                chars = d.characters || [];
+                let text = '';
+                chars.forEach(c => {
+                    if (c.is_organization) {
+                        text += (c.name || '') + ' - 组织 - ' + (c.organization_purpose || '') + '\n';
+                    } else {
+                        text += (c.name || '') + ' - ' + (c.role_type || '角色') + ' - ' + (c.personality || '') + '\n';
+                    }
+                });
+                novel.characters = text.trim();
+                // 保存角色步骤摘要
+                await saveStepSummary('characters', {
+                    protagonist: chars[0] ? { name: chars[0].name, role: chars[0].role_type, personality: chars[0].personality } : {},
+                    char_count: chars.length,
+                    char_names: chars.map(c => c.name || '').filter(Boolean).slice(0, 8)
+                });
+            } catch(e) {
+                novel.characters = '生成失败: ' + e.message;
+                await saveStepSummary('characters', { char_names: [], char_count: 0 });
+            }
+            genEnd();
+            charsLoading.value = false;
+        }
+
+        // Outline
+        // ===== 大纲管理 =====
+        const dbOutlines = ref([]);
+        const outlineGenStatus = ref(null);
+        const outlineStopFlag = ref(false);
+        const outlinePauseFlag = ref(false);
+        const outlineGenStats = ref({ startTime: 0, chapterTimes: {} });
+        const bookOverview = ref(''); // 总纲文本
+
+        async function loadOutlinesFromDb() {
+            if (!currentProjectId.value) { dbOutlines.value = []; return; }
+            try {
+                const d = await apiPost('/api/outline/get', { projectId: currentProjectId.value });
+                dbOutlines.value = (d.outlines || []).map(o => ({ ...o, expanded: false }));
+                outlineGenStatus.value = d.status;
+                // 同步到 novel.outline 和 novel.outlineText
+                syncOutlineToNovel();
+            } catch(e) { console.error('加载大纲失败:', e); }
+        }
+
+        function syncOutlineToNovel() {
+            if (!dbOutlines.value.length) { novel.outline = []; novel.outlineText = ''; return; }
+            const sorted = [...dbOutlines.value].sort((a, b) => a.chapter_number - b.chapter_number);
+            novel.outline = sorted.map(o => ({
+                chapter_number: String(o.chapter_number),
+                title: o.title || ('第' + o.chapter_number + '章'),
+                summary: o.summary || '',
+            }));
+            novel.outlineText = sorted.map(o =>
+                '第' + o.chapter_number + '章 ' + (o.title || '') + ' - ' + (o.summary || '')
+            ).join('\n');
+        }
+
+        async function saveOutlineToDb(chapterNumber, outlineData, status) {
+            if (!currentProjectId.value) return;
+            try {
+                await apiPost('/api/outline/save', {
+                    projectId: currentProjectId.value,
+                    chapterNumber,
+                    title: outlineData.title || '',
+                    summary: outlineData.summary || '',
+                    scenes: outlineData.scenes || [],
+                    characters: outlineData.characters || [],
+                    keyPoints: outlineData.key_points || [],
+                    emotion: outlineData.emotion || '',
+                    goal: outlineData.goal || '',
+                    techniqueFocus: outlineData.technique_focus || '',
+                    bookOverview: bookOverview.value || '',
+                    acts: outlineData.acts || [],
+                    status: status || 'done',
+                });
+                await loadOutlinesFromDb();
+            } catch(e) { console.error('保存大纲失败:', e); }
+        }
+
+        async function deleteOutlineFromDb(chapterNumber) {
+            if (!currentProjectId.value) return;
+            if (!confirm('确定删除第' + chapterNumber + '章大纲？')) return;
+            try {
+                await apiPost('/api/outline/delete', { projectId: currentProjectId.value, chapterNumber });
+                await loadOutlinesFromDb();
+            } catch(e) { console.error('删除大纲失败:', e); }
+        }
+
+        // 生成总纲
+        async function generateBookOverview() {
+            const m = getNovelModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            outlineLoading.value = true;
+            genStart('正在生成全书总纲', '故事脉络、核心矛盾、关键转折', genProgress.estimates.outline * 0.4);
+            try {
+                const d = await apiPost('/api/novel/book-overview', {
+                    endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
+                    projectId: currentProjectId.value,
+                    title: novel.title, theme: novel.theme, genre: novel.genre,
+                    description: novel.description || '',
+                    charactersInfo: novel.characters, narrativePerspective: novel.perspective,
+                    styleProfile: novel.styleProfile,
+                    worldSummary: novel.world || ''
+                });
+                const result = d.result || {};
+                bookOverview.value = JSON.stringify(result, null, 2);
+                novel.bookOverview = result.core_conflict?.central_conflict || result.story_arc || '';
+                // 保存总纲到 DB（chapter_number=0 表示总纲）
+                await apiPost('/api/outline/save', {
+                    projectId: currentProjectId.value, chapterNumber: 0,
+                    title: '全书总纲',
+                    summary: JSON.stringify(result.core_conflict || {}),
+                    acts: result.acts || [],
+                    scenes: (result.foreshadowing || []).map(f => f.hint || f.reveal || ''),
+                    characters: (result.character_arcs || []).map(c => c.name || ''),
+                    keyPoints: (result.subplots || []).map(sp => sp.name || ''),
+                    emotion: JSON.stringify(result.pacing || []),
+                    goal: result.core_conflict?.central_conflict || '',
+                    techniqueFocus: '',
+                    bookOverview: bookOverview.value,
+                    status: 'done',
+                });
+                genProgress.subtitle = '总纲生成完成！';
+                // 保存总纲步骤摘要
+                await saveStepSummary('book_overview', {
+                    central_conflict: result.core_conflict?.central_conflict || '',
+                    central_question: result.core_conflict?.central_question || '',
+                    thematic_statement: result.core_conflict?.thematic_statement || '',
+                    act_count: (result.acts || []).length,
+                    act_names: (result.acts || []).map(a => a.name || ''),
+                    char_arc_count: (result.character_arcs || []).length,
+                    char_names: (result.character_arcs || []).map(c => c.name || '').slice(0, 8),
+                    foreshadow_count: (result.foreshadowing || []).length,
+                    subplot_count: (result.subplots || []).length,
+                    pacing_segments: (result.pacing || []).length
+                });
+            } catch(e) {
+                alert('总纲生成失败: ' + e.message);
+            }
+            genEnd();
+            outlineLoading.value = false;
+        }
+
+        // 生成单章细纲
+        async function generateChapterOutline(chapterNumber) {
+            const m = getNovelModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            if (!bookOverview.value) { alert('请先生成全书总纲'); return; }
+            outlineLoading.value = true;
+            genStart('正在生成第' + chapterNumber + '章细纲', '', genProgress.estimates.outline * 0.6);
+            // 获取前一章信息
+            const prevOutline = dbOutlines.value.find(o => o.chapter_number === chapterNumber - 1);
+            const prevChapter = dbChapters.value.find(c => c.chapter_number === chapterNumber - 1);
+            const prevTitle = prevOutline ? prevOutline.title : '';
+            const prevTail = prevChapter ? (prevChapter.content || '').slice(-300) : '';
+            try {
+                const d = await apiPost('/api/novel/chapter-outline', {
+                    endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
+                    projectTitle: novel.title, genre: novel.genre,
+                    bookOverview: bookOverview.value,
+                    chapterNumber: chapterNumber,
+                    totalChapters: novel.chapterCount,
+                    charactersInfo: novel.characters,
+                    narrativePerspective: novel.perspective,
+                    styleProfile: novel.styleProfile,
+                    prevChapterTitle: prevTitle,
+                    prevChapterTail: prevTail,
+                });
+                const result = d.result || {};
+                await saveOutlineToDb(chapterNumber, {
+                    title: result.title || ('第' + chapterNumber + '章'),
+                    summary: result.summary || '',
+                    scenes: result.scenes || [],
+                    characters: result.characters || [],
+                    key_points: result.key_points || [],
+                    emotion: result.emotion || '',
+                    goal: result.goal || '',
+                    technique_focus: result.technique_focus || '',
+                }, 'done');
+                genProgress.subtitle = '第' + chapterNumber + '章细纲完成';
+            } catch(e) {
+                await saveOutlineToDb(chapterNumber, { title: '第' + chapterNumber + '章' }, 'error');
+                alert('第' + chapterNumber + '章细纲生成失败: ' + e.message);
+            }
+            genEnd();
+            outlineLoading.value = false;
+        }
+
+        // 批量生成全部细纲
+        async function generateAllChapterOutlines() {
+            const m = getNovelModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            if (!bookOverview.value) { alert('请先生成全书总纲'); return; }
+            outlineStopFlag.value = false;
+            outlinePauseFlag.value = false;
+            outlineLoading.value = true;
+            const totalChapters = novel.chapterCount;
+            outlineGenStats.value = { startTime: Date.now(), chapterTimes: {} };
+            // 记录生成开始
+            await apiPost('/api/outline/generation/start', {
+                projectId: currentProjectId.value,
+                totalChapters: totalChapters,
+                endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
+                projectTitle: novel.title, genre: novel.genre,
+                styleProfile: novel.styleProfile, bookOverview: bookOverview.value,
+                targetWords: novel.targetWords, narrativePerspective: novel.perspective,
+                chapterCharacters: novel.characters.slice(0, 500),
+            });
+            let completed = 0, failed = 0;
+            if (!novel.characters) novel.characters = '';
+            genStart('正在生成章节细纲', '0 / ' + totalChapters + ' 章', genProgress.estimates.outline * totalChapters);
+            for (let i = 1; i <= totalChapters; i++) {
+                if (outlineStopFlag.value) break;
+                while (outlinePauseFlag.value && !outlineStopFlag.value) {
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                if (outlineStopFlag.value) break;
+                // 跳过已完成的大纲
+                const existingOutline = dbOutlines.value.find(o => Number(o.chapter_number) === i && o.status === 'done');
+                if (existingOutline) {
+                    completed++;
+                    outlineGenStats.value.chapterTimes[i] = 0;
+                    continue;
+                }
+                const chapStart = Date.now();
+                const elapsed = (chapStart - outlineGenStats.value.startTime) / 1000;
+                const avgPerChap = completed > 0 ? elapsed / completed : genProgress.estimates.outline / 1000;
+                const doneCount = completed + failed;
+                const remaining = Math.max(0, Math.floor(avgPerChap * (totalChapters - doneCount)));
+                genUpdate('第 ' + i + ' / ' + totalChapters + ' 章（✓' + completed + ' ✗' + failed + '，已用 ' + fmtTime(Math.floor(elapsed)) + '，预计还需 ' + fmtTime(remaining) + '）');
+                await apiPost('/api/outline/generation/update', {
+                    projectId: currentProjectId.value, currentChapter: i,
+                    completedChapters: completed, failedChapters: failed
+                });
+                // 获取前一章信息用于衔接
+                const prevOl = dbOutlines.value.find(o => o.chapter_number === i - 1);
+                const prevCh = dbChapters.value.find(c => c.chapter_number === i - 1);
+                // 生成单章细纲
+                try {
+                    const d = await apiPost('/api/novel/chapter-outline', {
+                        endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
+                        projectTitle: novel.title, genre: novel.genre,
+                        bookOverview: bookOverview.value,
+                        chapterNumber: i, totalChapters: totalChapters,
+                        charactersInfo: novel.characters,
+                        narrativePerspective: novel.perspective,
+                        styleProfile: novel.styleProfile,
+                        prevChapterTitle: prevOl ? prevOl.title : '',
+                        prevChapterTail: prevCh ? (prevCh.content || '').slice(-200) : '',
+                    });
+                    const result = d.result || {};
+                    await saveOutlineToDb(i, {
+                        title: result.title || ('第' + i + '章'),
+                        summary: result.summary || '',
+                        scenes: result.scenes || [],
+                        characters: result.characters || [],
+                        key_points: result.key_points || [],
+                        emotion: result.emotion || '',
+                        goal: result.goal || '',
+                        technique_focus: result.technique_focus || '',
+                    }, 'done');
+                    completed++;
+                } catch(e) {
+                    await saveOutlineToDb(i, { title: '第' + i + '章' }, 'error');
+                    failed++;
+                }
+                outlineGenStats.value.chapterTimes[i] = Math.round((Date.now() - chapStart) / 1000);
+                if (!outlineStopFlag.value && !outlinePauseFlag.value && i < totalChapters) {
+                    await new Promise(r => setTimeout(r, 300));
+                }
+            }
+            await apiPost('/api/outline/generation/stop', { projectId: currentProjectId.value });
+            const totalEl = Math.round((Date.now() - outlineGenStats.value.startTime) / 1000);
+            genProgress.subtitle = '全部完成！共 ' + completed + ' 章成功' + (failed > 0 ? '，' + failed + ' 章失败' : '') + '，耗时 ' + fmtTime(totalEl);
+            setTimeout(() => genEnd(), 3000);
+            outlineLoading.value = false;
+            outlineStopFlag.value = false;
+            outlinePauseFlag.value = false;
+        }
+
+        function pauseOutlineGeneration() {
+            outlinePauseFlag.value = true;
+        }
+
+        function resumeOutlineGeneration() {
+            // 仅清除暂停标志，已运行的循环会自动继续（while循环检测到flag=false后退出等待）
+            outlinePauseFlag.value = false;
+        }
+
+        function stopOutlineGenerationBtn() {
+            outlineStopFlag.value = true;
+        }
+
+        // 兼容旧接口
+        async function generateOutline() {
+            await generateBookOverview();
+            if (bookOverview.value) {
+                await generateAllChapterOutlines();
+            }
+        }
+
+        function cnNumToArabic(s) {
+            const map = {'一':'1','二':'2','三':'3','四':'4','五':'5','六':'6','七':'7','八':'8','九':'9','十':'10','百':'100','千':'1000','万':'10000'};
+            if (/^\d+$/.test(s)) return s;
+            let result = 0, temp = 0;
+            for (const ch of s) {
+                if (map[ch] >= 10) { if (temp === 0) temp = 1; result += temp * map[ch]; temp = 0; }
+                else { temp = map[ch]; }
+            }
+            return String(result + temp);
+        }
+
+        function parseOutline() {
+            const text = novel.outlineText.trim();
+            if (!text) { novel.outline = []; return; }
+            const lines = text.split('\n').filter(l => l.trim());
+            novel.outline = lines.map((line, i) => {
+                const m = line.match(/第\s*([一二三四五六七八九十百千万\d]+)\s*章\s*(.*?)\s*[-\s]\s*(.*)/);
+                if (m) return { chapter_number: cnNumToArabic(m[1]), title: m[2] || ('第' + m[1] + '章'), summary: m[3] || m[2] || '' };
+                const m2 = line.match(/第\s*([一二三四五六七八九十百千万\d]+)\s*章\s*(.*)/);
+                if (m2) return { chapter_number: cnNumToArabic(m2[1]), title: m2[2] || ('第' + m2[1] + '章'), summary: m2[2] || '' };
+                return { chapter_number: String(i + 1), title: line.slice(0, 30), summary: line };
+            });
+        }
+
+        // Chapters
+        function getElapsed() {
+            if (!genStats.value.startTime) return '';
+            return fmtTime(Math.floor((Date.now() - genStats.value.startTime) / 1000));
+        }
+
+        function getTotalTime() {
+            if (!genStats.value.startTime) return '';
+            const times = Object.values(genStats.value.chapterTimes || {});
+            const total = times.reduce((a, b) => a + b, 0);
+            return fmtTime(total || Math.floor((Date.now() - genStats.value.startTime) / 1000));
+        }
+
+        function getAvgTime() {
+            const times = Object.values(genStats.value.chapterTimes || {});
+            if (!times.length) return '';
+            return fmtTime(Math.round(times.reduce((a, b) => a + b, 0) / times.length));
+        }
+
+        function formatWordCount(ch) {
+            const wc = ch.word_count || (ch.content ? ch.content.length : 0);
+            if (wc >= 10000) return (wc / 10000).toFixed(1) + '万字';
+            if (wc >= 1000) return (wc / 1000).toFixed(1) + '千字';
+            return wc + '字';
+        }
+
+        // ===== 大纲计时 =====
+        function getOutlineElapsed() {
+            if (!outlineGenStats.value.startTime) return '';
+            return fmtTime(Math.floor((Date.now() - outlineGenStats.value.startTime) / 1000));
+        }
+
+        function getOutlineTotalTime() {
+            if (!outlineGenStats.value.startTime) return '';
+            const times = Object.values(outlineGenStats.value.chapterTimes || {});
+            const total = times.reduce((a, b) => a + b, 0);
+            return fmtTime(total || Math.floor((Date.now() - outlineGenStats.value.startTime) / 1000));
+        }
+
+        function getOutlineAvgTime() {
+            const times = Object.values(outlineGenStats.value.chapterTimes || {});
+            if (!times.length) return '';
+            return fmtTime(Math.round(times.reduce((a, b) => a + b, 0) / times.length));
+        }
+
+        // ===== 章节数据库管理 =====
+        const dbChapters = ref([]);
+        const genStatus = ref(null);
+        const genStopFlag = ref(false);
+        const genPauseFlag = ref(false);
+
+        async function loadChaptersFromDb() {
+            if (!currentProjectId.value) { dbChapters.value = []; novel.chapters = []; return; }
+            try {
+                const d = await apiPost('/api/chapters/get', { projectId: currentProjectId.value });
+                dbChapters.value = (d.chapters || []).map(c => ({ ...c, expanded: false }));
+                genStatus.value = d.status;
+                // 同步到 novel.chapters 保持兼容性
+                novel.chapters = dbChapters.value.map(c => c.content || '');
+            } catch(e) { console.error('加载章节失败:', e); }
+        }
+
+        async function saveChapterToDb(chapterNumber, title, content, status) {
+            if (!currentProjectId.value) return;
+            try {
+                await apiPost('/api/chapters/save', {
+                    projectId: currentProjectId.value,
+                    chapterNumber, title, content, status
+                });
+                await loadChaptersFromDb();
+            } catch(e) { console.error('保存章节失败:', e); }
+        }
+
+        async function deleteChapterFromDb(chapterNumber) {
+            if (!currentProjectId.value) return;
+            if (!confirm('确定删除第' + chapterNumber + '章？')) return;
+            try {
+                await apiPost('/api/chapters/delete', { projectId: currentProjectId.value, chapterNumber });
+                await loadChaptersFromDb();
+            } catch(e) { console.error('删除失败:', e); }
+        }
+
+        async function regenerateChapter(chapterNumber) {
+            if (!currentProjectId.value) return;
+            const idx = novel.outline.findIndex(o => Number(o.chapter_number) === Number(chapterNumber));
+            if (idx < 0) { alert('请先确保大纲中有第' + chapterNumber + '章'); return; }
+            const o = novel.outline[idx];
+            const m = getNovelModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            genStopFlag.value = false;
+            genPauseFlag.value = false;
+            chapterLoading.value = true;
+            streamAbort.value = new AbortController();
+            genStart('正在生成第' + chapterNumber + '章', o.title || '', genProgress.estimates.chapter);
+            try {
+                await _doGenerateChapter(idx, o, m, true);
+            } finally {
+                chapterLoading.value = false;
+                genEnd();
+            }
+        }
+
+        async function generateNextChapter() {
+            parseOutline();
+            if (!novel.outline.length) { alert('请先在「大纲」步骤中输入或生成大纲'); return; }
+            const m = getNovelModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            const doneNumbers = new Set(dbChapters.value.filter(c => c.status === 'done').map(c => Number(c.chapter_number)));
+            let idx = 0;
+            for (let i = 0; i < novel.outline.length; i++) {
+                if (!doneNumbers.has(Number(novel.outline[i].chapter_number))) { idx = i; break; }
+                if (i === novel.outline.length - 1) { alert('所有章节已生成完毕'); return; }
+            }
+            genStopFlag.value = false;
+            genPauseFlag.value = false;
+            chapterLoading.value = true;
+            streamAbort.value = new AbortController();
+            const o = novel.outline[idx];
+            genStart('正在生成第' + (idx + 1) + '章', o.title || '', genProgress.estimates.chapter);
+            try {
+                await _doGenerateChapter(idx, o, m, true);
+            } finally {
+                chapterLoading.value = false;
+                genEnd();
+            }
+        }
+
+        async function generateAllChapters() {
+            parseOutline();
+            if (!novel.outline.length) { alert('请先在「大纲」步骤中输入或生成大纲'); return; }
+            const m = getNovelModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            genStopFlag.value = false;
+            genPauseFlag.value = false;
+            chapterLoading.value = true;
+            streamAbort.value = new AbortController();
+            await apiPost('/api/chapters/generation/start', {
+                projectId: currentProjectId.value,
+                totalChapters: novel.outline.length,
+                endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
+                projectTitle: novel.title, genre: novel.genre,
+                styleProfile: novel.styleProfile, bookOverview: novel.bookOverview || '',
+                targetWords: novel.targetWords, narrativePerspective: novel.perspective,
+                chapterCharacters: novel.characters.slice(0, 500),
+            });
+            const totalChapters = novel.outline.length;
+            genStats.value = { startTime: Date.now(), chapterTimes: {} };
+            let completed = 0, failed = 0;
+            genStart('正在生成章节', '0 / ' + totalChapters + ' 章', genProgress.estimates.chapter * totalChapters);
+            for (let i = 0; i < totalChapters; i++) {
+                if (genStopFlag.value) break;
+                // 暂停等待
+                while (genPauseFlag.value && !genStopFlag.value) {
+                    streamAbort.value = new AbortController();
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                if (genStopFlag.value) break;
+                const o = novel.outline[i];
+                const chapNum = Number(o.chapter_number || (i + 1));
+                const existingCh = dbChapters.value.find(c => Number(c.chapter_number) === chapNum && c.status === 'done');
+                if (existingCh) {
+                    completed++;
+                    genStats.value.chapterTimes[chapNum] = 0;
+                    continue;
+                }
+                const chapStart = Date.now();
+                const elapsed = (chapStart - genStats.value.startTime) / 1000;
+                const avgPerChapter = completed > 0 ? elapsed / completed : genProgress.estimates.chapter / 1000;
+                const doneCount = completed + failed;
+                const remainingChapters = totalChapters - doneCount;
+                const remaining = Math.max(0, Math.floor(avgPerChapter * remainingChapters));
+                genUpdate('第 ' + chapNum + ' / ' + totalChapters + ' 章（✓' + completed + ' ✗' + failed + '，已用 ' + fmtTime(Math.floor(elapsed)) + '，预计还需 ' + fmtTime(remaining) + '）');
+                await apiPost('/api/chapters/generation/update', {
+                    projectId: currentProjectId.value, currentChapter: chapNum,
+                    completedChapters: completed, failedChapters: failed
+                });
+                // 每章开始时重置 AbortController
+                streamAbort.value = new AbortController();
+                const ok = await _doGenerateChapter(i, o, m, false);
+                const chapElapsed = Math.round((Date.now() - chapStart) / 1000);
+                genStats.value.chapterTimes[chapNum] = chapElapsed;
+                if (ok) completed++; else failed++;
+            }
+            await apiPost('/api/chapters/generation/stop', { projectId: currentProjectId.value });
+            const totalEl = Math.round((Date.now() - genStats.value.startTime) / 1000);
+            genProgress.subtitle = '全部完成！共 ' + completed + ' 章成功' + (failed > 0 ? '，' + failed + ' 章失败' : '') + '，耗时 ' + fmtTime(totalEl);
+            setTimeout(() => genEnd(), 3000);
+            chapterLoading.value = false;
+            genStopFlag.value = false;
+            genPauseFlag.value = false;
+        }
+
+        function pauseGeneration() {
+            genPauseFlag.value = true;
+            chapterProgress.value = '已暂停';
+            // 中断当前流式请求
+            if (streamAbort.value && !streamAbort.value.signal.aborted) {
+                streamAbort.value.abort();
+            }
+        }
+
+        function resumeGeneration() {
+            if (pausedChapterIdx.value < 0) return;
+            genPauseFlag.value = false;
+            genStopFlag.value = false;
+            chapterProgress.value = '正在恢复...';
+            // 重新开始被暂停的章节
+            const idx = pausedChapterIdx.value;
+            const o = novel.outline[idx];
+            const m = models.value.find(md => md.id === novelModelId.value) || models.value[0];
+            if (!m) { alert('请先配置AI模型'); return; }
+            streamAbort.value = new AbortController();
+            chapterLoading.value = true;
+            genStart('正在生成第' + (idx + 1) + '章', o.title || '', genProgress.estimates.chapter);
+            _doGenerateChapter(idx, o, m, true).finally(() => {
+                chapterLoading.value = false;
+                genEnd();
+                pausedChapterIdx.value = -1;
+                pausedChapterNumber.value = '';
+            });
+        }
+
+        function stopGenerationBtn() {
+            genStopFlag.value = true;
+            genPauseFlag.value = false;
+            chapterProgress.value = '正在停止...';
+            if (streamAbort.value && !streamAbort.value.signal.aborted) {
+                streamAbort.value.abort();
+            }
+            pausedChapterIdx.value = -1;
+            pausedChapterNumber.value = '';
+        }
+
+        async function _doGenerateChapter(idx, o, m, saveToDb) {
+            const chapterNumber = o.chapter_number || (idx + 1);
+            chapterProgress.value = '正在生成第' + chapterNumber + '章 / 共' + novel.outline.length + '章...';
+            let prevFullSummary = '', prevEnd = '', foreshadow = '';
+            if (idx > 0) {
+                const prevCh = dbChapters.value.find(c => Number(c.chapter_number) === Number(chapterNumber) - 1);
+                if (prevCh) prevEnd = (prevCh.content || '').slice(-500);
+                const summaries = storyContext.summaries;
+                const recentN = 3;
+                if (summaries.length <= recentN) {
+                    prevFullSummary = summaries.join('\n');
+                } else {
+                    const recent = summaries.slice(-recentN).join('\n');
+                    prevFullSummary = '前文概要：\n' + recent + '\n（此前共' + idx + '章已生成）';
+                }
+                if (storyContext.unresolvedForeshadowing.length > 0) {
+                    foreshadow = '未解伏笔：\n' + storyContext.unresolvedForeshadowing.map((f, fi) => (fi + 1) + '. ' + f).join('\n');
+                }
+            }
+            const apiPath = novel.useCraft ? '/api/novel/craft/chapter' : '/api/novel/chapter';
+            let content = '';
+            let wasAborted = false;
+            try {
+                await apiPostStream(apiPath, {
+                    endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
+                    projectTitle: novel.title, genre: novel.genre,
+                    chapterNumber: chapterNumber, chapterTitle: o.title,
+                    chapterOutline: o.summary, continuationPoint: prevEnd,
+                    previousChapterSummary: prevFullSummary, chapterCharacters: novel.characters.slice(0, 500),
+                    foreshadowReminders: foreshadow,
+                    targetWordCount: novel.targetWords, narrativePerspective: novel.perspective,
+                    styleProfile: novel.styleProfile, bookOverview: bookOverview.value || novel.bookOverview || '',
+                    stream: true
+                }, (chunk) => {
+                    if (chunk.content) {
+                        content += chunk.content;
+                        genProgress.streamChars = content.length;
+                        genProgress.streamPreview = content.slice(-80);
+                        genProgress.subtitle = '第' + chapterNumber + '章 ' + content.length + '字';
+                        novel.chapters[idx] = content;
+                        dbChapters.value = dbChapters.value.map(c => {
+                            if (c.chapter_number === chapterNumber) return { ...c, content: content, status: 'generating', word_count: content.length };
+                            return c;
+                        });
+                    }
+                    if (chunk.error) throw new Error(chunk.error);
+                }, streamAbort.value ? streamAbort.value.signal : undefined);
+            } catch(e) {
+                wasAborted = true;
+            }
+
+            // 处理停止：清除数据
+            if (genStopFlag.value) {
+                novel.chapters[idx] = '';
+                chapterProgress.value = '已停止';
+                return false;
+            }
+            // 处理暂停：保存已生成内容，记录暂停位置
+            if (genPauseFlag.value && !genStopFlag.value && content.length > 0) {
+                pausedChapterIdx.value = idx;
+                pausedChapterNumber.value = String(chapterNumber);
+                if (saveToDb && currentProjectId.value) {
+                    await saveChapterToDb(chapterNumber, o.title || ('第' + chapterNumber + '章'), content, 'paused');
+                }
+                chapterProgress.value = '第' + chapterNumber + '章已暂停（已生成 ' + content.length + ' 字）';
+                return false;
+            }
+            // 处理异常中断（非暂停/停止）
+            if (wasAborted) {
+                chapterProgress.value = '第' + chapterNumber + '章生成失败';
+                if (saveToDb && currentProjectId.value) {
+                    await saveChapterToDb(chapterNumber, o.title || ('第' + chapterNumber + '章'), '', 'error');
+                }
+                return false;
+            }
+            // 正常完成
+            const chapSummary = '第' + chapterNumber + '章 ' + (o.title || '') + ': ' + (o.summary || '').slice(0, 150);
+            storyContext.summaries.push(chapSummary);
+            if (saveToDb && currentProjectId.value) {
+                await saveChapterToDb(chapterNumber, o.title || ('第' + chapterNumber + '章'), content, 'done');
+            }
+            chapterProgress.value = '第' + chapterNumber + '章已完成（' + content.length + '字）';
+            return true;
+        }
+
+        function exportNovel() { exportNovelFromDb(); }
+
+        function exportNovelFromDb() {
+            const chapters = dbChapters.value.filter(c => c.status === 'done' && c.content);
+            if (!chapters.length) { alert('没有可导出的章节'); return; }
+            let text = (novel.title || '小说') + '\n\n';
+            if (novel.description) text += '简介：' + novel.description + '\n\n';
+            if (novel.world) text += '=== 世界观 ===\n' + novel.world + '\n\n';
+            if (novel.characters) text += '=== 角色 ===\n' + novel.characters + '\n\n';
+            text += '=== 正文 ===\n\n';
+            chapters.sort((a, b) => a.chapter_number - b.chapter_number);
+            chapters.forEach(c => {
+                text += '第' + c.chapter_number + '章 ' + (c.title || '') + '\n\n' + c.content + '\n\n';
+            });
+            const blob = new Blob(['\uFEFF' + text], { type: 'text/plain;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = (novel.title || '小说') + '.txt';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        }
+
+        // Style analysis in novel creation
+        async function analyzeStyleText() {
+            const m = getNovelModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            if (!styleText.value.trim()) { alert('请先粘贴小说文本'); return; }
+            styleLoading.value = true;
+            try {
+                const d = await apiPost('/api/novel/analyze-style', { endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, content: styleText.value.trim() });
+                novel.styleProfile = d.resultJson || JSON.stringify(d.result || {}) || '';
+            } catch(e) {
+                alert('分析失败: ' + e.message);
+            }
+            styleLoading.value = false;
+        }
+
+        async function loadSavedBooks() {
+            try {
+                const d = await api('/api/downloads/list', {});
+                savedBooks.value = d.books || [];
+            } catch(e) { savedBooks.value = []; }
+        }
+
+        async function analyzeSavedBook(b) {
+            const m = getNovelModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            selectedSavedBook.value = b.book_id;
+            savedBookAnalyzing.value = true;
+            try {
+                const d = await api('/api/downloads/content', { book_id: b.book_id });
+                const content = d.content || '';
+                const r = await apiPost('/api/novel/analyze-style', { endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, content });
+                novel.styleProfile = r.resultJson || JSON.stringify(r.result || {}) || '';
+            } catch(e) {
+                alert('分析失败: ' + e.message);
+            }
+            savedBookAnalyzing.value = false;
+        }
+
+        // ====== AI Style Analysis (standalone) ======
+        const analyzeTab = ref('paste');
+        const analyzeText = ref('');
+        const analyzeModelIdx = ref(0);
+        const analyzeLoading = ref(false);
+        const analyzeResult = ref('');
+        const analyzeResultLines = computed(() => analyzeResult.value.split('\n').filter(l => l.trim()));
+        const analyzeSavedBooks = ref([]);
+        const selectedAnalyzeBook = ref('');
+        const analyzeBookContent = ref('');
+        const styleProfile = ref('');
+
+        async function loadAnalyzeSavedBooks() {
+            try {
+                const d = await api('/api/downloads/list', {});
+                analyzeSavedBooks.value = d.books || [];
+            } catch(e) { analyzeSavedBooks.value = []; }
+        }
+
+        async function selectAnalyzeBook(b) {
+            selectedAnalyzeBook.value = b.book_id;
+            try {
+                const d = await api('/api/downloads/content', { book_id: b.book_id });
+                analyzeBookContent.value = d.content || '';
+                analyzeText.value = (d.content || '').slice(0, 10000);
+            } catch(e) { analyzeBookContent.value = ''; }
+        }
+
+        async function runAnalyze() {
+            const m = models.value[analyzeModelIdx.value] || models.value[0];
+            if (!m) { alert('请先选择模型'); return; }
+            if (!analyzeText.value.trim()) { alert('请先粘贴小说文本'); return; }
+            analyzeLoading.value = true;
+            try {
+                const d = await apiPost('/api/ai/analyze', { endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, content: analyzeText.value.trim() });
+                analyzeResult.value = d.result;
+                styleProfile.value = d.result;
+            } catch(e) {
+                alert('分析失败: ' + e.message);
+            }
+            analyzeLoading.value = false;
+        }
+
+        // ====== AI Generate ======
+        const generateModelIdx = ref(0);
+        const genForm = reactive({ genre: '', count: 3, protagonist: '', world: '', outline: '' });
+        const genLoading = ref(false);
+        const genResult = ref('');
+        const genChapters = computed(() => {
+            if (!genResult.value) return [];
+            const chapters = [];
+            const re = /第([\u4e00-\u9fa5\d]+)章\s*(.*?)(?:\n|$)/g;
+            let match, lastIdx = 0;
+            while ((match = re.exec(genResult.value)) !== null) {
+                if (lastIdx > 0) chapters[chapters.length - 1].text = genResult.value.slice(lastIdx, match.index).trim();
+                chapters.push({ title: '第' + match[1] + '章' + (match[2] ? ' ' + match[2] : ''), text: '' });
+                lastIdx = match.index + match[0].length;
+            }
+            if (chapters.length && lastIdx < genResult.value.length) chapters[chapters.length - 1].text = genResult.value.slice(lastIdx).trim();
+            return chapters;
+        });
+
+        async function runGenerate() {
+            const m = models.value[generateModelIdx.value] || models.value[0];
+            if (!m) { alert('请先选择模型'); return; }
+            if (!styleProfile.value) { alert('请先完成风格分析'); return; }
+            genLoading.value = true;
+            try {
+                const d = await apiPost('/api/ai/generate', {
+                    endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
+                    styleProfile: styleProfile.value, genre: genForm.genre || '未指定',
+                    count: genForm.count || 3, protagonist: genForm.protagonist || '未指定',
+                    world: genForm.world || '未指定', outline: genForm.outline || '未指定'
+                });
+                genResult.value = d.result;
+            } catch(e) {
+                alert('生成失败: ' + e.message);
+            }
+            genLoading.value = false;
+        }
+
+        function saveGenerated() {
+            if (!genResult.value) return;
+            const blob = new Blob(['\uFEFF' + genResult.value], { type: 'text/plain;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'AI仿写.txt';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        }
+
+        // ====== 网文技法（Craft）======
+        const craftTab = ref('detect');
+        const craftSource = ref('paste');
+        const craftText = ref('');
+        const craftModelIdx = ref(0);
+        const craftLoading = ref(false);
+        const craftSavedBooks = ref([]);
+        const selectedCraftBook = ref('');
+        const detectResult = ref(null);
+        const fixedContent = ref('');
+        const deconstructResult = ref(null);
+        const qualityResult = ref(null);
+
+        function getCraftModel() {
+            return models.value[craftModelIdx.value] || models.value[0];
+        }
+
+        async function loadCraftSavedBooks() {
+            try {
+                const d = await api('/api/downloads/list', {});
+                craftSavedBooks.value = d.books || [];
+            } catch(e) { craftSavedBooks.value = []; }
+        }
+
+        async function selectCraftBook(b) {
+            selectedCraftBook.value = b.book_id;
+            try {
+                const d = await api('/api/downloads/content', { book_id: b.book_id });
+                craftText.value = (d.content || '').slice(0, 10000);
+            } catch(e) { craftText.value = ''; }
+        }
+
+        async function getCraftContent() {
+            if (craftSource.value === 'saved' && selectedCraftBook.value) {
+                const d = await api('/api/downloads/content', { book_id: selectedCraftBook.value });
+                return d.content || '';
+            }
+            return craftText.value.trim();
+        }
+
+        async function runDetectAI() {
+            const m = getCraftModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            if (!craftText.value.trim()) { alert('请先输入小说文本'); return; }
+            craftLoading.value = true;
+            detectResult.value = null;
+            fixedContent.value = '';
+            try {
+                const content = await getCraftContent();
+                const d = await apiPost('/api/novel/craft/detect-ai', { endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, content });
+                detectResult.value = d;
+            } catch(e) {
+                alert('检测失败: ' + e.message);
+            }
+            craftLoading.value = false;
+        }
+
+        async function runFixAI() {
+            const m = getCraftModel();
+            if (!m || !detectResult.value) return;
+            craftLoading.value = true;
+            try {
+                const d = await apiPost('/api/novel/craft/fix-ai', {
+                    endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
+                    content: craftText.value.trim(),
+                    issues: detectResult.value.issues || []
+                });
+                fixedContent.value = d.content;
+            } catch(e) {
+                alert('修复失败: ' + e.message);
+            }
+            craftLoading.value = false;
+        }
+
+        function copyFixed() {
+            navigator.clipboard.writeText(fixedContent.value).then(() => alert('已复制到剪贴板'));
+        }
+
+        async function runDeconstruct() {
+            const m = getCraftModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            if (!craftText.value.trim()) { alert('请先输入前三章内容'); return; }
+            craftLoading.value = true;
+            deconstructResult.value = null;
+            try {
+                const content = await getCraftContent();
+                const d = await apiPost('/api/novel/craft/golden-three', { endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, content });
+                deconstructResult.value = d;
+            } catch(e) {
+                alert('拆解失败: ' + e.message);
+            }
+            craftLoading.value = false;
+        }
+
+        async function runQualityScore() {
+            const m = getCraftModel();
+            if (!m) { alert('请先配置AI模型'); return; }
+            if (!craftText.value.trim()) { alert('请先输入小说文本'); return; }
+            craftLoading.value = true;
+            qualityResult.value = null;
+            try {
+                const content = await getCraftContent();
+                const d = await apiPost('/api/novel/craft/quality-score', { endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, content, title: '用户输入', genre: '' });
+                qualityResult.value = d;
+            } catch(e) {
+                alert('评分失败: ' + e.message);
+            }
+            craftLoading.value = false;
+        }
+
+        onMounted(() => {
+            loadModels();
+            document.addEventListener('keydown', handleEscKey);
+        });
+
+        function handleEscKey(e) {
+            if (e.key === 'Escape' && showSettings.value) {
+                closeSettings();
+            }
+        }
+
+        return {
+            activeTab, models, activeModelId, showSettings, showAddForm, editingId, form, formValidation,
+            loadModels, setActiveModel, getActiveModel, closeSettings, startAddModel, cancelEdit,
+            editModel, deleteModel, saveModel, fillPreset, addPresetModel, handleEscKey,
+            searchQuery, searchLoading, searchResults, searchError, bookCounts, book,
+            dlState, dlCurrent, dlTotal, dlPct, dlStatusText, dlSessionId,
+            doSearch, selectBook, resetSearch, startDownload, doPause, doResume, saveFile, apiPostStream,
+            stepLabels, novel, novelModelId, inspireLoading, inspireError,
+            inspireTitleOptions, inspireDescOptions, charsLoading, outlineLoading,
+            chapterLoading, chapterProgress,
+            styleExpanded, styleTab, styleText, styleLoading, savedBooks, selectedSavedBook, savedBookAnalyzing,
+            showStep, hasStepContent, canGoToStep, getNovelModel,
+            generateInspire, selectInspireTitle, selectInspireDesc,
+            generateWorld, generateChars, generateOutline, generateNextChapter, generateAllChapters, exportNovel,
+            styleProfileSummary, analyzeStyleText, loadSavedBooks, analyzeSavedBook,
+            analyzeTab, analyzeText, analyzeModelIdx, analyzeLoading, analyzeResult, analyzeResultLines,
+            analyzeSavedBooks, selectedAnalyzeBook, analyzeBookContent, styleProfile,
+            loadAnalyzeSavedBooks, selectAnalyzeBook, runAnalyze,
+            generateModelIdx, genForm, genLoading, genResult, genChapters, runGenerate, saveGenerated,
+            // Craft
+            craftTab, craftSource, craftText, craftModelIdx, craftLoading,
+            craftSavedBooks, selectedCraftBook, getCraftModel, loadCraftSavedBooks, selectCraftBook,
+            detectResult, fixedContent, deconstructResult, qualityResult,
+            runDetectAI, runFixAI, copyFixed, runDeconstruct, runQualityScore,
+            // Chapter generation
+            customPrompt,
+            dbChapters, regenerateChapter,
+            streamAbort, pausedChapterIdx, pausedChapterNumber,
+            genStopFlag, genPauseFlag, genStats,
+            pauseGeneration, resumeGeneration, stopGenerationBtn, exportNovelFromDb,
+            fmtTime, getElapsed, getTotalTime, getAvgTime, formatWordCount,
+            // Outline management
+            dbOutlines, bookOverview, outlineLoading,
+            outlineGenStats, outlineStopFlag, outlinePauseFlag,
+            generateBookOverview, generateAllChapterOutlines, generateChapterOutline,
+            pauseOutlineGeneration, resumeOutlineGeneration, stopOutlineGenerationBtn,
+            loadOutlinesFromDb, deleteOutlineFromDb,
+            parseOutline, saveOutlineToDb, saveChapterToDb,
+            getOutlineElapsed, getOutlineTotalTime, getOutlineAvgTime,
+            // Step summaries
+            saveStepSummary, loadStepSummaries,
+            // Progress tracking
+            genProgress, genStart, genEnd, genUpdate,
+            // Project management
+            currentProjectId, currentProjectName, projects, showProjectModal,
+            saveNameInput, saveStatus,
+            saveProject, openLoadModal, loadProject, deleteProject, newProject, scheduleAutoSave
+        };
+    }
+}).mount('#app');
+
+</script>
+
+</body>
+</html>

@@ -187,6 +187,19 @@
                 <h2>AI 小说创作</h2>
                 <div class="tip" style="margin-bottom:8px">从灵感到大纲到章节，AI 辅助完成小说创作全流程。点击上方步骤标签可随时切换，所有内容均可自由编辑。</div>
 
+                <!-- 项目保存/加载 -->
+                <div style="margin-bottom:8px;padding:8px;background:#f0f7ff;border-radius:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    <input v-model="projectName" placeholder="项目名称" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px">
+                    <button class="btn btn-save" style="padding:5px 14px;font-size:12px" @click="saveProject">💾 保存</button>
+                    <select v-model="selectedProjectId" style="padding:5px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;min-width:120px">
+                        <option value="">-- 选择项目 --</option>
+                        <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.name }}</option>
+                    </select>
+                    <button class="btn" style="padding:5px 14px;font-size:12px;background:#11998e;color:#fff" @click="loadProject" :disabled="!selectedProjectId">加载</button>
+                    <button class="btn" style="padding:5px 14px;font-size:12px;background:#e74c3c;color:#fff" @click="deleteProject" :disabled="!selectedProjectId">删除</button>
+                    <button class="btn" style="padding:5px 14px;font-size:12px;background:#ccc;color:#333" @click="newProject">+ 新建</button>
+                </div>
+
                 <!-- 步骤指示器 -->
                 <div class="novel-steps">
                     <div v-for="(s, i) in stepLabels" :key="i" class="novel-step" :class="{active: novel.step === i, done: hasStepContent(i)}" @click="showStep(i)">{{ s }}</div>
@@ -309,9 +322,14 @@
                             <span>第{{ idx+1 }}章 {{ novel.outline[idx] ? novel.outline[idx].title : '' }}</span>
                             <span style="font-size:10px;color:#888">{{ c.length }}字</span>
                         </div>
-                        <textarea v-model="novel.chapters[idx]" class="chapter-edit" style="width:100%;min-height:150px;padding:10px;border:none;font-size:13px;line-height:1.8;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
-                    </div>
-                </div>
+                         <div v-if="!chapterProgress" style="display:flex;gap:4px;padding:4px 10px;background:#f8f9fa;border-top:1px solid #e0e0e0">
+                             <button class="btn" style="padding:2px 10px;font-size:11px" @click="openReadChapter(idx)">查看完整内容</button>
+                             <button class="btn" style="padding:2px 10px;font-size:11px" @click="openChapterSettings(idx)">参数设置</button>
+                             <button class="btn" style="padding:2px 10px;font-size:11px" @click="polishChapter(idx)">润色</button>
+                             <button class="btn" style="padding:2px 10px;font-size:11px" @click="openCompare(idx)">对比</button>
+                         </div>
+                     </div>
+                 </div>
             </div>
 
             <!-- AI 风格分析 -->
@@ -569,11 +587,55 @@
             <div class="preset-btns">
                 <button class="add-model-btn preset-btn" @click="fillPreset('智谱 GLM-4-Flash', 'https://open.bigmodel.cn/api/paas/v4/chat/completions', 'glm-4-flash')">智谱 GLM-4-Flash（免费）</button>
                 <button class="add-model-btn preset-btn" @click="fillPreset('DeepSeek V3', 'https://api.deepseek.com/v1/chat/completions', 'deepseek-chat')">DeepSeek V3</button>
-                <button class="add-model-btn preset-btn" @click="fillPreset('通义千问 Turbo', 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', 'qwen-turbo')">通义千问 Turbo</button>
-            </div>
-        </div>
-    </div>
-</div>
+                 <button class="add-model-btn preset-btn" @click="fillPreset('通义千问 Turbo', 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', 'qwen-turbo')">通义千问 Turbo</button>
+             </div>
+         </div>
+     </div>
+
+     <!-- ========== 阅读弹窗 ========== -->
+     <div v-if="showReadModal" class="modal-overlay" @click.self="showReadModal = false">
+         <div class="modal-card" style="max-width:1000px;width:90vw">
+             <button class="modal-close" @click="showReadModal = false">&times;</button>
+             <h3>{{ readModalTitle }}</h3>
+             <textarea v-model="readModalContent" class="chapter-detail" style="width:100%;min-height:500px;padding:12px;font-size:14px;line-height:1.8;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+             <div style="display:flex;gap:8px;margin-top:10px">
+                 <button class="btn btn-ai" style="flex:1" @click="saveReadModal">保存修改</button>
+                 <button class="btn" style="flex:1;background:#ccc;color:#333" @click="showReadModal = false">关闭</button>
+             </div>
+         </div>
+     </div>
+
+     <!-- ========== 章节参数设置弹窗 ========== -->
+     <div v-if="showSettingsModal" class="modal-overlay" @click.self="showSettingsModal = false">
+         <div class="modal-card" style="max-width:480px">
+             <button class="modal-close" @click="showSettingsModal = false">&times;</button>
+             <h3>章节参数设置 - 第{{ settingsModalIdx+1 }}章</h3>
+             <div class="form-group"><label>目标字数</label><input v-model.number="settingsForm.targetWords" type="number" min="500" max="20000" step="500"></div>
+             <div class="form-group"><label>额外提示词（可选）</label><input v-model="settingsForm.extraPrompt" placeholder="如：增加打斗描写、突出主角智慧"></div>
+             <div style="display:flex;gap:8px;margin-top:10px">
+                 <button class="btn btn-ai" style="flex:1" @click="applyChapterSettings">应用并重生成</button>
+                 <button class="btn" style="flex:1;background:#ccc;color:#333" @click="showSettingsModal = false">取消</button>
+             </div>
+         </div>
+     </div>
+
+     <!-- ========== 润色/对比弹窗 ========== -->
+     <div v-if="showCompareModal" class="modal-overlay" @click.self="showCompareModal = false">
+         <div class="modal-card" style="max-width:1200px;width:95vw">
+             <button class="modal-close" @click="showCompareModal = false">&times;</button>
+             <h3>AI 润色 - 第{{ compareIdx+1 }}章</h3>
+             <div style="display:flex;height:100%;gap:8px;margin-top:8px">
+                 <textarea v-model="compareOriginal" class="chapter-detail" style="flex:1;min-height:400px;padding:8px;font-size:12px;line-height:1.7;resize:none;font-family:inherit"></textarea>
+                 <textarea v-model="comparePolished" class="chapter-detail" style="flex:1;min-height:400px;padding:8px;font-size:12px;line-height:1.7;resize:none;font-family:inherit" readonly></textarea>
+             </div>
+             <div id="polishLoadingTip" style="font-size:11px;color:#666;margin-top:4px">正在润色中，请稍候...</div>
+             <div style="display:flex;gap:8px;margin-top:8px">
+                 <button class="btn" style="flex:1;background:#11998e;color:#fff" @click="applyPolish">采用润色版</button>
+                 <button class="btn" style="flex:1;background:#ccc;color:#333" @click="showCompareModal = false">取消</button>
+             </div>
+         </div>
+     </div>
+ </div>
 
 <script>
 const { createApp, ref, reactive, computed, onMounted } = Vue;
@@ -676,6 +738,30 @@ createApp({
                 }
             }
             return r.json();
+        }
+
+        async function apiPostStream(path, body, onText, onDone, onError) {
+            try {
+                const r = await fetch(BASE + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                if (!r.ok) {
+                    const text = await r.text();
+                    try { const d = JSON.parse(text); onError(d.error || 'HTTP ' + r.status); return; } catch(e) {
+                        onError('HTTP ' + r.status);
+                        return;
+                    }
+                }
+                const reader = r.body.getReader();
+                const decoder = new TextDecoder();
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const text = decoder.decode(value, { stream: true });
+                    if (text) onText(text);
+                }
+                onDone();
+            } catch (e) {
+                onError(e.message || String(e));
+            }
         }
 
         async function doSearch() {
@@ -800,6 +886,107 @@ createApp({
             if (i === 3) return !!novel.outlineText;
             if (i === 4) return novel.chapters.length > 0;
             return false;
+        }
+
+        // ====== 项目保存/加载 ======
+        const projectName = ref('');
+        const selectedProjectId = ref('');
+        const projectList = ref([]);
+        const STORAGE_KEY = 'fanqie_projects';
+
+        function loadProjectList() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                projectList.value = raw ? JSON.parse(raw) : [];
+            } catch { projectList.value = []; }
+        }
+
+        function saveProject() {
+            if (!projectName.value.trim()) {
+                alert('请输入项目名称');
+                return;
+            }
+            // 完整性验证
+            const check = verifyProject();
+            if (!check.ok) {
+                alert('保存失败：项目不完整\n\n' + check.errors.join('\n') + '\n\n请先补全缺失内容。');
+                return;
+            }
+            const data = {
+                id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                name: projectName.value.trim(),
+                savedAt: new Date().toLocaleString('zh-CN'),
+                novel: JSON.parse(JSON.stringify({
+                    title: novel.title, description: novel.description,
+                    theme: novel.theme, genre: novel.genre,
+                    world: novel.world, characters: novel.characters,
+                    outlineText: novel.outlineText, outline: novel.outline,
+                    chapters: novel.chapters, step: novel.step,
+                    targetWords: novel.targetWords, useCraft: novel.useCraft,
+                    chapterCount: novel.chapterCount, charCount: novel.charCount,
+                    perspective: novel.perspective, styleProfile: novel.styleProfile
+                }))
+            };
+            const list = projectList.value.filter(p => p.name !== data.name);
+            list.unshift(data);
+            projectList.value = list;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+            selectedProjectId.value = data.id;
+            alert('项目已保存: ' + data.name);
+        }
+
+        function verifyProject() {
+            const errors = [];
+            const n = novel;
+            if (!n.title || !n.title.trim()) errors.push('✦ 标题为空');
+            if (!n.description || !n.description.trim()) errors.push('✦ 简介为空');
+            if (!n.world || !n.world.trim()) errors.push('✦ 世界观为空');
+            if (!n.characters || !n.characters.trim()) errors.push('✦ 角色未设定');
+            if (!n.outlineText || !n.outlineText.trim()) errors.push('✦ 大纲为空');
+            else if (!Array.isArray(n.outline) || n.outline.length === 0) errors.push('✦ 大纲解析为空（至少需要1章）');
+            if (!Array.isArray(n.chapters) || n.chapters.length === 0) errors.push('✦ 章节内容为空（至少需要1章）');
+            else if (Array.isArray(n.outline) && n.chapters.length < n.outline.length) errors.push('✦ 章节进度不足（已完成 ' + n.chapters.length + ' / ' + n.outline.length + ' 章）');
+            return errors.length === 0 ? { ok: true, errors: [] } : { ok: false, errors: errors };
+        }
+
+        function loadProject() {
+            if (!selectedProjectId.value) return;
+            const proj = projectList.value.find(p => p.id === selectedProjectId.value);
+            if (!proj) { alert('项目不存在'); return }
+            const n = proj.novel;
+            Object.assign(novel, {
+                title: n.title || '', description: n.description || '',
+                theme: n.theme || '', genre: n.genre || '',
+                world: n.world || '', characters: n.characters || '',
+                outlineText: n.outlineText || '', outline: n.outline || [],
+                chapters: n.chapters || [], step: n.step || 0,
+                targetWords: n.targetWords || 3000, useCraft: n.useCraft || false,
+                chapterCount: n.chapterCount || 10, charCount: n.charCount || 3,
+                perspective: n.perspective || '第三人称', styleProfile: n.styleProfile || ''
+            });
+            projectName.value = proj.name;
+            alert('已加载项目: ' + proj.name);
+        }
+
+        function deleteProject() {
+            if (!selectedProjectId.value) return;
+            const proj = projectList.value.find(p => p.id === selectedProjectId.value);
+            if (!proj) return;
+            if (!confirm('确定删除项目 "' + proj.name + '"？')) return;
+            projectList.value = projectList.value.filter(p => p.id !== selectedProjectId.value);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(projectList.value));
+            selectedProjectId.value = '';
+        }
+
+        function newProject() {
+            Object.assign(novel, {
+                title: '', description: '', theme: '', genre: '',
+                world: '', characters: '', outlineText: '', outline: [],
+                chapters: [], step: 0, targetWords: 3000, useCraft: false,
+                chapterCount: 10, charCount: 3, perspective: '第三人称', styleProfile: ''
+            });
+            projectName.value = '';
+            selectedProjectId.value = '';
         }
 
         function getNovelModel() {
@@ -1252,9 +1439,114 @@ createApp({
             craftLoading.value = false;
         }
 
-        onMounted(() => { loadModels(); });
+        // ====== 弹窗相关 ======
+        const showReadModal = ref(false);
+        const readModalTitle = ref('');
+        const readModalContent = ref('');
+        const readModalIdx = ref(0);
+        function openReadChapter(idx) {
+            readModalIdx.value = idx;
+            const ch = novel.chapters[idx];
+            const title = novel.outline[idx] ? novel.outline[idx].title : '';
+            readModalTitle.value = '第' + (idx + 1) + '章 ' + title;
+            readModalContent.value = ch;
+            showReadModal.value = true;
+        }
+        function saveReadModal() {
+            novel.chapters[readModalIdx.value] = readModalContent.value;
+            showReadModal.value = false;
+        }
+
+        const showSettingsModal = ref(false);
+        const settingsModalIdx = ref(0);
+        const settingsForm = reactive({ targetWords: 3000, extraPrompt: '' });
+        function openChapterSettings(idx) {
+            settingsModalIdx.value = idx;
+            settingsForm.targetWords = novel.targetWords;
+            settingsForm.extraPrompt = '';
+            showSettingsModal.value = true;
+        }
+        function applyChapterSettings() {
+            showSettingsModal.value = false;
+            const idx = settingsModalIdx.value;
+            const target = settingsForm.targetWords;
+            const extra = settingsForm.extraPrompt;
+            if (idx >= novel.chapters.length) return;
+            chapterLoading.value = true;
+            chapterProgress.value = '正在重生成第' + (idx + 1) + '章...';
+            const outlineItem = novel.outline[idx];
+            const outlineText = novel.outline.map(o => o.title + ' - ' + o.summary).join('\n');
+            const prevChapters = novel.chapters.slice(0, idx).map((c, i) => '第' + (i + 1) + '章 ' + novel.outline[i].title + '\n' + c).join('\n\n');
+            const prompt = '请根据以下信息重写第' + (idx + 1) + '章《' + (outlineItem ? outlineItem.title : '') + '》\n\n大纲概要：' + (outlineItem ? outlineItem.summary : '') + '\n全书大纲：\n' + outlineText + '\n\n已有章节内容：\n' + prevChapters + '\n\n本章目标字数：' + target + '字' + (extra ? '\n\n特殊要求：' + extra : '') + '\n\n只输出本章正文内容，不要任何解释或前缀';
+            const model = getNovelModel();
+            apiPostStream('/api/generate_chapter_stream', {
+                model: { name: model.name, endpoint: model.endpoint, apiKey: model.apiKey, model: model.model },
+                prompt: prompt, target_words: target, temperature: 0.7, max_tokens: Math.min(target * 2, 16000)
+            }, (text) => {
+                const current = novel.chapters[idx] || '';
+                novel.chapters[idx] = current + text;
+            }, () => {
+                chapterLoading.value = false;
+                chapterProgress.value = '重生成完成';
+            }, (err) => {
+                chapterLoading.value = false;
+                chapterProgress.value = '错误: ' + err;
+            });
+        }
+
+        const showCompareModal = ref(false);
+        const compareIdx = ref(0);
+        const compareOriginal = ref('');
+        const comparePolished = ref('');
+        function polishChapter(idx) {
+            if (idx >= novel.chapters.length) return;
+            compareIdx.value = idx;
+            compareOriginal.value = novel.chapters[idx];
+            comparePolished.value = '';
+            showCompareModal.value = true;
+            const el = document.getElementById('polishLoadingTip');
+            if (el) el.style.display = 'block';
+            const prompt = '请对以下小说章节进行润色优化，保持原意不变，提升文笔流畅度、画面感和节奏感，去除AI痕迹，使语言更自然生动。直接输出润色后的正文内容，不要任何解释。\n\n原文：\n' + novel.chapters[idx];
+            const model = getNovelModel();
+            apiPostStream('/api/generate_chapter_stream', {
+                model: { name: model.name, endpoint: model.endpoint, apiKey: model.apiKey, model: model.model },
+                prompt: prompt, target_words: 0, temperature: 0.5, max_tokens: 16000
+            }, (text) => {
+                comparePolished.value += text;
+            }, () => {
+                const el2 = document.getElementById('polishLoadingTip');
+                if (el2) el2.style.display = 'none';
+            }, (err) => {
+                const el3 = document.getElementById('polishLoadingTip');
+                if (el3) el3.textContent = '润色失败: ' + err;
+            });
+        }
+        function openCompare(idx) {
+            if (idx >= novel.chapters.length) return;
+            compareIdx.value = idx;
+            compareOriginal.value = novel.chapters[idx];
+            comparePolished.value = '(请点击润色按钮后的结果将显示在这里)';
+            showCompareModal.value = true;
+            const el = document.getElementById('polishLoadingTip');
+            if (el) { el.style.display = 'none'; el.textContent = '正在润色中，请稍候...'; }
+        }
+        function applyPolish() {
+            if (comparePolished.value && comparePolished.value !== '(请点击润色按钮后的结果将显示在这里)') {
+                novel.chapters[compareIdx.value] = comparePolished.value;
+            }
+            showCompareModal.value = false;
+        }
+
+        onMounted(() => { loadModels(); loadProjectList(); });
 
         return {
+            // 弹窗
+            showReadModal, readModalTitle, readModalContent,
+            openReadChapter, saveReadModal,
+            showSettingsModal, settingsModalIdx, settingsForm,
+            openChapterSettings, applyChapterSettings,
+            showCompareModal, compareIdx, compareOriginal, comparePolished,
+            polishChapter, openCompare, applyPolish,
             activeTab, models, activeModelId, showSettings, showAddForm, editingId, form,
             loadModels, setActiveModel, getActiveModel, editModel, deleteModel, saveModel, fillPreset,
             searchQuery, searchLoading, searchResults, searchError, bookCounts, book,
@@ -1276,7 +1568,10 @@ createApp({
             craftTab, craftSource, craftText, craftModelIdx, craftLoading,
             craftSavedBooks, selectedCraftBook, getCraftModel, loadCraftSavedBooks, selectCraftBook,
             detectResult, fixedContent, deconstructResult, qualityResult,
-            runDetectAI, runFixAI, copyFixed, runDeconstruct, runQualityScore
+            runDetectAI, runFixAI, copyFixed, runDeconstruct, runQualityScore,
+            // 项目保存/加载
+            projectName, selectedProjectId, projectList,
+            saveProject, loadProject, deleteProject, newProject
         };
     }
 }).mount('#app');

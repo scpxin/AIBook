@@ -1,0 +1,375 @@
+# 番茄小说下载+AI创作平台 - 项目文档
+
+> 访问地址：`http://140.143.210.177/fanqie/`
+
+---
+
+## 一、项目概览
+
+一个功能完整的番茄小说下载与AI辅助创作平台，支持：
+
+- **小说下载**：搜索、目录抓取、批量下载、持久化存储
+- **AI创作**：灵感→世界观→角色→总纲→细纲→章节正文，完整的小说创作工作流
+- **章节管理**：编辑、保存、断点续传、单章操作
+- **项目管理**：保存/加载/删除项目，数据全部持久化到SQLite
+- **风格分析**：基于参考文本生成风格特征，驱动全创作流程
+- **网文技法**：AI检测、文风修复、黄金三章分析、评分等
+
+---
+
+## 二、技术栈
+
+| 层级 | 技术 |
+|------|------|
+| 前端 | Vue 3 CDN + 原生HTML/JS（单文件SPA） |
+| 后端 | Python 3.11 HTTP Server（无框架） |
+| 数据库 | SQLite + WAL模式 |
+| Nginx | 反向代理 + 静态文件服务 |
+| Docker | Docker Compose 多容器部署 |
+
+---
+
+## 三、目录结构
+
+```
+deploy/
+├── Dockerfile             # 后端镜像构建
+├── docker-compose.yml     # 容器编排
+├── nginx.conf             # Nginx 配置
+├── server-v2.py           # 后端主入口
+├── index-v2.html          # 前端单文件SPA
+├── novel_creator/
+│   ├── __init__.py        # 包初始化
+│   ├── database.py        # 数据库模块
+│   ├── generator.py       # AI生成器
+│   ├── prompts.py         # 提示词模板
+│   ├── craft_prompts.py   # 网文技法提示词
+│   └── ai_client.py       # AI客户端
+└── check_db.py            # 数据库检查工具
+```
+
+---
+
+## 四、数据库设计
+
+### 4.1 表结构
+
+#### `projects` — 主项目表
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | TEXT PK | 项目唯一ID |
+| name | TEXT | 项目名称 |
+| step | INTEGER | 当前创作步骤(0-10) |
+| data_json | TEXT | 完整项目数据(JSON) |
+| tags | TEXT | 标签(逗号分隔) |
+| category | TEXT | 分类 |
+| metadata_json | TEXT | 扩展元数据(JSON) |
+| is_archived | INTEGER | 是否归档(0/1) |
+| created_at | TEXT | 创建时间 |
+| updated_at | TEXT | 更新时间 |
+
+#### `chapters` — 章节表
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增ID |
+| project_id | TEXT | 所属项目ID |
+| chapter_number | INTEGER | 章节号 |
+| title | TEXT | 章节标题 |
+| content | TEXT | 章节正文 |
+| word_count | INTEGER | 字数 |
+| status | TEXT | 状态: pending/done/error |
+| version | INTEGER | 版本号(每次编辑+1) |
+| error_message | TEXT | 错误信息 |
+| metadata_json | TEXT | 扩展元数据(JSON) |
+| created_at | TEXT | 创建时间 |
+| updated_at | TEXT | 更新时间 |
+| **UNIQUE** | | (project_id, chapter_number) |
+
+#### `outlines` — 大纲表
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增ID |
+| project_id | TEXT | 所属项目ID |
+| chapter_number | INTEGER | 章节号(0=总纲) |
+| title | TEXT | 章节标题 |
+| summary | TEXT | 章节概要 |
+| scenes | TEXT | 场景(JSON数组) |
+| characters | TEXT | 角色(JSON数组) |
+| key_points | TEXT | 关键节点(JSON数组) |
+| emotion | TEXT | 情绪走向 |
+| goal | TEXT | 章节目标 |
+| technique_focus | TEXT | 技法重点 |
+| book_overview | TEXT | 全书总纲(仅chapter_number=0) |
+| acts | TEXT | 幕结构(JSON数组) |
+| importance | INTEGER | 重要程度(0-10) |
+| status | TEXT | 状态 |
+| metadata_json | TEXT | 扩展元数据 |
+| **UNIQUE** | | (project_id, chapter_number) |
+
+#### `step_summaries` — 步骤摘要表
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增ID |
+| project_id | TEXT | 所属项目ID |
+| step | TEXT | 步骤标识 |
+| summary_json | TEXT | 摘要数据(JSON) |
+| created_at | TEXT | 创建时间 |
+| updated_at | TEXT | 更新时间 |
+| **UNIQUE** | | (project_id, step) |
+
+#### `generation_status` — 章节生成状态表
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| project_id | TEXT PK | 项目ID |
+| total_chapters | INTEGER | 总章节数 |
+| completed_chapters | INTEGER | 已完成数 |
+| failed_chapters | INTEGER | 失败数 |
+| current_chapter | INTEGER | 当前章节 |
+| is_running | INTEGER | 是否运行中 |
+| is_paused | INTEGER | 是否暂停 |
+| config | TEXT | 配置(JSON) |
+| started_at | TEXT | 开始时间 |
+| updated_at | TEXT | 更新时间 |
+
+#### `outline_generation_status` — 大纲生成状态表
+> 结构同 `generation_status`
+
+### 4.2 索引
+
+| 名称 | 作用 |
+|------|------|
+| idx_projects_updated | 项目列表按更新时间排序 |
+| idx_projects_archived | 归档筛选 |
+| idx_chapters_project | 按项目查章节 |
+| idx_chapters_status | 按项目+状态查章节 |
+| idx_outlines_project | 按项目查大纲 |
+| idx_outlines_status | 按项目+状态查大纲 |
+| idx_generation_status_project | 生成状态查询 |
+| idx_outline_generation_status_project | 大纲生成状态查询 |
+| idx_step_summaries_project | 步骤摘要查询 |
+
+### 4.3 Schema 迁移
+
+数据库使用 `PRAGMA user_version` 追踪schema版本，启动时自动执行迁移：
+
+| 版本 | 变更 |
+|------|------|
+| v1 | 初始表结构 |
+| v2 | 添加索引 + projects扩展字段(chapters.version, outlines.importance等) |
+
+---
+
+## 五、API 参考
+
+> 所有API均通过 Nginx 反代 `/fanqie/api/` → `/api/`
+
+### 5.1 项目管理
+
+| 端点 | 方法 | 请求体 | 说明 |
+|------|------|--------|------|
+| /api/projects/save | POST | {id?, name, step, data, tags?, category?, metadata?} | 保存/更新项目 |
+| /api/projects/list | POST | {} | 列出项目摘要 |
+| /api/projects/load | POST | {id} | 加载完整项目 |
+| /api/projects/delete | POST | {id} | 级联删除项目 |
+
+### 5.2 章节管理
+
+| 端点 | 方法 | 请求体关键字段 | 说明 |
+|------|------|----------------|------|
+| /api/chapters/save | POST | {projectId, chapterNumber, title, content, status, metadata?} | 保存章节(自动递增version) |
+| /api/chapters/get | POST | {projectId, chapterNumber} | 获取单章 |
+| /api/chapters/delete | POST | {projectId, chapterNumber} | 删除单章 |
+| /api/chapters/regenerate | POST | {projectId, chapterNumber} | 重新生成(删除后重新生成) |
+| /api/chapters/status | POST | {projectId} | 获取生成状态 |
+| /api/chapters/generation/start | POST | {projectId, totalChapters, ...} | 开始批量生成 |
+| /api/chapters/generation/pause | POST | {projectId} | 暂停 |
+| /api/chapters/generation/stop | POST | {projectId} | 停止 |
+| /api/chapters/generation/update | POST | {projectId, currentChapter, ...} | 更新进度 |
+
+### 5.3 大纲管理
+
+> 同上结构，前缀为 `/api/outline/`
+
+### 5.4 步骤摘要
+
+| 端点 | 方法 | 请求体 | 说明 |
+|------|------|--------|------|
+| /api/step-summary/save | POST | {projectId, step, summary} | 保存步骤摘要 |
+| /api/step-summary/get | POST | {projectId, step?} | 获取(全部或单步) |
+
+### 5.5 小说创作
+
+| 端点 | 说明 |
+|------|------|
+| /api/novel/inspiration/title | 生成标题灵感 |
+| /api/novel/inspiration/description | 生成简介灵感 |
+| /api/novel/inspiration/theme | 生成主题灵感 |
+| /api/novel/inspiration/genre | 生成类型灵感 |
+| /api/novel/worldbuilding | 生成世界观 |
+| /api/novel/characters | 生成角色 |
+| /api/novel/outline | 生成大纲 |
+| /api/novel/book-overview | 生成全书总纲 |
+| /api/novel/chapter-outline | 生成章节细纲 |
+| /api/novel/chapter | 生成章节正文(支持stream) |
+| /api/novel/analyze-style | 分析文风 |
+| /api/novel/generate-style | 生成风格模板 |
+
+### 5.6 网文技法
+
+| 端点 | 说明 |
+|------|------|
+| /api/novel/craft/detect-ai | AI检测 |
+| /api/novel/craft/fix-ai | AI文风修复 |
+| /api/novel/craft/golden-three | 黄金三章分析 |
+| /api/novel/craft/hooks | 钩子分析 |
+| /api/novel/craft/satisfaction | 爽点分析 |
+| /api/novel/craft/quality-score | 质量评分 |
+| /api/novel/craft/chapter | 技法化章节生成 |
+| /api/novel/craft/titles | 标题生成 |
+| /api/novel/craft/descriptions | 描述生成 |
+| /api/novel/craft/report | 综合报告 |
+
+### 5.7 其他
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| /api/health | GET | 健康检查 |
+| /api/search | GET | 搜索小说 |
+| /api/directory | GET | 获取目录 |
+| /api/content | GET | 获取章节内容 |
+| /api/download/start | GET | 开始下载 |
+| /api/download/status | GET | 下载状态 |
+| /api/download/pause | GET | 暂停下载 |
+| /api/download/resume | GET | 恢复下载 |
+| /api/download/file | GET | 下载文件 |
+| /api/downloads/list | GET | 已下载列表 |
+| /api/downloads/content | GET | 已下载内容 |
+| /api/ai/analyze | POST | AI分析 |
+| /api/ai/generate | POST | AI生成 |
+
+---
+
+## 六、部署指南
+
+### 6.1 环境要求
+
+- Docker + Docker Compose
+- Ubuntu 22.04
+
+### 6.2 快速部署
+
+```bash
+# 1. 创建项目目录
+mkdir -p ~/fanqie-docker && cd ~/fanqie-docker
+
+# 2. 放置文件（通过scp或git）
+# - docker-compose.yml
+# - Dockerfile
+# - nginx.conf
+# - server-v2.py
+# - index-v2.html
+# - novel_creator/ (整个目录)
+
+# 3. 启动
+docker compose up -d --build
+
+# 4. 验证
+curl http://localhost/fanqie/api/health
+```
+
+### 6.3 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| PORT | 8000 | 后端HTTP端口 |
+| CONTENT_API | http://101.35.133.34:5000/... | 小说内容API |
+| SEARCH_API | https://novel.snssdk.com/... | 搜索API |
+| AI_TIMEOUT | 600 | AI调用超时(秒) |
+| SESSION_TTL | 86400 | 下载session过期时间(秒) |
+| HTTP_TIMEOUT | 20 | HTTP请求超时(秒) |
+| MAX_BODY_SIZE | 52428800 | 最大POST body(50MB) |
+
+---
+
+## 七、数据流转
+
+### 7.1 创作流程
+
+```
+灵感(Inspiration) → 世界观(World) → 角色(Characters) → 
+总纲(Book Overview) → 细纲(Chapter Outline) → 章节正文(Chapter)
+     ↓                    ↓              ↓
+  saveStepSummary    saveStepSummary  saveStepSummary
+     ↓                    ↓              ↓
+  step_summaries     step_summaries   step_summaries
+                                            ↓
+                                    总纲生成时自动读取
+                                    三步摘要作为上下文
+```
+
+### 7.2 项目保存
+
+```
+用户操作 → 前端保存到 dbChapters/dbOutlines (响应式状态)
+        → 自动调用 API 保存到 SQLite (debounce 800ms)
+        → 项目整体通过 /api/projects/save 保存到 projects 表
+```
+
+### 7.3 断点续传
+
+```
+章节生成中 → 每章完成后立即 saveChapterToDb(status='done')
+         → 中断后重新生成时 → 跳过 status='done' 的章节
+         → 从第一个未完成章节继续
+```
+
+---
+
+## 八、运维
+
+### 8.1 数据库备份
+
+```bash
+docker exec fanqie-backend sqlite3 /app/fanqie.db ".backup /app/backup_$(date +%Y%m%d).db"
+```
+
+### 8.2 查看日志
+
+```bash
+docker logs fanqie-backend --tail 100
+docker logs fanqie-web --tail 100
+```
+
+### 8.3 重启服务
+
+```bash
+cd ~/fanqie-docker && docker compose restart
+```
+
+### 8.4 更新部署
+
+```bash
+cd ~/fanqie-docker
+docker compose build --no-cache backend
+docker compose up -d
+```
+
+---
+
+## 九、常见问题
+
+| 问题 | 解决方案 |
+|------|---------|
+| 白屏 | Ctrl+Shift+R 强制刷新 |
+| 端口不通 | 检查 `docker ps` 和 `nginx.conf` 配置 |
+| 数据库锁定 | SQLite WAL 模式，极少出现；重启容器即可 |
+| AI 生成超时 | 调整 `AI_TIMEOUT` 环境变量 |
+| 项目数据丢失 | SQLite 持久化到容器内 `/app/fanqie.db`，确保容器不删除 |
+
+## 十、架构设计决策
+
+1. **SQLite 而非 MySQL/PostgreSQL**：单用户场景，零运维，WAL模式支持并发读写
+2. **单文件前端**：无需构建工具，直接部署，加载即运行
+3. **HTTP Server 而非 Flask/FastAPI**：最小依赖，镜像体积小
+4. **JSON-in-SQLite**：projects.data_json 存储完整项目数据，schema变更无需ALTER TABLE
+5. **流式传输**：SSE方式支持AI生成实时预览

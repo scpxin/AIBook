@@ -1,19 +1,6 @@
 """小说创作生成器 - 完整的创作流程"""
 import json
 import re
-import logging
-import os
-
-# 配置日志
-_log_dir = os.environ.get('LOG_DIR', '/app/data')
-os.makedirs(_log_dir, exist_ok=True)
-logging.basicConfig(
-    filename=os.path.join(_log_dir, 'generate.log'),
-    level=logging.DEBUG,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    encoding='utf-8'
-)
-logger = logging.getLogger('novel_creator.generator')
 from .prompts import (
     WORLD_BUILDING, WORLD_BUILDING_STYLE,
     CHARACTERS_BATCH_GENERATION, CHARACTERS_BATCH_GENERATION_STYLE,
@@ -21,7 +8,6 @@ from .prompts import (
     BOOK_OVERVIEW_CREATE, BOOK_OVERVIEW_CREATE_STYLE,
     CHAPTER_OUTLINE_DETAIL, CHAPTER_OUTLINE_DETAIL_STYLE,
     CHAPTER_GENERATION_NEXT, CHAPTER_GENERATION_NEXT_STYLE,
-    CHAPTER_CONTINUATION, CHAPTER_CONTINUATION_STYLE,
     PLOT_ANALYSIS,
     INSPIRATION_TITLE, INSPIRATION_TITLE_STYLE,
     INSPIRATION_DESCRIPTION, INSPIRATION_DESCRIPTION_STYLE,
@@ -33,9 +19,8 @@ from .craft_prompts import (
     DETECT_AI_FLAVOR, FIX_AI_FLAVOR,
     ANALYZE_GOLDEN_THREE, ANALYZE_HOOKS, ANALYZE_SATISFACTION_RHYTHM,
     QUALITY_SCORE, CHAPTER_GENERATION_CRAFT, CHAPTER_GENERATION_CRAFT_STYLE,
-    CHAPTER_CONTINUATION_CRAFT, CHAPTER_CONTINUATION_CRAFT_STYLE,
     INSPIRATION_TITLE_CRAFT, INSPIRATION_DESCRIPTION_CRAFT,
-    ANALYSIS_REPORT, CHAPTER_OUTLINE_CRAFT, CHAPTER_OUTLINE_CRAFT_STYLE
+    ANALYSIS_REPORT
 )
 from .ai_client import AIClient
 
@@ -43,9 +28,8 @@ from .ai_client import AIClient
 class NovelGenerator:
     """小说创作生成器 - 从灵感到大纲到章节的完整流程"""
 
-    def __init__(self, api_key, base_url="https://api.openai.com/v1", model="gpt-4o-mini", temperature=0.7, max_tokens=4000, timeout=120):
-        self.client = AIClient(api_key=api_key, base_url=base_url, model=model, temperature=temperature, max_tokens=max_tokens, timeout=timeout)
-        self.max_tokens = max_tokens
+    def __init__(self, api_key, base_url="https://api.openai.com/v1", model="gpt-4o-mini", temperature=0.7, max_tokens=4000):
+        self.client = AIClient(api_key=api_key, base_url=base_url, model=model, temperature=temperature, max_tokens=max_tokens)
 
     def _generate_json(self, prompt, system_prompt=None, max_retries=2):
         """生成并解析JSON响应"""
@@ -234,51 +218,7 @@ class NovelGenerator:
             return None, err
         return result, None
 
-    def reparse_world_building(self, world_text, style_profile=None):
-        """从已有世界观正文重新提取结构化数据"""
-        prompt = f"""从以下世界观描述中提取结构化JSON数据。
-
-世界观正文：
-{world_text[:6000]}
-
-请提取以下字段，返回JSON格式：
-- time_period: 时间背景（如"现代都市"、"远古洪荒"等）
-- location: 空间环境（如"修真界·东域"、"赛博朋克都市"等）
-- atmosphere: 情感基调（如"热血激昂"、"阴暗压抑"等）
-- rules: 世界规则（如"修炼体系：练气→筑基→金丹"、"异能觉醒规则"等）
-
-只返回JSON，不要其他文字。"""
-        result, err = self._generate_json(prompt)
-        if err:
-            return None, err
-        return result, None
-
-    def reparse_characters(self, characters_text, style_profile=None):
-        """从已有角色正文重新提取结构化角色数据"""
-        prompt = f"""从以下角色描述中提取结构化JSON数组。
-
-角色正文：
-{characters_text[:6000]}
-
-每个角色提取以下字段：
-- name: 名字
-- role_type: 角色类型（主角/配角/反派/龙套）
-- gender: 性别
-- age: 年龄（数字或描述）
-- personality: 性格特点
-- background: 背景故事
-- appearance: 外貌特征
-- traits: 特殊能力/标志特征
-
-返回JSON数组格式，只返回JSON，不要其他文字。"""
-        result, err = self._generate_json(prompt)
-        if err:
-            return None, err
-        if isinstance(result, list):
-            return result, None
-        if isinstance(result, dict) and 'characters' in result:
-            return result['characters'], None
-        return None, "解析结果格式不正确"
+    # ========== 步骤摘要生成 ==========
 
     def summarize_inspiration(self, title, description, theme, genre):
         """生成灵感步骤摘要"""
@@ -409,7 +349,7 @@ class NovelGenerator:
         items = self._extract_items(text, keywords)
         return items[0] if items else ""
 
-    def generate_characters(self, world_data, theme, genre, count=6, requirements="", style_profile=None, description=""):
+    def generate_characters(self, world_data, theme, genre, count=6, requirements="", style_profile=None):
         """生成角色"""
         def truncate(s, max_len=300):
             s = str(s)
@@ -448,8 +388,7 @@ class NovelGenerator:
                 rules=truncate(world_data.get("rules", "")),
                 theme=truncate(theme, 200),
                 genre=genre,
-                requirements=truncate(requirements, 200),
-                novel_description=truncate(description, 200)
+                requirements=truncate(requirements, 200)
             )
         result, err = self._generate_json(prompt)
         if err:
@@ -500,91 +439,18 @@ class NovelGenerator:
                 narrative_perspective=narrative_perspective,
                 characters_info=chars_text,
                 world_summary=world_text,
-                inspiration_desc=desc_text,
             )
         result, err = self._generate_json(prompt)
         if err:
             return None, err
         return result, None
 
-    def generate_book_overview_stream(self, title, theme, genre, characters_info,
-                                      narrative_perspective="第三人称", style_profile=None,
-                                      world_summary="", inspiration_desc=""):
-        """流式生成全书结构化总纲"""
-        if isinstance(characters_info, list):
-            chars_text = "\n".join([f"- {c.get('name', '未知')}: {c.get('personality', '')}" for c in characters_info[:10]])
-        else:
-            chars_text = str(characters_info)
-
-        world_text = world_summary if world_summary else "（未设定世界观）"
-        desc_text = inspiration_desc if inspiration_desc else "（未设定简介）"
-
-        if style_profile:
-            fmt = self._build_style_prompt_vars(style_profile)
-            prompt = format_prompt(BOOK_OVERVIEW_CREATE_STYLE,
-                title=title, theme=theme, genre=genre,
-                narrative_perspective=narrative_perspective,
-                characters_info=chars_text,
-                world_summary=world_text,
-                inspiration_desc=desc_text,
-                story_framework=fmt.get('story_framework', ''),
-                core_drive=fmt.get('core_drive', ''),
-                main_conflict=fmt.get('main_conflict', ''),
-                pacing=fmt.get('pacing', ''),
-                emotional_intensity=fmt.get('emotional_intensity', ''),
-                satisfaction_type=fmt.get('satisfaction_type', ''),
-                satisfaction_pattern=fmt.get('satisfaction_pattern', ''),
-                emotional_beats=fmt.get('emotional_beats', ''),
-                hook_design=fmt.get('hook_design', ''),
-                transition_style=fmt.get('transition_style', ''),
-                foreshadowing_style=fmt.get('foreshadowing_style', ''),
-                writing_techniques=fmt.get('writing_techniques', ''),
-                overall_summary=fmt.get('overall_summary', ''),
-                sub_themes=fmt.get('sub_themes', ''),
-                sub_genres=fmt.get('sub_genres', ''),
-            )
-        else:
-            prompt = format_prompt(BOOK_OVERVIEW_CREATE,
-                title=title, theme=theme, genre=genre,
-                narrative_perspective=narrative_perspective,
-                characters_info=chars_text,
-                world_summary=world_text,
-                inspiration_desc=desc_text,
-            )
-
-        logger.info(f"generate_book_overview_stream called: title={title}, theme={theme}, genre={genre}, max_tokens={min(self.max_tokens * 2, 32000)}")
-        full_text = ''
-        overview_max_tokens = min(self.max_tokens * 2, 32000)
-        for chunk in self.client.generate_stream(prompt, temperature=0.7, max_tokens=overview_max_tokens):
-            if isinstance(chunk, dict):
-                if chunk.get('error'):
-                    logger.error(f"book-overview AI error: {chunk['error']}")
-                    yield {'done': True, 'error': chunk['error']}
-                    return
-                text = chunk.get('content', '')
-            else:
-                text = str(chunk)
-            if text:
-                full_text += text
-                yield {'content': text}
-        logger.info(f"book-overview raw response: {len(full_text)} chars")
-        if len(full_text) < 100:
-            logger.warning(f"book-overview response too short: {full_text!r}")
-        result = parse_json_response(full_text)
-        if result is not None:
-            logger.info(f"book-overview JSON parsed successfully: {len(json.dumps(result))} chars")
-            yield {'done': True, 'result': result}
-        else:
-            logger.error(f"book-overview JSON parse failed: {full_text[:500]!r}")
-            yield {'done': True, 'error': f'JSON解析失败: {full_text[:200]}'}
-
     # ========== 章节细纲生成（局部上下文注入）==========
 
     def generate_chapter_outline(self, project_title, genre, book_overview_json, chapter_number,
                                   total_chapters, characters_info, narrative_perspective="第三人称",
-                                  style_profile=None, world_summary="", prev_chapter_title="", prev_chapter_tail="",
-                                  use_craft=False):
-        """生成单章细纲（注入局部上下文 + 世界观）"""
+                                  style_profile=None, prev_chapter_title="", prev_chapter_tail=""):
+        """生成单章细纲（注入局部上下文）"""
         import json
 
         if isinstance(characters_info, list):
@@ -593,20 +459,10 @@ class NovelGenerator:
             chars_text = str(characters_info)
 
         # 解析总纲JSON，提取局部上下文
-        overview_available = True
         try:
             overview = json.loads(book_overview_json) if isinstance(book_overview_json, str) else book_overview_json
-            if not overview or not isinstance(overview, dict):
-                overview = {}
-                overview_available = False
         except (json.JSONDecodeError, TypeError):
             overview = {}
-            overview_available = False
-
-        # 当总纲缺失时注入警告
-        degradation_warning = ""
-        if not overview_available:
-            degradation_warning = "\n⚠️ 注意：全书总纲缺失或格式错误，本章细纲缺少上下文注入（幕信息、角色弧、支线、伏笔均不可用）。建议重新生成总纲后再次生成细纲。"
 
         # 1. 所属幕信息
         acts = overview.get('acts', [])
@@ -623,6 +479,7 @@ class NovelGenerator:
                 except ValueError:
                     pass
         if not current_act and acts:
+            # fallback: 根据比例估算
             idx = min(int(chapter_number / max(total_chapters, 1) * len(acts)), len(acts) - 1)
             current_act = acts[idx]
 
@@ -681,14 +538,11 @@ class NovelGenerator:
         if pace_here:
             pacing_requirement += "\n爽点类型：" + pace_here.get('satisfaction_type', '无特殊要求')
 
-        # 6. 世界观上下文
-        world_ctx = world_summary[:300] if world_summary else "（未设定世界观）"
-
-        # 7. 前一章衔接
+        # 6. 前一章衔接
         prev_title = prev_chapter_title or "（无前章）"
         prev_tail = (prev_chapter_tail or "")[:300] if prev_chapter_tail else "（无前章结尾）"
 
-        # 8. 本章位置描述
+        # 7. 本章位置描述
         if total_chapters <= 1:
             position = "这是唯一的一章，需要完整呈现故事。"
         elif chapter_number <= total_chapters * 0.1:
@@ -696,7 +550,7 @@ class NovelGenerator:
         elif chapter_number <= total_chapters * 0.25:
             position = "属于发展阶段，需要推进剧情、增加冲突复杂度、发展角色关系。"
         elif chapter_number <= total_chapters * 0.5:
-            position = "属于中期发展阶段，需要深化主线、设置伏笔、推动角色成长。"
+            position = "属于中期发展阶段，需要深化主线、设置伏笔、推进角色成长。"
         elif chapter_number <= total_chapters * 0.75:
             position = "属于高潮铺垫期，需要加速节奏、激化矛盾、汇集线索。"
         elif chapter_number < total_chapters:
@@ -720,20 +574,11 @@ class NovelGenerator:
             foreshadow_to_plant=foreshadow_to_plant,
             foreshadow_to_payoff=foreshadow_to_payoff,
             pacing_requirement=pacing_requirement,
-            world_summary=world_ctx,
             prev_chapter_title=prev_title,
             prev_chapter_tail=prev_tail,
-            degradation_warning=degradation_warning,
         )
 
-        if use_craft:
-            if style_profile:
-                fmt = self._build_style_prompt_vars(style_profile)
-                prompt_kwargs.update(fmt)
-                prompt = format_prompt(CHAPTER_OUTLINE_CRAFT_STYLE, **prompt_kwargs)
-            else:
-                prompt = format_prompt(CHAPTER_OUTLINE_CRAFT, **prompt_kwargs)
-        elif style_profile:
+        if style_profile:
             fmt = self._build_style_prompt_vars(style_profile)
             prompt_kwargs.update(dict(
                 story_framework=fmt.get('story_framework', ''),
@@ -753,191 +598,10 @@ class NovelGenerator:
             return None, err
         return result, None
 
-    def generate_chapter_outline_stream(self, project_title, genre, book_overview_json, chapter_number,
-                                         total_chapters, characters_info, narrative_perspective="第三人称",
-                                         style_profile=None, world_summary="", prev_chapter_title="",
-                                         prev_chapter_tail="", use_craft=False):
-        """流式生成单章细纲"""
-        import json
-
-        if isinstance(characters_info, list):
-            chars_text = "\n".join([f"- {c.get('name', '未知')}: {c.get('personality', '')}" for c in characters_info[:10]])
-        else:
-            chars_text = str(characters_info)
-
-        overview_available = True
-        try:
-            overview = json.loads(book_overview_json) if isinstance(book_overview_json, str) else book_overview_json
-            if not overview or not isinstance(overview, dict):
-                overview = {}
-                overview_available = False
-        except (json.JSONDecodeError, TypeError):
-            overview = {}
-            overview_available = False
-
-        degradation_warning = ""
-        if not overview_available:
-            degradation_warning = "\n⚠️ 注意：全书总纲缺失或格式错误，本章细纲缺少上下文注入。"
-
-        acts = overview.get('acts', [])
-        current_act = None
-        for act in acts:
-            cr = act.get('chapter_range', '')
-            parts = cr.split('-')
-            if len(parts) == 2:
-                try:
-                    start, end = int(parts[0]), int(parts[1])
-                    if start <= chapter_number <= end:
-                        current_act = act
-                        break
-                except ValueError:
-                    pass
-        if not current_act and acts:
-            idx = min(int(chapter_number / max(total_chapters, 1) * len(acts)), len(acts) - 1)
-            current_act = acts[idx]
-
-        act_context = "所属幕：" + (current_act.get('name', '未知') if current_act else '未知')
-        if current_act:
-            act_context += "\n本幕目标：" + current_act.get('goal', '')
-            act_context += "\n本幕情感基调：" + current_act.get('emotional_tone', '')
-            if current_act.get('key_turning_point'):
-                act_context += "\n本幕关键转折：" + current_act['key_turning_point']
-
-        char_arcs = overview.get('character_arcs', [])
-        milestones_here = []
-        for arc in char_arcs:
-            for ms in arc.get('milestones', []):
-                if ms.get('chapter') == chapter_number:
-                    milestones_here.append({"name": arc.get('name', ''), "change": ms.get('change', '')})
-        character_milestones = "本章无角色转变" if not milestones_here else "\n".join(
-            [f"- {m['name']}: {m['change']}" for m in milestones_here]
-        )
-
-        subplots = overview.get('subplots', [])
-        active_here = [sp for sp in subplots if chapter_number in sp.get('involved_chapters', [])]
-        active_subplots = "无活跃支线" if not active_here else "\n".join(
-            [f"- {sp['name']}（收束于第{sp.get('resolution_chapter', '?')}章）" for sp in active_here]
-        )
-
-        fores = overview.get('foreshadowing', [])
-        plant_here = [f for f in fores if f.get('planted_chapter') == chapter_number]
-        payoff_here = [f for f in fores if f.get('payoff_chapter') == chapter_number]
-        foreshadow_to_plant = "无需埋设伏笔" if not plant_here else "\n".join(
-            [f"- {f['hint']}（将于第{f.get('payoff_chapter', '?')}章回收）" for f in plant_here]
-        )
-        foreshadow_to_payoff = "无需回收伏笔" if not payoff_here else "\n".join(
-            [f"- {f['hint']} → 揭示：{f.get('reveal', '')}" for f in payoff_here]
-        )
-
-        pacing = overview.get('pacing', [])
-        pace_here = None
-        for p in pacing:
-            pc = p.get('chapters', '')
-            parts = pc.split('-')
-            if len(parts) == 2:
-                try:
-                    if int(parts[0]) <= chapter_number <= int(parts[1]):
-                        pace_here = p
-                        break
-                except ValueError:
-                    pass
-        if not pace_here and pacing:
-            pace_here = pacing[min(int(chapter_number / max(total_chapters, 1) * len(pacing)), len(pacing) - 1)]
-        pacing_requirement = "节奏：" + (pace_here.get('rhythm', '正常') if pace_here else '正常')
-        if pace_here:
-            pacing_requirement += "\n爽点类型：" + pace_here.get('satisfaction_type', '无特殊要求')
-
-        world_ctx = world_summary[:300] if world_summary else "（未设定世界观）"
-        prev_title = prev_chapter_title or "（无前章）"
-        prev_tail = (prev_chapter_tail or "")[:300] if prev_chapter_tail else "（无前章结尾）"
-
-        if total_chapters <= 1:
-            position = "这是唯一的一章，需要完整呈现故事。"
-        elif chapter_number <= total_chapters * 0.1:
-            position = "属于开局阶段，需要建立世界观、引入主角、设置初始矛盾。"
-        elif chapter_number <= total_chapters * 0.25:
-            position = "属于发展阶段，需要推进剧情、增加冲突复杂度、发展角色关系。"
-        elif chapter_number <= total_chapters * 0.5:
-            position = "属于中期发展阶段，需要深化主线、设置伏笔、推动角色成长。"
-        elif chapter_number <= total_chapters * 0.75:
-            position = "属于高潮铺垫期，需要加速节奏、激化矛盾、汇集线索。"
-        elif chapter_number < total_chapters:
-            position = "属于高潮阶段，需要最激烈的冲突、关键转折、情感爆发。"
-        else:
-            position = "属于结局阶段，需要收束所有线索、解决核心矛盾、给出情感满足。"
-
-        overview_json_str = book_overview_json if isinstance(book_overview_json, str) else json.dumps(book_overview_json, ensure_ascii=False, indent=2)
-
-        prompt_kwargs = dict(
-            project_title=project_title, genre=genre,
-            book_overview_json=overview_json_str,
-            chapter_number=chapter_number,
-            total_chapters=total_chapters, characters_info=chars_text,
-            narrative_perspective=narrative_perspective,
-            my_position=position,
-            act_context=act_context,
-            character_milestones=character_milestones,
-            active_subplots=active_subplots,
-            foreshadow_to_plant=foreshadow_to_plant,
-            foreshadow_to_payoff=foreshadow_to_payoff,
-            pacing_requirement=pacing_requirement,
-            world_summary=world_ctx,
-            prev_chapter_title=prev_title,
-            prev_chapter_tail=prev_tail,
-            degradation_warning=degradation_warning,
-        )
-
-        if use_craft:
-            if style_profile:
-                fmt = self._build_style_prompt_vars(style_profile)
-                prompt_kwargs.update(fmt)
-                prompt = format_prompt(CHAPTER_OUTLINE_CRAFT_STYLE, **prompt_kwargs)
-            else:
-                prompt = format_prompt(CHAPTER_OUTLINE_CRAFT, **prompt_kwargs)
-        elif style_profile:
-            fmt = self._build_style_prompt_vars(style_profile)
-            prompt_kwargs.update(dict(
-                story_framework=fmt.get('story_framework', ''),
-                satisfaction_pattern=fmt.get('satisfaction_pattern', ''),
-                hook_design=fmt.get('hook_design', ''),
-                transition_style=fmt.get('transition_style', ''),
-                foreshadowing_style=fmt.get('foreshadowing_style', ''),
-                writing_techniques=fmt.get('writing_techniques', ''),
-                pacing=fmt.get('pacing', ''),
-                emotional_beats=fmt.get('emotional_beats', ''),
-            ))
-            prompt = format_prompt(CHAPTER_OUTLINE_DETAIL_STYLE, **prompt_kwargs)
-        else:
-            prompt = format_prompt(CHAPTER_OUTLINE_DETAIL, **prompt_kwargs)
-
-        logger.info(f"generate_chapter_outline_stream called: chapter={chapter_number}, max_tokens={min(self.max_tokens, 16000)}")
-        full_text = ''
-        outline_max_tokens = min(self.max_tokens, 16000)
-        for chunk in self.client.generate_stream(prompt, temperature=0.7, max_tokens=outline_max_tokens):
-            if isinstance(chunk, dict):
-                if chunk.get('error'):
-                    logger.error(f"chapter-outline AI error: {chunk['error']}")
-                    yield {'done': True, 'error': chunk['error']}
-                    return
-                text = chunk.get('content', '')
-            else:
-                text = str(chunk)
-            if text:
-                full_text += text
-                yield {'content': text}
-        logger.info(f"chapter-outline raw response: {len(full_text)} chars")
-        result = parse_json_response(full_text)
-        if result is not None:
-            logger.info(f"chapter-outline JSON parsed OK")
-            yield {'done': True, 'result': result}
-        else:
-            logger.error(f"chapter-outline JSON parse failed: {full_text[:500]!r}")
-            yield {'done': True, 'error': f'JSON解析失败: {full_text[:200]}'}
-
     # ========== 大纲生成 ==========
 
     def generate_outline(self, title, theme, genre, characters_info, chapter_count=3,
-                         narrative_perspective="第三人称", style_profile=None, world_summary=""):
+                         narrative_perspective="第三人称", style_profile=None):
         """生成大纲"""
         if isinstance(characters_info, list):
             chars_text = "\n".join([f"- {c.get('name', '未知')}: {c.get('personality', '')}" for c in characters_info[:10]])
@@ -951,7 +615,6 @@ class NovelGenerator:
                 chapter_count=chapter_count,
                 narrative_perspective=narrative_perspective,
                 characters_info=chars_text,
-                world_summary=world_summary or "（未设定世界观）",
                 sub_genres=fmt.get('sub_genres', ''),
                 core_drive=fmt.get('core_drive', ''),
                 story_framework=fmt.get('story_framework', ''),
@@ -974,8 +637,7 @@ class NovelGenerator:
                 title=title, theme=theme, genre=genre,
                 chapter_count=chapter_count,
                 narrative_perspective=narrative_perspective,
-                characters_info=chars_text,
-                world_summary=world_summary or "（未设定世界观）",
+                characters_info=chars_text
             )
         result, err = self._generate_json(prompt)
         if err:
@@ -988,8 +650,7 @@ class NovelGenerator:
                          chapter_outline, continuation_point="", previous_chapter_summary="",
                          chapter_characters="", foreshadow_reminders="", target_word_count=3000,
                          narrative_perspective="第三人称", style_profile=None, technique_focus="",
-                         book_overview="", world_summary="", first_chapter_strategy="",
-                         prev_chapter_hook=""):
+                         book_overview=""):
         """生成章节正文"""
         fmt = self._build_style_prompt_vars(style_profile) if style_profile else {}
 
@@ -1004,11 +665,8 @@ class NovelGenerator:
                 chapter_outline=chapter_outline,
                 continuation_point=continuation_point or "（第一章，故事开始）",
                 previous_chapter_summary=previous_chapter_summary or "（第一章，无前文）",
-                chapter_characters=self._format_characters(chapter_characters),
+                chapter_characters=chapter_characters or "（见大纲）",
                 foreshadow_reminders=foreshadow_reminders or "暂无",
-                world_summary=world_summary if world_summary else "（未设定世界观）",
-                first_chapter_note="\n本章是全书开篇：需要建立世界观基调、引入主角、抛出核心悬念，开篇3句必须有钩子。" if first_chapter_strategy == "first_chapter" else "",
-                prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
                 tone=fmt.get('tone', ''),
                 pacing=fmt.get('pacing', ''),
                 sentence_structure=fmt.get('sentence_structure', ''),
@@ -1038,86 +696,20 @@ class NovelGenerator:
                 chapter_outline=chapter_outline,
                 continuation_point=continuation_point or "（第一章，故事开始）",
                 previous_chapter_summary=previous_chapter_summary or "（第一章，无前文）",
-                chapter_characters=self._format_characters(chapter_characters),
+                chapter_characters=chapter_characters or "（见大纲）",
                 foreshadow_reminders=foreshadow_reminders or "暂无",
-                world_summary=world_summary if world_summary else "（未设定世界观）",
-                first_chapter_note="\n本章是全书开篇：需要建立世界观基调、引入主角、抛出核心悬念，开篇3句必须有钩子。" if first_chapter_strategy == "first_chapter" else "",
-                prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
                 book_overview=book_overview or "（未填写全书总纲，按章节大纲自由呈现）"
             )
         text, err = self.client.generate(prompt, temperature=0.8, max_tokens=8000)
         return text, err
 
-    def _format_characters(self, chapter_characters):
-        """统一角色数据格式：接受 list 或 str，返回格式化后的字符串"""
-        if isinstance(chapter_characters, list) and chapter_characters:
-            return "\n".join([
-                f"- {c.get('name', '未知')}: {c.get('role_type', c.get('role', '角色'))} - "
-                f"{c.get('personality', '')} | 背景: {c.get('background', '')[:80]} | "
-                f"外貌: {c.get('appearance', '')[:60]}"
-                for c in chapter_characters[:10]
-            ])
-        return str(chapter_characters) if chapter_characters else "（见大纲）"
-
     def generate_chapter_stream(self, project_title, genre, chapter_number, chapter_title,
                                 chapter_outline, continuation_point="", previous_chapter_summary="",
                                 chapter_characters="", foreshadow_reminders="", target_word_count=3000,
                                 narrative_perspective="第三人称", style_profile=None, technique_focus="",
-                                book_overview="", progress_content="", segment_chars=0,
-                                world_summary="", first_chapter_strategy="",
-                                prev_chapter_hook=""):
-        """流式生成章节正文（生成器）- 超时600s
-        progress_content: 已生成的内容（续写模式）
-        segment_chars: 本段目标字数（续写模式使用，不传则按 target_word_count 生成）
-        """
-        # 续写模式
-        if progress_content and progress_content.strip():
-            actual_target = segment_chars if segment_chars > 0 else 800
-            # 截断已有内容以适配上下文窗口（假设 prompt 占 ~2000 token，每中文字符 ~1.5 token）
-            ctx_limit = getattr(self.client, 'max_tokens', 4000)
-            max_progress_chars = min(len(progress_content), int(ctx_limit * 1.2))
-            trimmed_progress = progress_content[-max_progress_chars:] if len(progress_content) > max_progress_chars else progress_content
-            style_section = ''
-            if style_profile:
-                style_fmt = self._build_style_prompt_vars(style_profile)
-                style_section = format_prompt(CHAPTER_CONTINUATION_STYLE,
-                    tone=style_fmt.get('tone', ''),
-                    pacing=style_fmt.get('pacing', ''),
-                    sentence_structure=style_fmt.get('sentence_structure', ''),
-                    dialogue_style=style_fmt.get('dialogue_style', ''),
-                    description_style=style_fmt.get('description_style', ''),
-                    emotional_intensity=style_fmt.get('emotional_intensity', ''),
-                    writing_techniques=style_fmt.get('writing_techniques', ''),
-                    foreshadowing_style=style_fmt.get('foreshadowing_style', ''),
-                    overall_summary=style_fmt.get('overall_summary', ''),
-                    prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
-                )
-            prompt = format_prompt(
-                CHAPTER_CONTINUATION,
-                project_title=project_title, genre=genre,
-                chapter_number=chapter_number, chapter_title=chapter_title,
-                progress_content=trimmed_progress,
-                chapter_outline=chapter_outline or "（见总纲）",
-                prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
-                target_word_count=target_word_count,
-                progress_chars=str(len(progress_content)),
-                segment_chars=str(actual_target),
-                style_section=style_section,
-            )
-            for chunk in self.client.generate_stream(prompt, temperature=0.8, max_tokens=self.client.max_tokens):
-                if isinstance(chunk, dict) and chunk.get('error'):
-                    yield {'done': True, 'error': chunk['error']}
-                    return
-                yield chunk
-            return
-
+                                book_overview=""):
+        """流式生成章节正文（生成器）- 超时600s"""
         fmt = self._build_style_prompt_vars(style_profile) if style_profile else {}
-
-        chars_text = self._format_characters(chapter_characters)
-        world_text = world_summary if world_summary else "（未设定世界观）"
-        first_chapter_note = ""
-        if first_chapter_strategy == "first_chapter":
-            first_chapter_note = "\n本章是全书开篇：需要建立世界观基调、引入主角、抛出核心悬念，开篇3句必须有钩子。"
 
         if style_profile:
             prompt = format_prompt(CHAPTER_GENERATION_NEXT_STYLE,
@@ -1127,11 +719,8 @@ class NovelGenerator:
                 chapter_outline=chapter_outline,
                 continuation_point=continuation_point or "（第一章，故事开始）",
                 previous_chapter_summary=previous_chapter_summary or "（第一章，无前文）",
-                chapter_characters=chars_text,
+                chapter_characters=chapter_characters or "（见大纲）",
                 foreshadow_reminders=foreshadow_reminders or "暂无",
-                world_summary=world_text,
-                first_chapter_note=first_chapter_note,
-                prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
                 tone=fmt.get('tone', ''), pacing=fmt.get('pacing', ''),
                 sentence_structure=fmt.get('sentence_structure', ''),
                 dialogue_style=fmt.get('dialogue_style', ''),
@@ -1146,6 +735,7 @@ class NovelGenerator:
                 foreshadowing_style=fmt.get('foreshadowing_style', ''),
                 overall_summary=fmt.get('overall_summary', ''),
                 technique_focus=technique_focus or "根据大纲自然呈现",
+                book_overview=book_overview or "（未填写全书总纲，按章节大纲自由发挥）"
             )
         else:
             prompt = format_prompt(
@@ -1156,44 +746,15 @@ class NovelGenerator:
                 chapter_outline=chapter_outline,
                 continuation_point=continuation_point or "（第一章，故事开始）",
                 previous_chapter_summary=previous_chapter_summary or "（第一章，无前文）",
-                chapter_characters=chars_text,
+                chapter_characters=chapter_characters or "（见大纲）",
                 foreshadow_reminders=foreshadow_reminders or "暂无",
-                world_summary=world_text,
-                first_chapter_note=first_chapter_note,
-                prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
+                book_overview=book_overview or "（未填写全书总纲，按章节大纲自由呈现）"
             )
-        for chunk in self.client.generate_stream(prompt, temperature=0.8, max_tokens=self.client.max_tokens):
-            if isinstance(chunk, dict) and chunk.get('error'):
-                yield {'done': True, 'error': chunk['error']}
-                return
+        for chunk in self.client.generate_stream(prompt, temperature=0.8, max_tokens=8000):
             yield chunk
 
-    def polish_chapter_stream(self, project_title, genre, chapter_number, chapter_title,
-                               chapter_outline, original_content, polish_focus="整体优化",
-                               style_profile=None):
-        """流式润色章节正文"""
-        fmt = self._build_style_prompt_vars(style_profile) if style_profile else {}
-        prompt = format_prompt(
-            CHAPTER_POLISH,
-            project_title=project_title,
-            genre=genre,
-            chapter_number=chapter_number,
-            chapter_title=chapter_title or ('第' + str(chapter_number) + '章'),
-            chapter_outline=chapter_outline or "（见大纲）",
-            original_content=original_content,
-            polish_focus=polish_focus,
-            tone=fmt.get('tone', ''),
-            pacing=fmt.get('pacing', ''),
-            sentence_structure=fmt.get('sentence_structure', ''),
-            description_style=fmt.get('description_style', ''),
-        )
-        for chunk in self.client.generate_stream(prompt, temperature=0.6, max_tokens=self.client.max_tokens):
-            if isinstance(chunk, dict) and chunk.get('error'):
-                yield {'done': True, 'error': chunk['error']}
-                return
-            yield chunk
-
-    def generate_characters_batch(self, world_data, theme, genre, count=6, requirements="", style_profile=None, description=""):
+    def generate_characters_batch(self, world_data, theme, genre, count=6, requirements="", style_profile=None):
+        """分批生成角色（>10个时自动分批，避免超时）"""
         if count <= 10:
             result, err = self.generate_characters(world_data, theme, genre, count, requirements, style_profile)
             if err:
@@ -1298,8 +859,7 @@ class NovelGenerator:
                                chapter_outline, continuation_point="", previous_chapter_summary="",
                                chapter_characters="", foreshadow_reminders="", target_word_count=3000,
                                narrative_perspective="第三人称", style_profile=None, technique_focus="",
-                               book_overview="", world_summary="", first_chapter_strategy="",
-                               prev_chapter_hook=""):
+                               book_overview=""):
         """生成章节正文（融入网文技法，可选风格仿写）"""
         fmt = self._build_style_prompt_vars(style_profile) if style_profile else {}
 
@@ -1314,11 +874,8 @@ class NovelGenerator:
                 chapter_outline=chapter_outline,
                 continuation_point=continuation_point or "（第一章，故事开始）",
                 previous_chapter_summary=previous_chapter_summary or "（第一章，无前文）",
-                chapter_characters=self._format_characters(chapter_characters),
+                chapter_characters=chapter_characters or "（见大纲）",
                 foreshadow_reminders=foreshadow_reminders or "暂无",
-                world_summary=world_summary if world_summary else "（未设定世界观）",
-                first_chapter_note="\n本章是全书开篇：需要建立世界观基调、引入主角、抛出核心悬念，开篇3句必须有钩子。" if first_chapter_strategy == "first_chapter" else "",
-                prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
                 tone=fmt.get('tone', ''),
                 pacing=fmt.get('pacing', ''),
                 sentence_structure=fmt.get('sentence_structure', ''),
@@ -1334,6 +891,7 @@ class NovelGenerator:
                 foreshadowing_style=fmt.get('foreshadowing_style', ''),
                 overall_summary=fmt.get('overall_summary', ''),
                 technique_focus=technique_focus or "根据大纲自然呈现",
+                book_overview=book_overview or "（未填写全书总纲，按章节大纲自由发挥）"
             )
         else:
             prompt = format_prompt(
@@ -1347,123 +905,12 @@ class NovelGenerator:
                 chapter_outline=chapter_outline,
                 continuation_point=continuation_point or "（第一章，故事开始）",
                 previous_chapter_summary=previous_chapter_summary or "（第一章，无前文）",
-                chapter_characters=self._format_characters(chapter_characters),
+                chapter_characters=chapter_characters or "（见大纲）",
                 foreshadow_reminders=foreshadow_reminders or "暂无",
-                world_summary=world_summary if world_summary else "（未设定世界观）",
-                first_chapter_note="\n本章是全书开篇：需要建立世界观基调、引入主角、抛出核心悬念，开篇3句必须有钩子。" if first_chapter_strategy == "first_chapter" else "",
-                prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
+                book_overview=book_overview or "（未填写全书总纲，按章节大纲自由呈现）"
             )
         text, err = self.client.generate(prompt, temperature=0.8, max_tokens=8000)
         return text, err
-
-    def generate_chapter_craft_stream(self, project_title, genre, chapter_number, chapter_title,
-                                      chapter_outline, continuation_point="", previous_chapter_summary="",
-                                      chapter_characters="", foreshadow_reminders="", target_word_count=3000,
-                                      narrative_perspective="第三人称", style_profile=None, technique_focus="",
-                                      book_overview="", progress_content="", segment_chars=0,
-                                      world_summary="", first_chapter_strategy="",
-                                      prev_chapter_hook=""):
-        """流式生成章节正文（融入网文技法，可选风格仿写）"""
-        # 续写模式
-        if progress_content and progress_content.strip():
-            actual_target = segment_chars if segment_chars > 0 else 800
-            ctx_limit = getattr(self.client, 'max_tokens', 4000)
-            max_progress_chars = min(len(progress_content), int(ctx_limit * 1.2))
-            trimmed_progress = progress_content[-max_progress_chars:] if len(progress_content) > max_progress_chars else progress_content
-            fmt = self._build_style_prompt_vars(style_profile) if style_profile else {}
-            if style_profile:
-                prompt = format_prompt(
-                    CHAPTER_CONTINUATION_CRAFT_STYLE,
-                    project_title=project_title, genre=genre,
-                    chapter_number=chapter_number, chapter_title=chapter_title,
-                    progress_content=trimmed_progress,
-                    chapter_outline=chapter_outline or "（见总纲）",
-                    prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
-                    target_word_count=target_word_count,
-                    progress_chars=str(len(progress_content)),
-                    segment_chars=str(actual_target),
-                    tone=fmt.get('tone', ''), pacing=fmt.get('pacing', ''),
-                    sentence_structure=fmt.get('sentence_structure', ''),
-                    dialogue_style=fmt.get('dialogue_style', ''),
-                    description_style=fmt.get('description_style', ''),
-                    emotional_intensity=fmt.get('emotional_intensity', ''),
-                    writing_techniques=fmt.get('writing_techniques', ''),
-                    foreshadowing_style=fmt.get('foreshadowing_style', ''),
-                    overall_summary=fmt.get('overall_summary', ''),
-                )
-            else:
-                prompt = format_prompt(
-                    CHAPTER_CONTINUATION_CRAFT,
-                    project_title=project_title, genre=genre,
-                    chapter_number=chapter_number, chapter_title=chapter_title,
-                    progress_content=trimmed_progress,
-                    chapter_outline=chapter_outline or "（见总纲）",
-                    prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
-                    target_word_count=target_word_count,
-                    progress_chars=str(len(progress_content)),
-                    segment_chars=str(actual_target),
-                )
-            for chunk in self.client.generate_stream(prompt, temperature=0.8, max_tokens=self.client.max_tokens):
-                if isinstance(chunk, dict) and chunk.get('error'):
-                    yield {'done': True, 'error': chunk['error']}
-                    return
-                yield chunk
-            return
-
-        fmt = self._build_style_prompt_vars(style_profile) if style_profile else {}
-        chars_text = self._format_characters(chapter_characters)
-        world_text = world_summary if world_summary else "（未设定世界观）"
-        first_chapter_note = ""
-        if first_chapter_strategy == "first_chapter":
-            first_chapter_note = "\n本章是全书开篇：需要建立世界观基调、引入主角、抛出核心悬念，开篇3句必须有钩子。"
-
-        if style_profile:
-            prompt = format_prompt(CHAPTER_GENERATION_CRAFT_STYLE,
-                project_title=project_title, genre=genre,
-                chapter_number=chapter_number, chapter_title=chapter_title,
-                target_word_count=target_word_count, narrative_perspective=narrative_perspective,
-                chapter_outline=chapter_outline,
-                continuation_point=continuation_point or "（第一章，故事开始）",
-                previous_chapter_summary=previous_chapter_summary or "（第一章，无前文）",
-                chapter_characters=chars_text,
-                foreshadow_reminders=foreshadow_reminders or "暂无",
-                world_summary=world_text,
-                first_chapter_note=first_chapter_note,
-                prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
-                tone=fmt.get('tone', ''), pacing=fmt.get('pacing', ''),
-                sentence_structure=fmt.get('sentence_structure', ''),
-                dialogue_style=fmt.get('dialogue_style', ''),
-                description_style=fmt.get('description_style', ''),
-                emotional_intensity=fmt.get('emotional_intensity', ''),
-                writing_techniques=fmt.get('writing_techniques', ''),
-                hook_design=fmt.get('hook_design', ''),
-                satisfaction_pattern=fmt.get('satisfaction_pattern', ''),
-                satisfaction_type=fmt.get('satisfaction_type', ''),
-                transition_style=fmt.get('transition_style', ''),
-                emotional_beats=fmt.get('emotional_beats', ''),
-                foreshadowing_style=fmt.get('foreshadowing_style', ''),
-                overall_summary=fmt.get('overall_summary', ''),
-                technique_focus=technique_focus or "根据大纲自然呈现",
-            )
-        else:
-            prompt = format_prompt(CHAPTER_GENERATION_CRAFT,
-                project_title=project_title, genre=genre,
-                chapter_number=chapter_number, chapter_title=chapter_title,
-                target_word_count=target_word_count, narrative_perspective=narrative_perspective,
-                chapter_outline=chapter_outline,
-                continuation_point=continuation_point or "（第一章，故事开始）",
-                previous_chapter_summary=previous_chapter_summary or "（第一章，无前文）",
-                chapter_characters=chars_text,
-                foreshadow_reminders=foreshadow_reminders or "暂无",
-                world_summary=world_text,
-                first_chapter_note=first_chapter_note,
-                prev_chapter_hook=prev_chapter_hook or "（第一章，无上一章钩子）",
-            )
-        for chunk in self.client.generate_stream(prompt, temperature=0.8, max_tokens=self.client.max_tokens):
-            if isinstance(chunk, dict) and chunk.get('error'):
-                yield {'done': True, 'error': chunk['error']}
-                return
-            yield chunk
 
     def generate_titles_craft(self, user_input=""):
         """生成书名建议（网文风）"""

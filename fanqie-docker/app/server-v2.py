@@ -29,7 +29,7 @@ API 端点 (/fanqie/api/ 由 Nginx 反代为 /api/)
              downloads/{list,content}
 ===============================================================
 """
-import http.server, urllib.request, urllib.parse, urllib.error, json, os, time, re, threading, uuid, sys, traceback, shutil, logging, sqlite3
+import http.server, urllib.request, urllib.parse, urllib.error, json, os, time, re, threading, uuid, sys, traceback, shutil
 
 PORT = int(os.environ.get('PORT', '8000'))
 BASE_DIR = os.environ.get('BASE_DIR', os.path.dirname(os.path.abspath(__file__)))
@@ -54,12 +54,6 @@ sessions_lock = threading.Lock()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from novel_creator import NovelGenerator
 from novel_creator import database as novel_db
-logging.basicConfig(
-    filename=os.path.join(os.environ.get('LOG_DIR', '/app/data'), 'generate.log'),
-    level=logging.DEBUG,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    encoding='utf-8'
-)
 novel_db.init_db()
 
 # Session 清理：后台线程定期清理过期 session
@@ -205,36 +199,18 @@ def ai_call(endpoint, api_key, model, messages, options=None):
         'stream': (options or {}).get('stream', False),
     }
     data = json.dumps(req_body).encode('utf-8')
-    # 智能拼接 URL（兼容 LongCat 等需要 /v1/chat/completions 的 API）
-    ep = endpoint.rstrip("/")
-    if ep.endswith("/chat/completions"):
-        url = ep
-    elif ep.endswith("/v1"):
-        url = f"{ep}/chat/completions"
-    else:
-        url = f"{ep}/v1/chat/completions"
-    req = urllib.request.Request(url, data=data, headers={
+    req = urllib.request.Request(endpoint, data=data, headers={
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + api_key,
     })
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            result = json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        body = e.read().decode('utf-8', errors='ignore')[:500]
-        return None, f'HTTP {e.code}: {body}'
-    except Exception as e:
-        return None, f'连接失败: {str(e)}'
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        result = json.loads(r.read())
     if result.get('error'):
         return None, result['error'].get('message', str(result['error']))
     choices = result.get('choices', [])
     if not choices:
-        snippet = json.dumps(result, ensure_ascii=False)[:300]
-        return None, f'AI 返回空内容（响应: {snippet}）'
-    choice = choices[0]
-    content = choice.get('message', {}).get('content', '')
-    if not content and 'content' in choice:
-        content = choice['content']
+        return None, 'AI 返回空内容'
+    content = choices[0].get('message', {}).get('content', '')
     return content, None
 
 
@@ -269,9 +245,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # AI 生成
             elif path == '/api/ai/generate':
                 self.handle_ai_generate(data)
-            # 模型连接测试
-            elif path == '/api/ai/test-connection':
-                self.handle_test_connection(data)
             # ===== 项目管理 =====
             elif path == '/api/projects/save':
                 self.handle_project_save(data)
@@ -333,49 +306,33 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.handle_novel_worldbuilding(data)
             elif path == '/api/novel/characters':
                 self.handle_novel_characters(data)
-            elif path == '/api/novel/worldbuilding/reparse':
-                self.handle_worldbuilding_reparse(data)
-            elif path == '/api/novel/characters/reparse':
-                self.handle_characters_reparse(data)
             elif path == '/api/novel/outline':
                 self.handle_novel_outline(data)
             elif path == '/api/novel/book-overview':
-                if data.get('stream'):
-                    self.handle_stream(data, lambda gen, style, data: gen.generate_book_overview_stream(
-                        title=data.get('title', ''), theme=data.get('theme', ''),
-                        genre=data.get('genre', ''),
-                        characters_info=data.get('charactersInfo', ''),
-                        narrative_perspective=data.get('narrativePerspective', '第三人称'),
-                        style_profile=style,
-                        world_summary=data.get('worldSummary', ''),
-                        inspiration_desc=data.get('inspirationDesc', '') or data.get('description', '')
-                    ))
-                else:
-                    self.handle_novel_book_overview(data)
+                self.handle_novel_book_overview(data)
             elif path == '/api/novel/chapter-outline':
-                if data.get('stream'):
-                    self.handle_stream(data, lambda gen, style, data: gen.generate_chapter_outline_stream(
-                        project_title=data.get('projectTitle', ''),
-                        genre=data.get('genre', ''),
-                        book_overview_json=data.get('bookOverview', ''),
-                        chapter_number=int(data.get('chapterNumber', 1)),
-                        total_chapters=int(data.get('totalChapters', 1)),
-                        characters_info=data.get('charactersInfo', ''),
-                        narrative_perspective=data.get('narrativePerspective', '第三人称'),
-                        style_profile=style,
-                        world_summary=data.get('worldSummary', ''),
-                        prev_chapter_title=data.get('prevChapterTitle', ''),
-                        prev_chapter_tail=data.get('prevChapterTail', ''),
-                        use_craft=data.get('useCraft', False)
-                    ))
-                else:
-                    self.handle_novel_chapter_outline(data)
+                self.handle_novel_chapter_outline(data)
             elif path == '/api/novel/chapter':
                 self.handle_novel_chapter(data)
-            elif path == '/api/novel/chapter/polish':
-                self.handle_chapter_polish(data)
-            elif path == '/api/novel/chapter/summarize':
-                self.handle_chapter_summarize(data)
+            elif path == '/api/novel/analyze-style':
+                self.handle_novel_analyze_style(data)
+            elif path == '/api/novel/analyze-chapter':
+                self.handle_novel_analyze_chapter(data)
+            elif path == '/api/novel/generate-style':
+                self.handle_novel_generate_style(data)
+            # ===== 网文创作技法（Craft）=====
+            elif path == '/api/novel/craft/detect-ai':
+                self.handle_craft_detect_ai(data)
+            elif path == '/api/novel/craft/fix-ai':
+                self.handle_craft_fix_ai(data)
+            elif path == '/api/novel/craft/golden-three':
+                self.handle_craft_golden_three(data)
+            elif path == '/api/novel/craft/hooks':
+                self.handle_craft_hooks(data)
+            elif path == '/api/novel/craft/satisfaction':
+                self.handle_craft_satisfaction(data)
+            elif path == '/api/novel/craft/quality-score':
+                self.handle_craft_quality_score(data)
             elif path == '/api/novel/craft/chapter':
                 self.handle_craft_chapter(data)
             elif path == '/api/novel/craft/titles':
@@ -706,23 +663,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
     # ===== 章节管理 =====
 
     def handle_chapter_save(self, data):
-        """保存章节（支持 metadata 字典）"""
+        """保存章节"""
         project_id = data.get('projectId', '')
         chapter_number = data.get('chapterNumber', None)
         if not project_id or chapter_number is None:
             self.send_json({'error': '缺少参数'}, 400); return
-        metadata = data.get('metadata', None)
-        if isinstance(metadata, str):
-            try: metadata = json.loads(metadata)
-            except: metadata = None
         novel_db.save_chapter(
             project_id=project_id,
             chapter_number=chapter_number,
             title=data.get('title', ''),
             content=data.get('content', ''),
             status=data.get('status', 'done'),
-            error_message=data.get('errorMessage', ''),
-            metadata=metadata,
         )
         self.send_json({'ok': True})
 
@@ -776,9 +727,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         total_chapters = data.get('totalChapters', 0)
         if not project_id or not total_chapters:
             self.send_json({'error': '缺少参数'}, 400); return
-        # config 不包含 apiKey，避免明文存储
-        config_keys = [k for k in ['endpoint', 'model', 'projectTitle', 'genre', 'styleProfile', 'bookOverview', 'targetWords', 'narrativePerspective', 'chapterCharacters'] if k in data]
-        config = json.dumps({k: data[k] for k in config_keys})
+        config = json.dumps({k: data[k] for k in ['endpoint', 'apiKey', 'model', 'projectTitle', 'genre', 'styleProfile', 'bookOverview', 'targetWords', 'narrativePerspective', 'chapterCharacters'] if k in data})
         novel_db.start_generation(project_id, total_chapters, config)
         self.send_json({'ok': True})
 
@@ -824,7 +773,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             key_points=data.get('key_points'), emotion=data.get('emotion', ''),
             goal=data.get('goal', ''), technique_focus=data.get('techniqueFocus', ''),
             book_overview=data.get('bookOverview', ''),
-            chapter_hook=data.get('chapterHook', ''),
             acts=data.get('acts'),
             status=data.get('status', 'done'), error_message=data.get('errorMessage', ''),
         )
@@ -859,7 +807,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         total = data.get('totalChapters', 0)
         if not project_id:
             self.send_json({'error': '缺少 projectId'}, 400); return
-        config = {k: data[k] for k in ['endpoint', 'model', 'projectTitle', 'genre',
+        config = {k: data[k] for k in ['endpoint', 'apiKey', 'model', 'projectTitle', 'genre',
                  'styleProfile', 'bookOverview', 'targetWords', 'narrativePerspective', 'chapterCharacters']
                  if k in data}
         novel_db.start_outline_generation(project_id, total, json.dumps(config, ensure_ascii=False))
@@ -903,7 +851,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_json({'error': '缺少 projectId'}, 400); return
         if step:
             summary = novel_db.get_step_summary(project_id, step)
-            self.send_json({'summaries': {step: summary or {}}})
+            self.send_json({'summary': summary or {}})
         else:
             summaries = novel_db.get_all_step_summaries(project_id)
             result = {}
@@ -915,46 +863,32 @@ class Handler(http.server.BaseHTTPRequestHandler):
         """生成全书总纲（注入步骤摘要）"""
         def do(gen):
             style = self._parse_style_profile(data.get('styleProfile', ''))
-            # 从数据库获取步骤摘要作为补充
+            # 从数据库获取步骤摘要
             project_id = data.get('projectId', '')
             world_summary = data.get('worldSummary', '')
             inspiration_desc = data.get('description', '')
-            characters_info = data.get('charactersInfo', '')
-            missing_steps = []
             if project_id:
                 summaries = novel_db.get_all_step_summaries(project_id)
                 summary_map = {s['step']: s.get('summary_json', {}) for s in summaries}
                 insp = summary_map.get('inspiration', {})
                 world = summary_map.get('world', {})
                 chars = summary_map.get('characters', {})
-                # 优先使用传入值，缺失时从步骤摘要补全
-                if not inspiration_desc and insp:
-                    inspiration_desc = insp.get('description', insp.get('core_premise', ''))
-                elif not inspiration_desc:
-                    missing_steps.append('灵感')
-                if not world_summary and world:
-                    world_summary = world.get('summary_text', '')
+                # 优先使用结构化摘要
+                if insp:
+                    inspiration_desc = insp.get('description', insp.get('core_premise', inspiration_desc))
+                if world:
+                    world_summary = world.get('summary_text', world_summary)
                     if not world_summary:
-                        parts = []
-                        if world.get('key_locations'):
-                            parts.append("关键地点: " + ", ".join(world.get('key_locations', [])[:5]))
-                        if world.get('power_system'):
-                            parts.append("体系: " + world.get('power_system', ''))
-                        world_summary = "; ".join(parts)
-                elif not world_summary:
-                    missing_steps.append('世界观')
-                if not characters_info and chars:
+                        world_summary = "关键地点: " + ", ".join(world.get('key_locations', [])[:5])
+                        world_summary += "; 体系: " + world.get('power_system', '')
+                        world_summary += "; 势力: " + ", ".join(world.get('factions', [])[:3])
+                if chars:
                     char_names = chars.get('char_names', [])
-                    if char_names:
-                        characters_info = ", ".join(char_names)
-                elif not characters_info:
-                    missing_steps.append('角色')
-            # 注入缺失步骤提醒
-            if missing_steps:
-                world_summary = f"[注意：缺少以下步骤的数据：{'/'.join(missing_steps)}，总纲可能不够完整]\n" + world_summary
+                    if char_names and not data.get('charactersInfo'):
+                        data['charactersInfo'] = ", ".join(char_names)
             result, err = gen.generate_book_overview(
                 title=data.get('title', ''), theme=data.get('theme', ''),
-                genre=data.get('genre', ''), characters_info=characters_info,
+                genre=data.get('genre', ''), characters_info=data.get('charactersInfo', ''),
                 narrative_perspective=data.get('narrativePerspective', '第三人称'),
                 style_profile=style,
                 world_summary=world_summary,
@@ -970,23 +904,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         """生成单章细纲（含局部上下文注入）"""
         def do(gen):
             style = self._parse_style_profile(data.get('styleProfile', ''))
-            chapter_number = max(1, min(int(data.get('chapterNumber', 1)), 1000))
-            total_chapters = max(1, min(int(data.get('totalChapters', 1)), 1000))
-            if chapter_number > total_chapters:
-                chapter_number = total_chapters
             result, err = gen.generate_chapter_outline(
                 project_title=data.get('projectTitle', ''),
                 genre=data.get('genre', ''),
                 book_overview_json=data.get('bookOverview', ''),
-                chapter_number=chapter_number,
-                total_chapters=total_chapters,
+                chapter_number=data.get('chapterNumber', 1),
+                total_chapters=data.get('totalChapters', 1),
                 characters_info=data.get('charactersInfo', ''),
                 narrative_perspective=data.get('narrativePerspective', '第三人称'),
                 style_profile=style,
-                world_summary=data.get('worldSummary', ''),
                 prev_chapter_title=data.get('prevChapterTitle', ''),
-                prev_chapter_tail=data.get('prevChapterTail', ''),
-                use_craft=data.get('useCraft', False)
+                prev_chapter_tail=data.get('prevChapterTail', '')
             )
             if err:
                 self.send_json({'error': err}, 500)
@@ -1038,28 +966,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_json({'error': err}, 500)
         else:
             self.send_json({'result': result})
-
-    def handle_test_connection(self, data):
-        """测试模型连接：发送最简请求验证 API 可达"""
-        endpoint = data.get('endpoint', '')
-        api_key = data.get('apiKey', '')
-        model_id = data.get('model', '')
-        if not all([endpoint, api_key, model_id]):
-            self.send_json({'ok': False, 'error': '缺少 endpoint / apiKey / model 参数'}, 400)
-            return
-        messages = [
-            {'role': 'system', 'content': 'You are a helpful assistant. Reply briefly.'},
-            {'role': 'user', 'content': 'Say "OK" if you can hear me.'}
-        ]
-        try:
-            result, err = ai_call(endpoint, api_key, model_id, messages, {'temperature': 0, 'max_tokens': 32, 'timeout': 30})
-            if err:
-                self.send_json({'ok': False, 'error': err})
-            else:
-                self.send_json({'ok': True, 'model': model_id, 'response': (result or '')[:100]})
-        except Exception as e:
-            traceback.print_exc()
-            self.send_json({'ok': False, 'error': str(e)[:300]})
 
     def _get_ai_config(self, data):
         """从请求中获取AI配置"""
@@ -1146,8 +1052,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
         """统一处理 (result, err) 元组响应"""
         if err:
             self.send_json({'error': str(err)}, 500)
-        elif result is None:
-            self.send_json({'error': '生成结果为空，请重试'}, 500)
         else:
             self.send_json({key: result} if key else result)
 
@@ -1193,7 +1097,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             for k in ['time_period', 'location', 'atmosphere', 'rules']:
                 if k in result and not isinstance(result[k], str):
                     result[k] = json.dumps(result[k], ensure_ascii=False) if isinstance(result[k], dict) else str(result[k])
-            self._send_gen_result(result, None, key='world')
+            self.send_json(result)
         self._with_ai(data, do)
 
     # ===== 角色生成 =====
@@ -1202,19 +1106,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         def do(gen):
             style = self._parse_style_profile(data.get('styleProfile', ''))
             count = min(int(data.get('count', 6)), 50)
-            world_data = data.get('worldData', {})
-            if isinstance(world_data, str):
-                try:
-                    world_data = json.loads(world_data)
-                except:
-                    world_data = {'summary': world_data}
             # >10个角色时使用分批生成避免超时
             if count > 10:
                 result, err = gen.generate_characters_batch(
-                    world_data=world_data, theme=data.get('theme', ''),
+                    world_data=data.get('worldData', {}), theme=data.get('theme', ''),
                     genre=data.get('genre', ''), count=count,
-                    requirements=data.get('requirements', ''), style_profile=style,
-                    description=data.get('novelDescription', '')
+                    requirements=data.get('requirements', ''), style_profile=style
                 )
                 if err:
                     self.send_json({'error': err}, 500)
@@ -1222,65 +1119,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     self.send_json({'characters': result})
             else:
                 self._send_gen_result(*gen.generate_characters(
-                    world_data=world_data, theme=data.get('theme', ''),
+                    world_data=data.get('worldData', {}), theme=data.get('theme', ''),
                     genre=data.get('genre', ''), count=count,
-                    requirements=data.get('requirements', ''), style_profile=style,
-                    description=data.get('novelDescription', '')
+                    requirements=data.get('requirements', ''), style_profile=style
                 ), key='characters')
         self._with_ai(data, do)
 
-    # ===== 重新解析世界观/角色（从已有正文提取结构化数据） =====
-
-    def handle_worldbuilding_reparse(self, data):
-        """从已有世界观正文重新提取结构化数据"""
-        def do(gen):
-            style = self._parse_style_profile(data.get('styleProfile', ''))
-            result, err = gen.reparse_world_building(
-                world_text=data.get('worldText', ''),
-                style_profile=style
-            )
-            if err:
-                self.send_json({'error': err}, 500)
-                return
-            for k in ['time_period', 'location', 'atmosphere', 'rules']:
-                if k in result and not isinstance(result[k], str):
-                    result[k] = json.dumps(result[k], ensure_ascii=False) if isinstance(result[k], dict) else str(result[k])
-            self.send_json({'worldJson': result})
-        self._with_ai(data, do)
-
-    def handle_characters_reparse(self, data):
-        """从已有角色正文重新提取结构化角色数据"""
-        def do(gen):
-            style = self._parse_style_profile(data.get('styleProfile', ''))
-            result, err = gen.reparse_characters(
-                characters_text=data.get('charactersText', ''),
-                style_profile=style
-            )
-            if err:
-                self.send_json({'error': err}, 500)
-                return
-            self.send_json({'charactersRaw': result})
-        self._with_ai(data, do)
+    # ===== 大纲生成 =====
 
     def handle_novel_outline(self, data):
         def do(gen):
             style = self._parse_style_profile(data.get('styleProfile', ''))
-            chapter_count = max(1, min(int(data.get('chapterCount', 3)), 200))
-            # 从步骤摘要中获取世界观作为补充
-            world_summary = data.get('worldSummary', '')
-            if not world_summary and data.get('projectId'):
-                summaries = novel_db.get_all_step_summaries(data['projectId'])
-                summary_map = {s['step']: s.get('summary_json', {}) for s in summaries}
-                world = summary_map.get('world', {})
-                if world:
-                    world_summary = world.get('summary_text', '')
             self._send_gen_result(*gen.generate_outline(
                 title=data.get('title', ''), theme=data.get('theme', ''),
                 genre=data.get('genre', ''), characters_info=data.get('charactersInfo', []),
-                chapter_count=chapter_count,
+                chapter_count=data.get('chapterCount', 3),
                 narrative_perspective=data.get('narrativePerspective', '第三人称'),
-                style_profile=style,
-                world_summary=world_summary
+                style_profile=style
             ), key='outline')
         self._with_ai(data, do)
 
@@ -1297,16 +1152,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 previous_chapter_summary=data.get('previousChapterSummary', ''),
                 chapter_characters=data.get('chapterCharacters', ''),
                 foreshadow_reminders=data.get('foreshadowReminders', ''),
-                world_summary=data.get('worldSummary', ''),
-                first_chapter_strategy=data.get('firstChapterStrategy', ''),
                 target_word_count=data.get('targetWordCount', 3000),
                 narrative_perspective=data.get('narrativePerspective', '第三人称'),
                 style_profile=style,
                 technique_focus=data.get('techniqueFocus', ''),
-                book_overview=data.get('bookOverview', ''),
-                progress_content=data.get('progressContent', ''),
-                segment_chars=int(data.get('segmentChars', 0)),
-                prev_chapter_hook=data.get('prevChapterHook', ''),
+                book_overview=data.get('bookOverview', '')
             ))
             return
         def do(gen):
@@ -1320,56 +1170,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 previous_chapter_summary=data.get('previousChapterSummary', ''),
                 chapter_characters=data.get('chapterCharacters', ''),
                 foreshadow_reminders=data.get('foreshadowReminders', ''),
-                world_summary=data.get('worldSummary', ''),
-                first_chapter_strategy=data.get('firstChapterStrategy', ''),
                 target_word_count=data.get('targetWordCount', 3000),
                 narrative_perspective=data.get('narrativePerspective', '第三人称'),
                 style_profile=style,
                 technique_focus=data.get('techniqueFocus', ''),
-                book_overview=data.get('bookOverview', ''),
-                prev_chapter_hook=data.get('prevChapterHook', ''),
+                book_overview=data.get('bookOverview', '')
             ), key='content')
         self._with_ai(data, do)
-
-    # ===== 章节润色 =====
-
-    def handle_chapter_polish(self, data):
-        """流式润色章节"""
-        if data.get('stream'):
-            self.handle_stream(data, lambda gen, style, data: gen.polish_chapter_stream(
-                project_title=data.get('projectTitle', ''),
-                genre=data.get('genre', ''),
-                chapter_number=data.get('chapterNumber', 1),
-                chapter_title=data.get('chapterTitle', ''),
-                chapter_outline=data.get('chapterOutline', ''),
-                original_content=data.get('originalContent', ''),
-                polish_focus=data.get('polishFocus', '整体优化'),
-                style_profile=style,
-            ))
-            return
-        self.send_json({'error': '仅支持流式调用'}, 400)
-
-    def handle_chapter_summarize(self, data):
-        """AI 生成章节摘要，用于后续章节的上下文"""
-        endpoint = data.get('endpoint', '')
-        api_key = data.get('apiKey', '')
-        model = data.get('model', '')
-        chapter_title = data.get('chapterTitle', '')
-        chapter_number = data.get('chapterNumber', 1)
-        content = data.get('content', '')
-        if not all([endpoint, api_key, model]):
-            self.send_json({'error': '缺少 endpoint/apiKey/model'}, 400); return
-        if not content:
-            self.send_json({'summary': ''}); return
-        messages = [
-            {'role': 'system', 'content': '你是小说编辑。请将以下章节正文压缩为100字以内的摘要，保留核心事件和关键转折。只输出摘要文字，不要任何格式或说明。'},
-            {'role': 'user', 'content': f'第{chapter_number}章《{chapter_title}》正文：\n{content[:6000]}'}
-        ]
-        result, err = ai_call(endpoint, api_key, model, messages, {'temperature': 0.3, 'max_tokens': 200})
-        if err:
-            self.send_json({'summary': ''})
-        else:
-            self.send_json({'summary': result.strip()})
 
     # ===== 分析功能 =====
 
@@ -1438,7 +1245,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def handle_craft_chapter(self, data):
         if data.get('stream'):
-            self.handle_stream(data, lambda gen, style, data: gen.generate_chapter_craft_stream(
+            self.handle_stream(data, lambda gen, style, data: gen.generate_chapter_stream(
                 project_title=data.get('projectTitle', ''), genre=data.get('genre', ''),
                 chapter_number=data.get('chapterNumber', 1),
                 chapter_title=data.get('chapterTitle', ''),
@@ -1447,16 +1254,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 previous_chapter_summary=data.get('previousChapterSummary', ''),
                 chapter_characters=data.get('chapterCharacters', ''),
                 foreshadow_reminders=data.get('foreshadowReminders', ''),
-                world_summary=data.get('worldSummary', ''),
-                first_chapter_strategy=data.get('firstChapterStrategy', ''),
                 target_word_count=data.get('targetWordCount', 3000),
                 narrative_perspective=data.get('narrativePerspective', '第三人称'),
                 style_profile=style,
                 technique_focus=data.get("techniqueFocus", ""),
-                book_overview=data.get("bookOverview", ""),
-                progress_content=data.get('progressContent', ''),
-                segment_chars=int(data.get('segmentChars', 0)),
-                prev_chapter_hook=data.get('prevChapterHook', ''),
+                book_overview=data.get("bookOverview", "")
             ))
             return
         def do(gen):
@@ -1470,14 +1272,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 previous_chapter_summary=data.get('previousChapterSummary', ''),
                 chapter_characters=data.get('chapterCharacters', ''),
                 foreshadow_reminders=data.get('foreshadowReminders', ''),
-                world_summary=data.get('worldSummary', ''),
-                first_chapter_strategy=data.get('firstChapterStrategy', ''),
                 target_word_count=data.get('targetWordCount', 3000),
                 narrative_perspective=data.get('narrativePerspective', '第三人称'),
                 style_profile=style,
                 technique_focus=data.get("techniqueFocus", ""),
-                book_overview=data.get("bookOverview", ""),
-                prev_chapter_hook=data.get('prevChapterHook', ''),
+                book_overview=data.get("bookOverview", "")
             ), key='content')
         self._with_ai(data, do)
 
@@ -1507,8 +1306,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def handle_stream(self, data, gen_method):
         """通用流式处理：调用生成器方法并通过 SSE 返回"""
-        import logging
-        logger = logging.getLogger('novel_creator.server')
         cfg = self._get_ai_config(data)
         if not self._check_ai_config(cfg):
             self.send_json({'error': '缺少AI配置参数'}, 400)
@@ -1518,66 +1315,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'text/event-stream; charset=utf-8')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Cache-Control', 'no-cache')
-        self.send_header('Connection', 'close')
-        self.send_header('X-Accel-Buffering', 'no')
+        self.send_header('Connection', 'keep-alive')
         self.end_headers()
-        # 强制连接在处理完成后关闭
-        self.close_connection = True
 
         try:
             gen = self._create_generator(data)
             style = self._parse_style_profile(data.get('styleProfile', ''))
-            logger.info(f"stream started: model={cfg.get('model')}, max_tokens={cfg.get('max_tokens')}")
-            # 立即发送一个空内容 chunk，防止前端首包超时
-            self.wfile.write(f"data: {json.dumps({'content': ''}, ensure_ascii=False)}\n\n".encode("utf-8"))
-            self.wfile.flush()
-            chunk_count = 0
             for chunk in gen_method(gen, style, data):
-                chunk_count += 1
                 if 'content' in chunk:
                     self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode("utf-8"))
                     self.wfile.flush()
                 elif 'error' in chunk:
                     self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode("utf-8"))
                     self.wfile.flush()
-                    logger.error(f"stream error after {chunk_count} chunks: {chunk['error']}")
                     return
                 elif chunk.get('done'):
-                    done_chunk = {'done': True}
-                    if 'result' in chunk:
-                        done_chunk['result'] = chunk['result']
-                    self.wfile.write(f"data: {json.dumps(done_chunk, ensure_ascii=False)}\n\n".encode("utf-8"))
+                    self.wfile.write(f"data: {json.dumps({'done': True}, ensure_ascii=False)}\n\n".encode("utf-8"))
                     self.wfile.flush()
-                    result_size = len(json.dumps(done_chunk)) if 'result' in chunk else 0
-                    logger.info(f"stream done: {chunk_count} chunks, result_size={result_size}")
                     return
         except Exception as e:
             traceback.print_exc()
             self.wfile.write(f"data: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n".encode("utf-8"))
             self.wfile.flush()
-            logger.exception(f"stream exception: {e}")
-
-    def finish(self):
-        """覆盖 finish 方法，确保流式响应后连接被关闭"""
-        try:
-            if not self.wfile.closed:
-                self.wfile.flush()
-                self.wfile.close()
-        except Exception:
-            pass
-        super().finish()
 
 
 if __name__ == '__main__':
     print(f'番茄小说服务端 v2 已启动: http://0.0.0.0:{PORT}')
-    # 启动时清理陈旧的 is_running 标志
-    try:
-        from novel_creator.database import DB_PATH
-        with sqlite3.connect(DB_PATH) as conn:
-            conn.execute("UPDATE outline_generation_status SET is_running=0, is_paused=0 WHERE is_running=1")
-            conn.execute("UPDATE generation_status SET is_running=0, is_paused=0 WHERE is_running=1")
-            conn.commit()
-        print('已清理陈旧的生成状态')
-    except Exception as e:
-        print(f'清理陈旧状态失败: {e}')
     http.server.ThreadingHTTPServer(('0.0.0.0', PORT), Handler).serve_forever()

@@ -14,28 +14,16 @@ _ssl_context.verify_mode = ssl.CERT_NONE
 class AIClient:
     """OpenAI 兼容 API 客户端"""
 
-    def __init__(self, api_key, base_url="https://api.openai.com/v1", model="gpt-4o-mini", temperature=0.7, max_tokens=4000, timeout=600):
+    def __init__(self, api_key, base_url="https://api.openai.com/v1", model="gpt-4o-mini", temperature=0.7, max_tokens=4000):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.timeout = timeout
 
     def _build_request(self, body):
-        """构建 HTTP 请求对象
-
-        支持两种填写方式：
-        - 完整 URL：https://api.longcat.chat/openai/v1/chat/completions
-        - Base URL：https://api.longcat.chat/openai  (自动拼接 /v1/chat/completions)
-        """
-        base = self.base_url.rstrip("/")
-        if base.endswith("/chat/completions"):
-            url = base
-        elif base.endswith("/v1"):
-            url = f"{base}/chat/completions"
-        else:
-            url = f"{base}/v1/chat/completions"
+        """构建 HTTP 请求对象"""
+        url = self.base_url if self.base_url.endswith("/chat/completions") else f"{self.base_url}/chat/completions"
         data = json.dumps(body).encode("utf-8")
         return urllib.request.Request(
             url, data=data,
@@ -65,7 +53,7 @@ class AIClient:
 
         try:
             req = self._build_request(body)
-            with urllib.request.urlopen(req, timeout=self.timeout, context=_ssl_context) as resp:
+            with urllib.request.urlopen(req, timeout=600, context=_ssl_context) as resp:
                 result = json.loads(resp.read())
         except urllib.error.HTTPError as e:
             error_body = self._clean_error_body(e.read().decode("utf-8", errors="ignore"))
@@ -95,7 +83,7 @@ class AIClient:
 
         try:
             req = self._build_request(body)
-            with urllib.request.urlopen(req, timeout=self.timeout, context=_ssl_context) as resp:
+            with urllib.request.urlopen(req, timeout=600, context=_ssl_context) as resp:
                 for line in resp:
                     line = line.decode("utf-8", errors="ignore").strip()
                     if not line or not line.startswith("data: "):
@@ -106,19 +94,13 @@ class AIClient:
                         return
                     try:
                         obj = json.loads(chunk)
-                        if obj.get("error"):
-                            yield {"error": obj["error"].get("message", str(obj["error"]))}
-                            return
                         choices = obj.get("choices", [])
                         if choices:
-                            choice = choices[0]
-                            delta = choice.get("delta", {})
+                            delta = choices[0].get("delta", {})
                             content = delta.get("content", "")
-                            if not content:
-                                content = choice.get("text", "")
                             if content:
                                 yield {"content": content}
-                            finish_reason = choice.get("finish_reason")
+                            finish_reason = choices[0].get("finish_reason")
                             if finish_reason in ("stop", "length", "content_filter"):
                                 yield {"done": True}
                                 return
