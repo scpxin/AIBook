@@ -961,6 +961,7 @@ createApp({
                     perspective: n.perspective || '第三人称', styleProfile: n.styleProfile || ''
                 });
                 alert('已加载项目: ' + r.name);
+                await loadChaptersFromDb();
             } catch (e) {
                 alert('加载失败: ' + e.message);
             }
@@ -1238,14 +1239,51 @@ createApp({
                 projectName.value = autoName;
                 await saveProject();
             }
-            let i = novel.chapters.length;
+            await loadChaptersFromDb();
+            let startIdx = novel.chapters.length;
+            for (let i = 0; i < novel.outline.length; i++) {
+                if (i < novel.chapters.length && novel.chapters[i] && novel.chapters[i].length > 100) {
+                    continue;
+                }
+                startIdx = i;
+                break;
+            }
+            if (startIdx >= novel.outline.length) {
+                alert('所有章节已生成完毕');
+                return;
+            }
+            let i = startIdx;
             async function next() {
                 if (i >= novel.outline.length) return;
+                if (i < novel.chapters.length && novel.chapters[i] && novel.chapters[i].length > 100) {
+                    i++;
+                    next();
+                    return;
+                }
                 await generateOneChapter(i);
                 i++;
                 next();
             }
             next();
+        }
+
+        async function loadChaptersFromDb() {
+            if (!currentProjectId.value) return;
+            try {
+                const r = await apiPost('/api/chapters/get', { projectId: currentProjectId.value });
+                if (r.chapters && Array.isArray(r.chapters)) {
+                    for (const ch of r.chapters) {
+                        const idx = ch.chapter_number - 1;
+                        if (ch.status === 'done' && ch.content && idx < novel.outline.length) {
+                            if (!novel.chapters[idx] || novel.chapters[idx].length < 100) {
+                                novel.chapters[idx] = ch.content;
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('加载章节失败:', e.message);
+            }
         }
 
         async function saveChapterToDb(idx) {
@@ -1678,7 +1716,7 @@ createApp({
             refreshModelSelects, showStep, hasStepContent, getNovelModel,
             generateInspire, selectInspireTitle, selectInspireDesc,
             generateWorld, generateChars, generateOutline, generateNextChapter, generateAllChapters, exportNovel,
-            saveChapterToDb, saveAllChaptersToDb,
+            saveChapterToDb, saveAllChaptersToDb, loadChaptersFromDb,
             analyzeStyleText, loadSavedBooks, analyzeSavedBook,
             analyzeTab, analyzeText, analyzeModelIdx, analyzeLoading, analyzeResult, analyzeResultLines,
             analyzeSavedBooks, selectedAnalyzeBook, analyzeBookContent, styleProfile,
