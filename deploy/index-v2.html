@@ -965,6 +965,7 @@ createApp({
                     perspective: n.perspective || '第三人称', styleProfile: n.styleProfile || ''
                 });
                 alert('已加载项目: ' + r.name);
+                await loadOutlinesFromDb();
                 await loadChaptersFromDb();
             } catch (e) {
                 alert('加载失败: ' + e.message);
@@ -1205,10 +1206,51 @@ createApp({
                 });
                 novel.outlineText = text.trim();
                 parseOutline();
+                await saveOutlineToDb();
             } catch(e) {
                 novel.outlineText = '生成失败: ' + e.message;
             }
             outlineLoading.value = false;
+        }
+
+        async function saveOutlineToDb() {
+            if (!currentProjectId.value) return;
+            if (!novel.outline || novel.outline.length === 0) return;
+            for (const o of novel.outline) {
+                try {
+                    await apiPost('/api/outline/save', {
+                        projectId: currentProjectId.value,
+                        chapterNumber: o.chapter_number,
+                        title: o.title || '',
+                        summary: o.summary || '',
+                        status: 'done'
+                    });
+                } catch (e) {
+                    console.error('大纲保存失败:', e.message);
+                }
+            }
+        }
+
+        async function loadOutlinesFromDb() {
+            if (!currentProjectId.value) return;
+            try {
+                const r = await apiPost('/api/outline/get', { projectId: currentProjectId.value });
+                if (r.outlines && Array.isArray(r.outlines) && r.outlines.length > 0) {
+                    const outlineItems = r.outlines.sort((a, b) => a.chapter_number - b.chapter_number);
+                    novel.outline = outlineItems.map(o => ({
+                        chapter_number: o.chapter_number,
+                        title: o.title || ('第' + o.chapter_number + '章'),
+                        summary: o.summary || ''
+                    }));
+                    let text = '';
+                    outlineItems.forEach(o => {
+                        text += '第' + o.chapter_number + '章 ' + (o.title || '') + ' - ' + (o.summary || '') + '\n';
+                    });
+                    novel.outlineText = text.trim();
+                }
+            } catch (e) {
+                console.error('加载大纲失败:', e.message);
+            }
         }
 
         function parseOutline() {
@@ -1740,6 +1782,7 @@ createApp({
             generateInspire, selectInspireTitle, selectInspireDesc,
             generateWorld, generateChars, generateOutline, generateNextChapter, generateAllChapters, exportNovel,
             saveChapterToDb, saveAllChaptersToDb, loadChaptersFromDb,
+            saveOutlineToDb, loadOutlinesFromDb,
             pauseGeneration, resumeGeneration,
             analyzeStyleText, loadSavedBooks, analyzeSavedBook,
             analyzeTab, analyzeText, analyzeModelIdx, analyzeLoading, analyzeResult, analyzeResultLines,
