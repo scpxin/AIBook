@@ -306,9 +306,11 @@
                 <div v-show="novel.step === 4">
                     <div class="select-row" style="margin-bottom:8px">
                         <input v-model.number="novel.targetWords" type="number" min="500" max="10000" step="500" style="width:100px;padding:8px;border:2px solid #e0e0e0;border-radius:6px">
-                        <button class="btn btn-ai" @click="generateNextChapter" :disabled="chapterLoading"><span v-if="chapterLoading" class="spinner"></span>生成下一章</button>
-                        <button class="btn btn-save" @click="generateAllChapters" :disabled="chapterLoading">一键生成全部</button>
-                        <button class="btn btn-save" @click="exportNovel">导出TXT</button>
+                         <button class="btn btn-ai" @click="generateNextChapter" :disabled="chapterLoading"><span v-if="chapterLoading" class="spinner"></span>生成下一章</button>
+                         <button class="btn btn-save" @click="generateAllChapters" :disabled="chapterLoading">一键生成全部</button>
+                         <button v-if="chapterLoading" class="btn" style="background:#e67e22;color:#fff" @click="pauseGeneration">暂停</button>
+                         <button v-if="chapterPaused" class="btn" style="background:#27ae60;color:#fff" @click="resumeGeneration">继续生成</button>
+                         <button class="btn btn-save" @click="exportNovel">导出TXT</button>
                     </div>
                     <div style="margin-bottom:6px">
                         <label style="font-size:11px;color:#666;cursor:pointer;display:inline-flex;align-items:center;gap:4px">
@@ -865,6 +867,8 @@ createApp({
         const outlineLoading = ref(false);
         const chapterLoading = ref(false);
         const chapterProgress = ref('');
+        const chapterPaused = ref(false);
+        const chapterPauseIdx = ref(0);
 
         // Style analysis
         const styleExpanded = ref(false);
@@ -1253,7 +1257,13 @@ createApp({
                 return;
             }
             let i = startIdx;
+            chapterPaused.value = false;
+            chapterPauseIdx.value = i;
             async function next() {
+                if (chapterPaused.value) {
+                    chapterPauseIdx.value = i;
+                    return;
+                }
                 if (i >= novel.outline.length) return;
                 if (i < novel.chapters.length && novel.chapters[i] && novel.chapters[i].length > 100) {
                     i++;
@@ -1261,11 +1271,24 @@ createApp({
                     return;
                 }
                 await generateOneChapter(i);
+                if (chapterPaused.value) {
+                    chapterPauseIdx.value = i;
+                    return;
+                }
                 i++;
                 next();
             }
             next();
         }
+
+        function pauseGeneration() {
+            chapterPaused.value = true;
+            chapterProgress.value = '已暂停（点击"继续生成"恢复）';
+        }
+
+        async function resumeGeneration() {
+            chapterPaused.value = false;
+            await generateAllChapters();
 
         async function loadChaptersFromDb() {
             if (!currentProjectId.value) return;
@@ -1711,12 +1734,13 @@ createApp({
             doSearch, selectBook, resetSearch, startDownload, doPause, doResume, saveFile,
             stepLabels, novel, novelModelIdx, inspireLoading, inspireError,
             inspireTitleOptions, inspireDescOptions, charsLoading, outlineLoading,
-            chapterLoading, chapterProgress,
+            chapterLoading, chapterProgress, chapterPaused,
             styleExpanded, styleTab, styleText, styleLoading, savedBooks, selectedSavedBook, savedBookAnalyzing,
             refreshModelSelects, showStep, hasStepContent, getNovelModel,
             generateInspire, selectInspireTitle, selectInspireDesc,
             generateWorld, generateChars, generateOutline, generateNextChapter, generateAllChapters, exportNovel,
             saveChapterToDb, saveAllChaptersToDb, loadChaptersFromDb,
+            pauseGeneration, resumeGeneration,
             analyzeStyleText, loadSavedBooks, analyzeSavedBook,
             analyzeTab, analyzeText, analyzeModelIdx, analyzeLoading, analyzeResult, analyzeResultLines,
             analyzeSavedBooks, selectedAnalyzeBook, analyzeBookContent, styleProfile,
