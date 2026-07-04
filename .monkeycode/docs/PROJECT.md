@@ -23,33 +23,92 @@
 
 ## 二、技术栈
 
+### 当前架构 (v3.0)
+
 | 层级 | 技术 |
 |------|------|
-| 前端 | Vue 3 CDN + 原生HTML/JS（单文件SPA） |
+| 前端 | Vue 3 + Vite + TypeScript + Pinia + Vue Router |
+| 后端 | Python 3.11 + FastAPI + Uvicorn + Pydantic |
+| 数据库 | SQLite + WAL 模式 |
+| 部署 | Docker Compose (frontend Nginx + backend Python) |
+| 反向代理 | Nginx (SPA 路由 + API 代理) |
+
+### 旧版兼容 (v2.0)
+
+| 层级 | 技术 |
+|------|------|
+| 前端 | Vue 3 CDN + 原生 HTML/JS（单文件SPA） |
 | 后端 | Python 3.11 HTTP Server（无框架） |
-| 数据库 | SQLite + WAL模式 |
-| Nginx | 反向代理 + 静态文件服务 |
-| Docker | Docker Compose 多容器部署 |
+| 部署 | Docker Compose (单 backend + Nginx) |
 
 ---
 
-## 三、目录结构
+## 三、项目结构
 
 ```
 deploy/
-├── Dockerfile             # 后端镜像构建
-├── docker-compose.yml     # 容器编排
-├── nginx.conf             # Nginx 配置
-├── server-v2.py           # 后端主入口
-├── index-v2.html          # 前端单文件SPA
-├── novel_creator/
-│   ├── __init__.py        # 包初始化
-│   ├── database.py        # 数据库模块
-│   ├── generator.py       # AI生成器
-│   ├── prompts.py         # 提示词模板
-│   ├── craft_prompts.py   # 网文技法提示词
-│   └── ai_client.py       # AI客户端
-└── check_db.py            # 数据库检查工具
+├── docker-compose.v2.yml      # 前后端分离编排（推荐）
+├── docker-compose.yml          # 旧版编排（兼容）
+├── backend_v2/                 # FastAPI 后端
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── app/
+│       ├── main.py             # FastAPI 入口 + 路由注册 + 中间件
+│       ├── config.py           # 环境变量配置
+│       ├── database.py         # 数据库初始化
+│       ├── models/
+│       │   └── schemas.py      # Pydantic 请求/响应模型（58个）
+│       ├── api/                # API 路由模块（按业务分类）
+│       │   ├── projects.py     # POST /api/projects/{save,list,load,delete}
+│       │   ├── chapters.py     # POST /api/chapters/* + /api/chapters/generation/*
+│       │   ├── outlines.py     # POST /api/outline/* + /api/outline/generation/*
+│       │   ├── step_summaries.py # POST /api/step-summary/{save,get}
+│       │   ├── novel.py        # POST /api/novel/* (inspiration/worldbuilding/characters/outline/book-overview/chapter)
+│       │   ├── craft.py        # POST /api/novel/craft/*
+│       │   ├── download.py     # GET /api/search|directory|content|download/*
+│       │   └── ai.py           # POST /api/ai/{analyze,generate} + /api/analyze-style|generate-style
+│       └── services/
+│           ├── novel_generator.py  # NovelGenerator + ResponseModelDict
+│           └── download_service.py # Session管理后台线程
+├── frontend/                   # Vue 3 前端工程
+│   ├── Dockerfile              # 多阶段构建(Vite build + Nginx serve)
+│   ├── nginx.conf              # SPA 路由 + API 代理
+│   ├── package.json            # vue/vite/pinia/vue-router
+│   ├── vite.config.ts          # base: /fanqie/, dev proxy
+│   ├── index.html
+│   └── src/
+│       ├── main.ts             # createApp + Pinia + Router
+│       ├── App.vue             # 根组件 + 全局样式 + 淡蓝主题
+│       ├── router/index.ts     # Vue Router 路由配置
+│       ├── api/                # API 客户端封装
+│       │   ├── client.ts       # fetch 封装 + 超时控制 + SSE
+│       │   ├── project.ts      # 项目 CRUD API
+│       │   ├── chapter.ts      # 章节管理 API
+│       │   ├── outline.ts      # 大纲管理 API
+│       │   ├── novel.ts        # 小说创作 API
+│       │   └── download.ts     # 下载 API
+│       ├── stores/             # Pinia 状态管理
+│       │   ├── settings.ts     # 模型配置 + localStorage
+│       │   ├── project.ts      # 当前项目 + 项目列表
+│       │   └── download.ts     # 下载会话管理
+│       ├── components/         # 通用组件
+│       │   ├── AppHeader.vue   # 头部标题+设置
+│       │   ├── TabBar.vue      # 三标签导航
+│       │   ├── ModalBase.vue   # 模态框基础组件
+│       │   └── ModelConfig.vue # 模型配置弹窗
+│       └── views/              # 页面级组件
+│           ├── Download.vue    # 下载页面
+│           ├── Create.vue      # AI 创作页面
+│           └── Craft.vue       # 网文技法页面
+├── novel_creator/              # AI 小说创作核心模块
+│   ├── database.py             # SQLite + WAL + schema 迁移
+│   ├── generator.py            # NovelGenerator 生成器类
+│   ├── prompts.py              # Novel 流程 prompt 模板
+│   ├── craft_prompts.py        # 网文技法 prompt 模板
+│   └── ai_client.py            # OpenAI 兼容 HTTP 客户端
+├── index-v2.html               # 旧版单文件前端（兼容保留）
+├── server-v2.py                # 旧版后端（兼容保留）
+└── nginx.conf                  # 旧版 Nginx 配置
 ```
 
 ---
