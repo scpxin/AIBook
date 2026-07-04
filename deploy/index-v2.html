@@ -1203,7 +1203,20 @@ createApp({
             outlineLoading.value = true;
             novel.outlineText = '正在生成大纲，请稍候...';
             try {
-                const title = novel.title + (novel.styleProfile ? '\n\n[风格参考]\n' + novel.styleProfile : '');
+                const summaries = await loadStepSummaries();
+                const summaryParts = [];
+                if (summaries.inspiration) {
+                    const ins = summaries.inspiration;
+                    summaryParts.push('[灵感步骤] 标题: ' + (ins.title || '') + ' | 简介: ' + (ins.description || '') + ' | 主题: ' + (ins.theme || '') + ' | 类型: ' + (ins.genre || ''));
+                }
+                if (summaries.world) {
+                    summaryParts.push('[世界观步骤] ' + (summaries.world.world || '').slice(0, 500));
+                }
+                if (summaries.characters) {
+                    summaryParts.push('[角色步骤] ' + (summaries.characters.characters || '').slice(0, 500));
+                }
+                const stepContext = summaryParts.length > 0 ? '\n\n[前期步骤摘要]\n' + summaryParts.join('\n') : '';
+                const title = novel.title + (novel.styleProfile ? '\n\n[风格参考]\n' + novel.styleProfile : '') + stepContext;
                 const d = await apiPost('/api/novel/outline', { endpoint: m.endpoint, apiKey: m.apiKey, model: m.model, title, theme: novel.theme, genre: novel.genre, charactersInfo: novel.characters, chapterCount: novel.chapterCount, narrativePerspective: novel.perspective, styleProfile: novel.styleProfile });
                 const outline = d.outline || [];
                 let text = '';
@@ -1362,8 +1375,7 @@ createApp({
         async function resumeGeneration() {
             chapterPaused.value = false;
             await generateAllChapters();
-
-        async function loadChaptersFromDb() {
+        }
             if (!currentProjectId.value) return;
             try {
                 const r = await apiPost('/api/chapters/get', { projectId: currentProjectId.value });
@@ -1414,13 +1426,25 @@ createApp({
             const o = novel.outline[idx];
             const prevSummary = idx > 0 ? (novel.chapters[idx - 1] || '').slice(0, 200) : '';
             const prevEnd = idx > 0 ? (novel.chapters[idx - 1] || '').slice(-300) : '';
+            let stepContext = '';
+            try {
+                const summaries = await loadStepSummaries();
+                const ctxParts = [];
+                if (summaries.world && summaries.world.world) {
+                    ctxParts.push('[世界观] ' + summaries.world.world.slice(0, 300));
+                }
+                if (summaries.characters && summaries.characters.characters) {
+                    ctxParts.push('[角色] ' + summaries.characters.characters.slice(0, 300));
+                }
+                if (ctxParts.length > 0) stepContext = '\n\n[上下文参考]\n' + ctxParts.join('\n');
+            } catch (e) { /* ignore */ }
             try {
                 const apiPath = novel.useCraft ? '/api/novel/craft/chapter' : '/api/novel/chapter';
                 const d = await apiPost(apiPath, {
                     endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
                     projectTitle: novel.title, genre: novel.genre,
                     chapterNumber: o.chapter_number, chapterTitle: o.title,
-                    chapterOutline: o.summary, continuationPoint: prevEnd,
+                    chapterOutline: o.summary + stepContext, continuationPoint: prevEnd,
                     previousChapterSummary: prevSummary, chapterCharacters: (o.characters || []).join(', '),
                     targetWordCount: novel.targetWords, narrativePerspective: novel.perspective
                 });
