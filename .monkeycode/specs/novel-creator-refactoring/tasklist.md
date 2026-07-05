@@ -93,61 +93,61 @@
 
 ## 后端 — 结构层API
 
-- [ ] 11. 创建力量体系API
+- [x] 11. 创建力量体系API
   - POST `/api/v2/power-system/generate` — 完整力量体系设计(等级/战斗/升级/限制)
   - POST `/api/v2/power-system/save` — 保存力量体系
   - PowerService引用world.rules + characters.abilities
   - 存储到power_systems表
 
-- [ ] 12. 创建势力体系API
+- [x] 12. 创建势力体系API
   - POST `/api/v2/factions/generate` — 5-8势力设计
   - POST `/api/v2/factions/save` — 保存势力
   - FactionService引用world.civilization + characters.affiliation
   - 存储到factions表
 
-- [ ] 13. 创建时间线API
+- [x] 13. 创建时间线API
   - POST `/api/v2/timeline/build` — 整合世界历史 + 剧情事件
   - POST `/api/v2/timeline/save` — 保存时间线
   - TimelineService合并world.history + story.plot_events
   - 存储到timelines表
 
-- [ ] 14. 创建全书大纲API
+- [x] 14. 创建全书大纲API
   - POST `/api/v2/outline/master` — 全书大纲(起承转合/卷结构)
   - POST `/api/v2/outline/save` — 保存全书大纲
   - 这是原有outline概念的扩展版,非替代
 
-- [ ] 15. 检查点 — 确保结构层API测试全部通过
+- [x] 15. 检查点 — 确保结构层API测试全部通过
   - 确保所有测试通过,如有疑问请询问用户
 
 ---
 
 ## 后端 — 规划层API
 
-- [ ] 16. 创建卷纲API
+- [x] 16. 创建卷纲API
   - POST `/api/v2/volumes/generate` — 单卷详细设计
   - POST `/api/v2/volumes/save` — 保存卷纲
   - VolumeService组合V1-V3所有上游数据
   - 存储到volumes表
 
-- [ ] 17. 创建剧情节点API
+- [x] 17. 创建剧情节点API
   - POST `/api/v2/plot-nodes/generate` — 事件具体化(场景/对白/转折点)
   - POST `/api/v2/plot-nodes/save` — 保存剧情节点
   - PlotNodeService引用location_index + characters + power_system
   - 存储到plot_nodes表
 
-- [ ] 18. 创建章节规划API
+- [x] 18. 创建章节规划API
   - POST `/api/v2/chapters/plan` — 章节分配(事件→章 + 钩子分配)
   - POST `/api/v2/chapters/plan-save` — 保存章节规划
   - ChapterPlanService按字数和节奏分配
   - 存储到chapters_2表
 
-- [ ] 19. 创建章节细纲API
+- [x] 19. 创建章节细纲API
   - POST `/api/v2/chapters/outline` — 逐章展开(场景/情绪曲线/知识库)
   - POST `/api/v2/chapters/outline-save` — 保存细纲
   - ChapterOutlineService按foreshadow.plan埋/收伏笔
   - 更新chapters_2表
 
-- [ ] 20. 检查点 — 确保规划层API测试全部通过
+- [x] 20. 检查点 — 确保规划层API测试全部通过
   - 确保所有测试通过,如有疑问请询问用户
 
 ---
