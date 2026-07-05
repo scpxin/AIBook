@@ -218,7 +218,7 @@
 
 ## 前端 — 类型定义与API层
 
-- [ ] 31. 创建 V2 类型定义
+- [x] 31. 创建 V2 类型定义
   - `src/types/idea.ts` — Idea / IdeaCandidate 类型
   - `src/types/world.ts` — WorldBuilding / WorldRule / WorldLayer 类型
   - `src types/character.ts` — Character / CharacterAppearance / Personality / Ability 类型
@@ -237,7 +237,7 @@
   - `src/types/pipeline.ts` — PipelineStatus / ModuleResult 类型
   - 所有类型遵循后端Pydantic模型,使用camelCase
 
-- [ ] 32. 创建 V2 API 服务层
+- [x] 32. 创建 V2 API 服务层
   - `src/api/idea.ts` — 灵感API(5个函数)
   - `src/api/world.ts` — 世界观API(6个函数)
   - `src/api/character.ts` — 角色API(6个函数)
@@ -259,69 +259,69 @@
   - 所有API使用已有的client.ts(apiGet/apiPost/apiPostLong/apiStream)
   - 路由前缀 `/api/v2/`
 
-- [ ]* 33. V2 API 单元测试
+- [x]* 33. V2 API 单元测试
   - Mock API客户端测试每个接口函数
   - 验证请求参数格式和响应类型解析
   - 验证流式ReadableStream消费
 
-- [ ] 34. 检查点 — 确保前端API层全部可用
+- [x] 34. 检查点 — 确保前端API层全部可用
   - 确保所有V2 API模块正确导出并可导入,如有疑问请询问用户
 
 ---
 
 ## 前端 — 状态管理
 
-- [ ] 35. 创建 Pipeline Store
+- [x] 35. 创建 Pipeline Store
   - `src/stores/pipeline.ts`: 流水线状态管理
   - State: currentModule, status, results{}, errorLog
   - Actions: startPipeline, resumePipeline, rerunModule, getStatus
   - 管理整个创作流水线的状态机
 
-- [ ] 36. 创建 Idea Store
+- [x] 36. 创建 Idea Store
   - `src/stores/idea.ts`: 灵感状态管理
   - State: ideas[], selectedIdea, scores, upgradeVersions, risks
   - Actions: generate, score, upgrade, select, analyzeRisks, save
 
-- [ ] 37. 创建 World Store
+- [x] 37. 创建 World Store
   - `src/stores/world.ts`: 世界观状态管理
   - State: origin, rules[], layers[], civilization, history, docPath
   - Actions: generateOrigin, generateRules, generateStructure, generateCivilization, generateHistory, checkConsistency, save
 
-- [ ] 38. 创建 Character Store
+- [x] 38. 创建 Character Store
   - `src/stores/character.ts`: 角色状态管理
   - State: protagonist, supporting[], antagonists[], relationMap
   - Actions: generateProtagonist, generateSupporting, generateAntagonists, buildRelationMap, checkConsistency, save
 
-- [ ] 39. 创建 Story Store
+- [x] 39. 创建 Story Store
   - `src/stores/story.ts`: 故事体系状态管理
   - State: summary, conflictLayers, theme, volumes[]
   - Actions: generateMaster, generateVolumes, checkConsistency, save
 
-- [ ] 40. 创建 Planning Store
+- [x] 40. 创建 Planning Store
   - `src/stores/planning.ts`: 规划层状态管理(volumes/nodes/chapters/scenes)
   - State: volumes[], plotNodes[], chapterPlans[], chapterOutlines[], scenes[]
   - Actions: generateVolume, generatePlotNodes, planChapters, outlineChapters, designScenes
   - 管理从卷纲到章节细纲的完整规划数据
 
-- [ ] 41. 创建 Execution Store
+- [x] 41. 创建 Execution Store
   - `src/stores/execution.ts`: 执行层状态管理(生成/解析/润色)
   - State: currentDraft, polishResult, parseResult, consistencyReport
   - Actions: generateDraft(stream), polish, parseContent, checkConsistency
   - 管理写作执行的实时状态
 
-- [ ] 42. 创建 Knowledge Store
+- [x] 42. 创建 Knowledge Store
   - `src/stores/knowledge.ts`: 知识库状态管理
   - State: characterStates, worldState, foreshadows[], history[]
   - Actions: loadSnapshot, updateKnowledge, resolveForeshadow
   - 管理累积的写作状态(角色位置/等级/关系值等)
 
-- [ ] 43. 扩展项目Store — 集成新旧流程
+- [x] 43. 扩展项目Store — 集成新旧流程
   - 修改 `src/stores/project.ts`: 添加V2项目支持
   - 保留旧load/save/list/remove(兼容旧API)
   - 添加saveV2(保存流水线状态以支持断点续传)
   - 添加关联: project → pipeline
 
-- [ ] 44. 检查点 — 确保所有 Store 正确连接
+- [x] 44. 检查点 — 确保所有 Store 正确连接
   - 确保所有 Store 的 Actions 正确调用对应 API,如有疑问请询问用户
 
 ---

@@ -51,14 +51,41 @@ export const useProjectStore = defineStore('project', () => {
     await loadList()
   }
 
+  const v2PipelineId = ref('')
+  const isV2Project = ref(false)
+
+  async function saveV2(data: { id?: string; name: string; pipelineData: any }) {
+    const r = await projectApi.saveProjectApi({
+      id: data.id,
+      name: data.name,
+      step: 0,
+      data: { v2: true, pipeline: data.pipelineData },
+      tags: 'v2',
+    })
+    currentProjectId.value = r.id
+    selectedProjectId.value = r.id
+    v2PipelineId.value = r.id
+    isV2Project.value = true
+    return r
+  }
+
+  function setV2Project(v2: boolean, pipelineId?: string) {
+    isV2Project.value = v2
+    if (pipelineId) v2PipelineId.value = pipelineId
+  }
+
   return {
     currentProjectId,
     selectedProjectId,
     projectName,
     projectList,
+    v2PipelineId,
+    isV2Project,
     loadList,
     save,
+    saveV2,
     load,
     remove,
+    setV2Project,
   }
 })
