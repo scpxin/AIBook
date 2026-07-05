@@ -289,15 +289,15 @@ export function generateDraft(
   projectId: string,
   chapterNo: string,
   sceneSkeleton: any,
-  onChunk: (text: string) => void,
+  onChunk?: (text: string) => void,
   onDone?: () => void,
   onError?: (err: string) => void
-) {
+): Promise<void> {
   return apiStream('/api/v2/draft/generate', {
     project_id: projectId,
     chapter_no: chapterNo,
     scene_skeleton: sceneSkeleton,
-  }, onChunk, onDone, onError)
+  }, onChunk || (() => {}), onDone, onError)
 }
 
 export function saveDraft(projectId: string, chapterNo: string, content: string) {
@@ -402,4 +402,20 @@ export async function characterConsistencyCheck(projectId: string) {
 
 export async function runConsistencyCheck(projectId: string, chapterNo: string = '1') {
   return apiPost<{ success: boolean }>(`/api/v2/consistency/${projectId}/run`, { chapterNo })
+}
+
+export function getDrafts(projectId: string) {
+  return apiGet<any[]>(`/api/v2/pipeline/${projectId}/data/draft_generation`)
+}
+
+export function getChapterPlans(projectId: string) {
+  return apiGet<any[]>(`/api/v2/pipeline/${projectId}/data/chapter_plan`)
+}
+
+export function getPlotNodes(projectId: string) {
+  return apiGet<any[]>(`/api/v2/pipeline/${projectId}/data/plot_nodes`)
+}
+
+export function getVolumes(projectId: string) {
+  return apiGet<any[]>(`/api/v2/pipeline/${projectId}/data/volumes`)
 }

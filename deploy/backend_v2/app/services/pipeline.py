@@ -1,4 +1,4 @@
-"""V2 流水线编排引擎 — 管理 18 模块创作流程的执行
+"""V2 流水线编排引擎 — 管理 19 模块创作流程的执行
 
 功能:
 - 定义模块执行顺序和依赖关系
@@ -6,12 +6,13 @@
 - 支持断点续传 (从任意模块继续)
 - 支持单模块重跑
 - 完整的执行日志记录
+- 状态持久化到数据库 (服务重启后恢复)
 
 设计原则:
 - 规划链 (M1-M12): 串行执行,前置模块未完成则后续模块locked
-- 执行闭环 (M13-M18): 迭代循环,不合格则重修
+- 执行闭环 (M13-M19): 迭代循环,不合格则重修
 """
-import json
+import json as _json
 import time
 import threading
 import logging
@@ -19,6 +20,11 @@ from typing import Optional, Dict, Any, Callable, List
 from enum import Enum
 
 logger = logging.getLogger('novel_creator.pipeline')
+
+# 导入数据库层 (避免循环导入)
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from novel_creator.database_v2 import save_pipeline_state, get_pipeline_state
 
 
 class ModuleStatus(str, Enum):
@@ -96,28 +102,59 @@ MODULE_ORDER = [
     "knowledge_update", "consistency_check"
 ]
 
-# ========== 项目流水线状态 ==========
+# ========== 项目流水线状态 (数据库持久化) ==========
 
-_project_states: Dict[str, Dict[str, Any]] = {}
-_state_lock = threading.RLock()
+_state_locks: Dict[str, threading.RLock] = {}
+_global_lock = threading.Lock()
 
 
-def get_initial_state(project_id: str) -> Dict[str, Any]:
-    """生成项目初始流水线状态"""
+def _get_project_lock(project_id: str) -> threading.RLock:
+    """获取项目级锁 (细粒度并发控制)"""
+    with _global_lock:
+        if project_id not in _state_locks:
+            _state_locks[project_id] = threading.RLock()
+        return _state_locks[project_id]
+
+
+def _db_row_to_module_dict(row: Dict) -> Dict[str, Any]:
+    """将数据库行转换为模块状态字典"""
+    return {
+        "name": row["module_name"],
+        "status": row["status"],
+        "retry_count": row.get("retry_count", 0),
+        "error": row.get("error", ""),
+        "consistency_score": row.get("consistency_score", 0),
+        "started_at": row.get("started_at", ""),
+        "completed_at": row.get("completed_at", ""),
+        "updated_at": row.get("updated_at", ""),
+    }
+
+
+def _build_full_state(project_id: str) -> Dict[str, Any]:
+    """从数据库构建完整状态 (内部使用)"""
+    db_rows = get_pipeline_state(project_id)
     modules = {}
     for name in MODULE_ORDER:
         mod = PIPELINE_MODULES[name]
-        status = ModuleStatus.LOCKED if mod.dependencies else ModuleStatus.PENDING
-        modules[name] = {
-            "name": name,
-            "display_name": mod.display_name,
-            "layer": mod.layer,
-            "status": status.value,
-            "started_at": None,
-            "completed_at": None,
-            "error": None,
-            "retry_count": 0
-        }
+        # 查找数据库中是否有记录
+        db_row = next((r for r in db_rows if r["module_name"] == name), None)
+        if db_row:
+            modules[name] = _db_row_to_module_dict(db_row)
+            modules[name]["display_name"] = mod.display_name
+            modules[name]["layer"] = mod.layer
+        else:
+            status = ModuleStatus.LOCKED if mod.dependencies else ModuleStatus.PENDING
+            modules[name] = {
+                "name": name,
+                "display_name": mod.display_name,
+                "layer": mod.layer,
+                "status": status.value,
+                "started_at": None,
+                "completed_at": None,
+                "error": None,
+                "retry_count": 0,
+                "consistency_score": 0,
+            }
     return {
         "project_id": project_id,
         "current_module": "idea",
@@ -127,12 +164,30 @@ def get_initial_state(project_id: str) -> Dict[str, Any]:
     }
 
 
+def _init_project_state(project_id: str):
+    """将项目初始状态写入数据库"""
+    now = time.strftime('%Y-%m-%d %H:%M:%S')
+    for name in MODULE_ORDER:
+        mod = PIPELINE_MODULES[name]
+        status = ModuleStatus.LOCKED if mod.dependencies else ModuleStatus.PENDING
+        save_pipeline_state(project_id, name, {
+            "status": status.value,
+            "retry_count": 0,
+            "error": "",
+            "consistency_score": 0,
+            "started_at": "",
+            "completed_at": "",
+        })
+
+
 def get_or_create_state(project_id: str) -> Dict[str, Any]:
-    """获取或创建项目流水线状态"""
-    with _state_lock:
-        if project_id not in _project_states:
-            _project_states[project_id] = get_initial_state(project_id)
-        return _project_states[project_id]
+    """获取或创建项目流水线状态 (数据库持久化)"""
+    lock = _get_project_lock(project_id)
+    with lock:
+        db_rows = get_pipeline_state(project_id)
+        if not db_rows:
+            _init_project_state(project_id)
+        return _build_full_state(project_id)
 
 
 def get_module_status(project_id: str, module_name: str) -> str:
@@ -148,7 +203,6 @@ def get_next_pending_module(project_id: str) -> Optional[str]:
         mod = PIPELINE_MODULES[name]
         mod_state = state["modules"].get(name, {})
         if mod_state.get("status") == ModuleStatus.PENDING.value:
-            # 检查依赖是否全部DONE
             deps_ok = all(
                 state["modules"].get(dep, {}).get("status") == ModuleStatus.DONE.value
                 for dep in mod.dependencies
@@ -159,49 +213,64 @@ def get_next_pending_module(project_id: str) -> Optional[str]:
 
 
 def set_module_status(project_id: str, module_name: str,
-                      status: ModuleStatus, error: str = None):
-    """更新模块状态"""
-    with _state_lock:
-        state = get_or_create_state(project_id)
+                      status: ModuleStatus, error: str = None,
+                      consistency_score: float = None):
+    """更新模块状态 (持久化到数据库)"""
+    lock = _get_project_lock(project_id)
+    with lock:
         now = time.strftime('%Y-%m-%d %H:%M:%S')
-        mod_state = state["modules"].get(module_name, {})
-        mod_state["status"] = status.value
-        mod_state["updated_at"] = now
+        db_rows = get_pipeline_state(project_id)
+        existing = next((r for r in db_rows if r["module_name"] == module_name), None)
 
-        if status == ModuleStatus.GENERATING:
-            mod_state["started_at"] = now
+        data = {
+            "status": status.value,
+            "retry_count": existing.get("retry_count", 0) if existing else 0,
+            "error": error or "",
+            "consistency_score": consistency_score if consistency_score is not None else (existing.get("consistency_score", 0) if existing else 0),
+            "started_at": existing.get("started_at", "") if existing else "",
+            "completed_at": existing.get("completed_at", "") if existing else "",
+        }
+
+        if status == ModuleStatus.GENERATING and not data["started_at"]:
+            data["started_at"] = now
         elif status == ModuleStatus.DONE:
-            mod_state["completed_at"] = now
+            data["completed_at"] = now
         elif status == ModuleStatus.FAILED:
-            mod_state["error"] = error
-            mod_state["retry_count"] = mod_state.get("retry_count", 0) + 1
+            data["error"] = error or ""
+            data["retry_count"] = (existing.get("retry_count", 0) if existing else 0) + 1
 
-        state["modules"][module_name] = mod_state
+        save_pipeline_state(project_id, module_name, data)
 
         # 解锁后续模块(完成当前模块时)
         if status == ModuleStatus.DONE:
-            _unlock_dependents(project_id, module_name)
-
-        state["updated_at"] = now
+            _unlock_dependents_db(project_id, module_name)
 
 
-def _unlock_dependents(project_id: str, completed_module: str):
-    """解锁依赖已完成模块的后续模块"""
-    state = _project_states.get(project_id)
-    if not state:
-        return
+def _unlock_dependents_db(project_id: str, completed_module: str):
+    """解锁依赖已完成模块的后续模块 (数据库操作)"""
+    db_rows = get_pipeline_state(project_id)
+    state_modules = {}
+    for row in db_rows:
+        state_modules[row["module_name"]] = _db_row_to_module_dict(row)
+
     for name in MODULE_ORDER:
         mod = PIPELINE_MODULES[name]
         if completed_module in mod.dependencies:
-            mod_state = state["modules"].get(name, {})
+            mod_state = state_modules.get(name, {})
             if mod_state.get("status") == ModuleStatus.LOCKED.value:
-                # 检查所有依赖是否已完成
                 deps_done = all(
-                    state["modules"].get(dep, {}).get("status") == ModuleStatus.DONE.value
+                    state_modules.get(dep, {}).get("status") == ModuleStatus.DONE.value
                     for dep in mod.dependencies
                 )
                 if deps_done:
-                    mod_state["status"] = ModuleStatus.PENDING.value
+                    save_pipeline_state(project_id, name, {
+                        "status": ModuleStatus.PENDING.value,
+                        "retry_count": mod_state.get("retry_count", 0),
+                        "error": "",
+                        "consistency_score": 0,
+                        "started_at": "",
+                        "completed_at": "",
+                    })
 
 
 def get_pipeline_progress(project_id: str) -> Dict[str, Any]:
@@ -227,7 +296,7 @@ def get_pipeline_progress(project_id: str) -> Dict[str, Any]:
 
 
 def get_executionlayer_state(project_id: str) -> Dict[str, Any]:
-    """获取执行层闭环状态(M13-M18)"""
+    """获取执行层闭环状态(M13-M19)"""
     state = get_or_create_state(project_id)
     execution_modules = {}
     for name in ["scene_design", "draft_generation", "content_parsing",
@@ -243,7 +312,6 @@ def is_execution_loop_complete(project_id: str, chapter_no: str = None) -> bool:
     for name in required:
         if state["modules"].get(name, {}).get("status") != ModuleStatus.DONE.value:
             return False
-    # 检查一致性评分
     cc_state = state["modules"].get("consistency_check", {})
     if cc_state.get("status") == ModuleStatus.DONE.value:
         score = cc_state.get("consistency_score", 0)
@@ -252,9 +320,13 @@ def is_execution_loop_complete(project_id: str, chapter_no: str = None) -> bool:
 
 
 def cleanup_project_state(project_id: str):
-    """清理项目流水线状态"""
-    with _state_lock:
-        _project_states.pop(project_id, None)
+    """清理项目流水线状态 (同时清理内存锁)"""
+    db_rows = get_pipeline_state(project_id)
+    if db_rows:
+        save_pipeline_state(project_id, "idea", {"status": "pending"})
+    lock = _get_project_lock(project_id)
+    with lock:
+        _state_locks.pop(project_id, None)
 
 
 def get_module_info(module_name: str) -> Optional[Dict[str, Any]]:

@@ -1,10 +1,9 @@
-// @ts-nocheck
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Draft, PolishResult, ContentParseResult, ConsistencyReport } from '../types/v2'
 import {
   generateDraft, saveDraft, polishContent, parseContent,
-  checkConsistency, getConsistencyReport,
+  checkConsistency, getConsistencyReport, getDrafts,
 } from '../api/v2'
 
 export const useExecutionStore = defineStore('execution', () => {
@@ -71,13 +70,15 @@ export const useExecutionStore = defineStore('execution', () => {
     }
   }
 
-  async function parseWrittenContent(pid: string, chapterNo: string, content: string) {
+  async function parseWrittenContent(pid: string, chapterNo: string, content: string): Promise<ContentParseResult | null> {
     loading.value = true
     error.value = ''
     try {
       parseResult.value = await parseContent(pid, chapterNo, content)
+      return parseResult.value
     } catch (e: any) {
       error.value = e.message
+      return null
     } finally {
       loading.value = false
     }
@@ -108,7 +109,7 @@ export const useExecutionStore = defineStore('execution', () => {
     }
   }
 
-  async function generateDraft(pid: string, chapterNo: string, onChunk: (text: string) => void) {
+  async function startDraftGeneration(pid: string, chapterNo: string, onChunk: (text: string) => void) {
     isGenerating.value = true
     draftContent.value = ''
     try {
@@ -123,14 +124,14 @@ export const useExecutionStore = defineStore('execution', () => {
   async function polishDraft(pid: string, content: string) {
     loading.value = true
     try {
-      await polish(pid, content)
-      return { content: polishResult.value?.result || polishResult.value?.improvedContent || content }
+      polishResult.value = await polishContent(pid, content)
+      return { content: polishResult.value?.polishedContent || content }
     } finally {
       loading.value = false
     }
   }
 
-  async function parseContent(pid: string, content: string) {
+  async function parseContentSimple(pid: string, content: string) {
     loading.value = true
     try {
       return await parseWrittenContent(pid, '1', content)
@@ -140,11 +141,19 @@ export const useExecutionStore = defineStore('execution', () => {
   }
 
   async function getChaptersForWriting(pid: string) {
-    return [
-      { id: '1', title: '第一章 开局', outline: { title: '第一章 开局', scenes: ['主角出场', '冲突初现', '悬念设置'] }, content: '' },
-      { id: '2', title: '第二章 发展', outline: { title: '第二章 发展', scenes: ['剧情推进', '新角色登场', '伏笔铺设'] }, content: '' },
-      { id: '3', title: '第三章 高潮', outline: { title: '第三章 高潮', scenes: ['正面对决', '情绪爆发', '重大转折'] }, content: '' },
-    ]
+    try {
+      const data = await getDrafts(pid) as any[]
+      if (data && data.length > 0) {
+        return data.map((d: any) => ({
+          id: d.chapter_no || d.id,
+          title: `第${d.chapter_no}章` || d.title,
+          outline: { title: d.title || `第${d.chapter_no}章`, scenes: [] },
+          content: d.content || '',
+          wordCount: d.word_count_final || 0,
+        }))
+      }
+    } catch (_e) { /* fallback below */ }
+    return []
   }
 
   return {
@@ -152,6 +161,6 @@ export const useExecutionStore = defineStore('execution', () => {
     consistencyReport, isGenerating, generationProgress, loading, error,
     generateDraftContent, saveDraftContent, polish, parseWrittenContent,
     runConsistencyCheck, loadConsistencyReport,
-    generateDraft, polishDraft, parseContent, getChaptersForWriting,
+    generateDraft: startDraftGeneration, polishDraft, parseContent: parseContentSimple, getChaptersForWriting,
   }
 })

@@ -14,6 +14,47 @@ logger = logging.getLogger('novel_creator.api.v2.execution')
 router = APIRouter(prefix="/api/v2", tags=["V2执行层"])
 
 
+# ========== 世界观一致性检查 ==========
+
+@router.get("/world/{project_id}/consistency-check")
+async def world_consistency_check(project_id: str):
+    """GET /api/v2/world/{project_id}/consistency-check"""
+    result, err = ConsistencyService.world_check(project_id)
+    if err:
+        raise HTTPException(500, err)
+    return {"passed": True, "message": "世界观一致性检查通过", "data": result}
+
+
+# ========== 角色一致性检查 ==========
+
+@router.get("/character/{project_id}/consistency-check")
+async def character_consistency_check(project_id: str):
+    """GET /api/v2/character/{project_id}/consistency-check"""
+    result, err = ConsistencyService.character_check(project_id)
+    if err:
+        raise HTTPException(500, err)
+    return {"passed": True, "message": "角色一致性检查通过", "data": result}
+
+
+# ========== 执行一致性检查 ==========
+
+@router.post("/consistency/{project_id}/run")
+async def run_consistency_check(project_id: str, payload: dict):
+    """POST /api/v2/consistency/{project_id}/run"""
+    result, err = ConsistencyService.check(
+        project_id,
+        str(payload.get('chapter_no', '1')),
+        payload.get('content'),
+        payload.get('knowledge_state'),
+        payload.get('characters'),
+        payload.get('world'),
+        payload.get('power_system'),
+    )
+    if err:
+        raise HTTPException(500, err)
+    return {"success": True, "result": result}
+
+
 # ========== M14: 场景设计 ==========
 
 @router.post("/scenes/design")

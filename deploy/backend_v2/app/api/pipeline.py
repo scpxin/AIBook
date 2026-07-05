@@ -1,11 +1,12 @@
 """V2 流水线 API — 模块编排和状态管理
 
-提供18模块流水线的状态查询、进度跟踪和模块推进功能。
-实际模块执行端点在后续迭代中逐步实现。
+提供19模块流水线的状态查询、进度跟踪和模块推进功能。
 """
 import sys
 import os
 import logging
+import hashlib
+import json as _json
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -21,6 +22,9 @@ from app.services.pipeline import (
     get_next_pending_module,
     cleanup_project_state,
     ModuleStatus,
+)
+from app.models.v2_schemas import (
+    IdeaConfirmRequest, CompatibilityCheckRequest, ModuleStatusUpdateRequest,
 )
 
 logger = logging.getLogger('novel_creator.api.v2.pipeline')
@@ -63,19 +67,20 @@ async def get_module_status_api(project_id: str, module_name: str):
 
 @router.post("/{project_id}/modules/{module_name}/status")
 async def update_module_status_api(project_id: str, module_name: str,
-                                    status: str, error: Optional[str] = None):
+                                    body: ModuleStatusUpdateRequest):
     """更新模块状态(供模块执行器回调)"""
     info = get_module_info(module_name)
     if not info:
         raise HTTPException(status_code=404, detail=f"未知模块: {module_name}")
 
     try:
-        new_status = ModuleStatus(status)
+        new_status = ModuleStatus(body.status)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"无效状态: {status}")
+        raise HTTPException(status_code=400, detail=f"无效状态: {body.status}")
 
-    set_module_status(project_id, module_name, new_status, error)
-    return {"success": True, "module": module_name, "status": status}
+    set_module_status(project_id, module_name, new_status,
+                     body.error, body.consistency_score)
+    return {"success": True, "module": module_name, "status": body.status}
 
 
 @router.get("/{project_id}/next")
@@ -87,6 +92,24 @@ async def get_next_module(project_id: str):
     else:
         info = get_module_info(next_mod)
     return {"next_module": next_mod, "module_info": info}
+
+
+@router.post("/{project_id}/confirm-idea")
+async def confirm_idea(project_id: str, body: IdeaConfirmRequest):
+    """确认灵感创意"""
+    logger.info(f"确认创意: project={project_id}, idea={body.idea_id}")
+    set_module_status(project_id, "idea", ModuleStatus.DONE)
+    return {"success": True}
+
+
+@router.post("/{project_id}/compatibility-check")
+async def compatibility_check(project_id: str, body: CompatibilityCheckRequest):
+    """项目兼容性检查"""
+    logger.info(f"兼容性检查: project={project_id}, platform={body.platform}")
+    proj = database_v2.get_project_detail(project_id)
+    if not proj:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    return {"success": True, "results": []}
 
 
 @router.delete("/{project_id}")

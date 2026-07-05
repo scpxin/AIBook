@@ -369,6 +369,22 @@ def init_db_v2():
             CREATE INDEX IF NOT EXISTS idx_v2_ai_gen_project ON v2_ai_generations(project_id);
             CREATE INDEX IF NOT EXISTS idx_v2_consistency_project ON v2_consistency_reports(project_id);
             CREATE INDEX IF NOT EXISTS idx_v2_drafts_project ON v2_drafts(project_id);
+
+            /* 18. 流水线状态 (持久化) */
+            CREATE TABLE IF NOT EXISTS v2_pipeline_states (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id TEXT NOT NULL,
+                module_name TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                retry_count INTEGER DEFAULT 0,
+                error TEXT DEFAULT '',
+                consistency_score REAL DEFAULT 0,
+                started_at TEXT DEFAULT '',
+                completed_at TEXT DEFAULT '',
+                updated_at TEXT DEFAULT (datetime('now','localtime')),
+                UNIQUE(project_id, module_name)
+            );
+            CREATE INDEX IF NOT EXISTS idx_v2_pipeline_project ON v2_pipeline_states(project_id);
         """)
         conn.close()
 
@@ -1148,6 +1164,37 @@ def get_ai_generations(project_id, module_name=None, limit=100):
 
 # ========== 级联删除 ==========
 
+def save_pipeline_state(project_id, module_name, data):
+    """保存或更新流水线模块状态"""
+    with _v2_lock:
+        conn = _v2_db()
+        now = _v2_now()
+        conn.execute("""
+            INSERT INTO v2_pipeline_states (project_id, module_name, status, retry_count,
+                error, consistency_score, started_at, completed_at, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(project_id, module_name) DO UPDATE SET
+                status=excluded.status, retry_count=excluded.retry_count,
+                error=excluded.error, consistency_score=excluded.consistency_score,
+                started_at=excluded.started_at, completed_at=excluded.completed_at,
+                updated_at=excluded.updated_at
+        """, (project_id, module_name, data.get('status', 'pending'),
+              data.get('retry_count', 0), data.get('error', ''),
+              data.get('consistency_score', 0), data.get('started_at', ''),
+              data.get('completed_at', ''), now))
+        conn.commit()
+        conn.close()
+
+
+def get_pipeline_state(project_id):
+    """获取项目所有流水线模块状态"""
+    with _v2_lock:
+        conn = _v2_db()
+        rows = conn.execute("SELECT * FROM v2_pipeline_states WHERE project_id=?", (project_id,)).fetchall()
+        conn.close()
+    return [dict(r) for r in rows]
+
+
 def delete_project_v2(project_id):
     """级联删除项目所有V2数据"""
     tables = [
@@ -1155,7 +1202,7 @@ def delete_project_v2(project_id):
         'v2_relation_maps', 'v2_story_systems', 'v2_power_systems', 'v2_factions',
         'v2_timelines', 'v2_volumes', 'v2_plot_nodes', 'v2_chapter_plans',
         'v2_scenes', 'v2_foreshadowings', 'v2_knowledge_states', 'v2_drafts',
-        'v2_consistency_reports', 'v2_ai_generations'
+        'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states'
     ]
     with _v2_lock:
         conn = _v2_db()
