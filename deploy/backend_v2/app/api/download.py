@@ -34,7 +34,7 @@ def _resolve_book_id(q: str):
             m2 = re.search(r'"bookName"\s*:\s*"([^"]+)"', page); title = m2.group(1) if m2 else None
             m2 = re.search(r'"author"\s*:\s*"([^"]+)"', page); author = m2.group(1) if m2 else None
             return bid, title, author
-        except:
+        except (urllib.error.URLError, OSError, UnicodeDecodeError):
             return None, None, None
 
     if '/reader/' in q:
@@ -50,7 +50,7 @@ def _resolve_book_id(q: str):
     try:
         _http_get(DIR_API.format(candidate))
         return candidate, *extract(f'https://fanqienovel.com/page/{candidate}')[1:]
-    except:
+    except (urllib.error.URLError, OSError):
         pass
 
     return candidate, None, None
@@ -60,7 +60,7 @@ def _get_chapter_count(book_id: str) -> int:
     try:
         data = _http_get(DIR_API.format(book_id))
         return len(json.loads(data).get('data', {}).get('allItemIds', []))
-    except:
+    except (urllib.error.URLError, OSError, json.JSONDecodeError, KeyError):
         return 0
 
 

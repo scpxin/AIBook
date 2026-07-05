@@ -44,7 +44,7 @@ def _download_worker(sid: str):
     try:
         data = _http_get(DIR_API.format(book_id))
         item_ids = json.loads(data).get('data', {}).get('allItemIds', [])
-    except:
+    except (urllib.error.URLError, OSError, json.JSONDecodeError, KeyError):
         with sessions_lock:
             if sid in sessions:
                 sessions[sid]['status'] = 'error'
@@ -77,7 +77,7 @@ def _download_worker(sid: str):
                 text = result['data']['content']
             else:
                 text = '[获取失败]'
-        except:
+        except (urllib.error.URLError, OSError, json.JSONDecodeError, KeyError):
             text = '[下载失败]'
 
         with sessions_lock:
@@ -94,7 +94,7 @@ def _download_worker(sid: str):
                         f.write(full_text)
                     with open(os.path.join(book_dir, 'meta.json'), 'w', encoding='utf-8') as f:
                         json.dump({'book_id': book_id, 'title': s.get('title', ''), 'total': s['total'], 'dir': book_dir}, f, ensure_ascii=False)
-                except:
+                except (IOError, OSError):
                     pass
                 return
 
@@ -207,7 +207,7 @@ def list_downloads() -> list:
                         'size': size,
                         'dir': book_dir,
                     })
-                except:
+                except (IOError, OSError, json.JSONDecodeError):
                     pass
             elif os.path.isfile(content_file):
                 size = os.path.getsize(content_file)

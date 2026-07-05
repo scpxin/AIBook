@@ -17,7 +17,7 @@ async def chapter_save(body: ChapterSaveRequest):
     if isinstance(metadata, str):
         try:
             metadata = json.loads(metadata)
-        except:
+        except (json.JSONDecodeError, TypeError, ValueError):
             metadata = None
     novel_db.save_chapter(
         project_id=body.projectId,

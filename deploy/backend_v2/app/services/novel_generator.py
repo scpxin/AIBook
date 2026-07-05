@@ -37,7 +37,7 @@ def parse_style_profile(style_profile_str) -> Optional[Dict]:
         return style_profile_str
     try:
         return json.loads(style_profile_str)
-    except:
+    except (json.JSONDecodeError, TypeError, ValueError):
         return None
 
 
