@@ -6,23 +6,18 @@ from app.models.schemas import (
     CraftReportRequest
 )
 from app.services.novel_generator import get_generator, parse_style_profile
+from app.services import validate_ai_config
 
 router = APIRouter()
 
 
-def _validate_ai_config(body: dict):
-    endpoint = body.get('endpoint', '')
-    api_key = body.get('apiKey', '')
-    model = body.get('model', '')
-    if not all([endpoint, api_key, model]):
-        return None
-    return {'endpoint': endpoint, 'api_key': api_key, 'model': model}
+
 
 
 @router.post("/api/novel/craft/chapter")
 async def craft_chapter(body: dict):
     if body.get('stream'):
-        cfg = _validate_ai_config(body)
+        cfg = validate_ai_config(body)
         if not cfg:
             return {"error": "缺少AI配置参数"}
         gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -59,7 +54,7 @@ async def craft_chapter(body: dict):
             "X-Accel-Buffering": "no"
         })
 
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -90,7 +85,7 @@ async def craft_chapter(body: dict):
 
 @router.post("/api/novel/craft/titles")
 async def craft_titles(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -102,7 +97,7 @@ async def craft_titles(body: dict):
 
 @router.post("/api/novel/craft/descriptions")
 async def craft_descriptions(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -114,7 +109,7 @@ async def craft_descriptions(body: dict):
 
 @router.post("/api/novel/craft/report")
 async def craft_report(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))

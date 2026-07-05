@@ -8,24 +8,19 @@ from app.models.schemas import (
     WorldbuildingReparseRequest, CharactersReparseRequest
 )
 from app.services.novel_generator import get_generator, parse_style_profile, send_gen_result
+from app.services import validate_ai_config
 from app.database import novel_db
 from novel_creator.ai_client import AIClient
 
 router = APIRouter()
 
 
-def _validate_ai_config(body: dict):
-    endpoint = body.get('endpoint', '')
-    api_key = body.get('apiKey', '')
-    model = body.get('model', '')
-    if not all([endpoint, api_key, model]):
-        return None
-    return {'endpoint': endpoint, 'api_key': api_key, 'model': model}
+
 
 
 @router.post("/api/novel/inspiration/title")
 async def inspiration_title(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -38,7 +33,7 @@ async def inspiration_title(body: dict):
 
 @router.post("/api/novel/inspiration/description")
 async def inspiration_description(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -51,7 +46,7 @@ async def inspiration_description(body: dict):
 
 @router.post("/api/novel/inspiration/theme")
 async def inspiration_theme(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -64,7 +59,7 @@ async def inspiration_theme(body: dict):
 
 @router.post("/api/novel/inspiration/genre")
 async def inspiration_genre(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -77,7 +72,7 @@ async def inspiration_genre(body: dict):
 
 @router.post("/api/novel/worldbuilding")
 async def worldbuilding(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -97,7 +92,7 @@ async def worldbuilding(body: dict):
 
 @router.post("/api/novel/characters")
 async def characters(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -107,7 +102,7 @@ async def characters(body: dict):
     if isinstance(world_data, str):
         try:
             world_data = json.loads(world_data)
-        except:
+        except (json.JSONDecodeError, TypeError):
             world_data = {'summary': world_data}
     if count > 10:
         result, err = gen.generate_characters_batch(
@@ -133,7 +128,7 @@ async def characters(body: dict):
 
 @router.post("/api/novel/worldbuilding/reparse")
 async def worldbuilding_reparse(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -149,7 +144,7 @@ async def worldbuilding_reparse(body: dict):
 
 @router.post("/api/novel/characters/reparse")
 async def characters_reparse(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -162,7 +157,7 @@ async def characters_reparse(body: dict):
 
 @router.post("/api/novel/outline")
 async def novel_outline(body: dict):
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -191,7 +186,7 @@ async def novel_outline(body: dict):
 @router.post("/api/novel/book-overview")
 async def book_overview(body: dict):
     if body.get('stream'):
-        cfg = _validate_ai_config(body)
+        cfg = validate_ai_config(body)
         if not cfg:
             return {"error": "缺少AI配置参数"}
         gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -216,7 +211,7 @@ async def book_overview(body: dict):
             "X-Accel-Buffering": "no"
         })
 
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -271,7 +266,7 @@ async def book_overview(body: dict):
 @router.post("/api/novel/chapter-outline")
 async def chapter_outline(body: dict):
     if body.get('stream'):
-        cfg = _validate_ai_config(body)
+        cfg = validate_ai_config(body)
         if not cfg:
             return {"error": "缺少AI配置参数"}
         gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -301,7 +296,7 @@ async def chapter_outline(body: dict):
             "X-Accel-Buffering": "no"
         })
 
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -332,7 +327,7 @@ async def chapter_outline(body: dict):
 @router.post("/api/novel/chapter")
 async def novel_chapter(body: dict):
     if body.get('stream'):
-        cfg = _validate_ai_config(body)
+        cfg = validate_ai_config(body)
         if not cfg:
             return {"error": "缺少AI配置参数"}
         gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -369,7 +364,7 @@ async def novel_chapter(body: dict):
             "X-Accel-Buffering": "no"
         })
 
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
@@ -402,7 +397,7 @@ async def novel_chapter(body: dict):
 async def chapter_polish(body: dict):
     if not body.get('stream'):
         return {"error": "仅支持流式调用"}
-    cfg = _validate_ai_config(body)
+    cfg = validate_ai_config(body)
     if not cfg:
         return {"error": "缺少AI配置参数"}
     gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
