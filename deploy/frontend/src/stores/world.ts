@@ -95,7 +95,7 @@ export const useWorldStore = defineStore('world', () => {
     }
   }
 
-  async function save(pid: string) {
+  async function save(pid: string): Promise<any> {
     const worldData: WorldBuilding = {
       origin: origin.value, rules: rules.value, structure: structure.value,
       civilization: civilization.value, history: history.value, docPath: docPath.value,
@@ -103,10 +103,33 @@ export const useWorldStore = defineStore('world', () => {
     return saveWorld(pid, worldData)
   }
 
+  async function generateWorld(pid: string, origin: any) {
+    loading.value = true
+    try {
+      await generateOrigin(pid, origin.originStory || '', origin.worldType)
+      await generateRules(pid, origin)
+      await generateStructure(pid, origin)
+      await generateCivilization(pid, origin)
+      await generateHistory(pid, origin, civilization.value)
+      return {
+        origin: origin.value, rules: rules.value,
+        structure: structure.value, civilization: civilization.value, history: history.value,
+      }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function saveWorld(pid: string, data: any): Promise<any> {
+    if (data.origin) Object.assign(origin.value, data.origin)
+    if (data.rules) Object.assign(rules.value, data.rules)
+    return save(pid)
+  }
+
   return {
     projectId, origin, rules, metaRule, structure, civilization, history,
     consistencyCheck, docPath, loading, error,
     generateOrigin, generateRules, generateStructure, generateCivilization,
-    generateHistory, checkConsistency, save,
+    generateHistory, checkConsistency, save, generateWorld, saveWorld,
   }
 })

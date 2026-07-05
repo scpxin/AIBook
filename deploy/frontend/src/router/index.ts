@@ -22,6 +22,21 @@ const router = createRouter({
       name: 'craft',
       component: () => import('../views/Craft.vue'),
     },
+    {
+      path: '/create-v2',
+      name: 'create-v2',
+      component: () => import('../views/CreateV2.vue'),
+    },
+    {
+      path: '/create-v2/:module',
+      name: 'create-v2-module',
+      component: () => import('../views/CreateV2.vue'),
+    },
+    {
+      path: '/create-v2/writing/:chapterId',
+      name: 'create-v2-writing',
+      component: () => import('../views/WritingView.vue'),
+    },
   ],
 })
 

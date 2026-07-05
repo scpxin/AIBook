@@ -3,6 +3,7 @@
     <router-link to="/download" class="tab">小说下载</router-link>
     <router-link to="/create" class="tab">AI创作</router-link>
     <router-link to="/craft" class="tab">网文技法</router-link>
+    <router-link to="/create-v2" class="tab">创作V2</router-link>
   </div>
 </template>
 
@@ -19,17 +20,18 @@
 }
 .tab {
   flex: 1;
-  padding: 12px;
+  padding: 12px 8px;
   text-align: center;
   background: #fff;
   border-radius: 10px 10px 0 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   color: #888;
   border-bottom: 3px solid transparent;
   transition: .2s;
   text-decoration: none;
+  white-space: nowrap;
 }
 .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
 .tab.router-link-active { color: var(--primary); border-bottom-color: var(--primary); }

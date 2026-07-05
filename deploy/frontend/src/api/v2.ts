@@ -383,3 +383,23 @@ export function getModuleData(projectId: string, moduleName: string) {
 export function cleanupPipeline(projectId: string) {
   return apiPost<{ success: boolean }>(`/api/v2/pipeline/${projectId}`, {})
 }
+
+export async function confirmIdea(projectId: string, ideaId: string, version: number = 1) {
+  return apiPost<{ success: boolean }>(`/api/v2/pipeline/${projectId}/confirm-idea`, { ideaId, version })
+}
+
+export async function compatibilityCheck(projectId: string, platform: string) {
+  return apiPost<{ success: boolean; results: any[] }>(`/api/v2/pipeline/${projectId}/compatibility-check`, { platform })
+}
+
+export async function worldConsistencyCheck(projectId: string) {
+  return apiGet<{ passed: boolean; message: string }>(`/api/v2/world/${projectId}/consistency-check`)
+}
+
+export async function characterConsistencyCheck(projectId: string) {
+  return apiGet<{ passed: boolean; message: string }>(`/api/v2/character/${projectId}/consistency-check`)
+}
+
+export async function runConsistencyCheck(projectId: string, chapterNo: string = '1') {
+  return apiPost<{ success: boolean }>(`/api/v2/consistency/${projectId}/run`, { chapterNo })
+}

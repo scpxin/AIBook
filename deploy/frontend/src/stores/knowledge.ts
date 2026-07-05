@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { KnowledgeState, ConsistencyReport } from '../types/v2'
-import { getKnowledgeSnapshot, getForeshadows, updateKnowledge } from '../api/v2'
+import { getKnowledgeSnapshot, getForeshadows, updateKnowledge, runConsistencyCheck, getConsistencyReport } from '../api/v2'
 
 export const useKnowledgeStore = defineStore('knowledge', () => {
   const projectId = ref('')
@@ -10,6 +10,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
   const resolvedForeshadows = ref<any[]>([])
   const loading = ref(false)
   const error = ref('')
+  const consistencyReports = ref<any[]>([])
 
   async function loadSnapshot(pid: string) {
     loading.value = true
@@ -54,8 +55,35 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     }
   }
 
+  const latestReport = computed(() => consistencyReports.value[0] || null)
+
+  async function loadConsistencyReports(pid: string) {
+    loading.value = true
+    try {
+      const r = await getConsistencyReport(pid)
+      consistencyReports.value = r.reports || []
+    } catch (e: any) {
+      error.value = e.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function executeConsistencyCheck(pid: string) {
+    loading.value = true
+    try {
+      await runConsistencyCheck(pid, '1')
+      await loadConsistencyReports(pid)
+    } catch (e: any) {
+      error.value = e.message
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     projectId, state, foreshadows, resolvedForeshadows, loading, error,
-    loadSnapshot, loadForeshadows, update,
+    consistencyReports, latestReport,
+    loadSnapshot, loadForeshadows, update, loadConsistencyReports, executeConsistencyCheck,
   }
 })

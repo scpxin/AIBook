@@ -81,9 +81,33 @@ export const useCharacterStore = defineStore('character', () => {
     }
   }
 
+  async function generateCharacters(pid: string) {
+    loading.value = true
+    try {
+      await generateProtagonistProfile(pid, {} as any)
+      await generateSupportingChars(pid, 3)
+      await generateAntagonistsList(pid, {} as any)
+      await buildRelationMap(pid)
+      return {
+        protagonist: protagonist.value,
+        supporting: supporting.value,
+        villains: antagonists.value,
+        relations: relationMap.value,
+      }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function saveCharacters(_pid: string, data: any) {
+    if (data.protagonist && protagonist.value) Object.assign(protagonist.value, data.protagonist)
+    if (data.supporting) supporting.value = data.supporting
+    if (data.villains) antagonists.value = data.villains
+  }
+
   return {
     projectId, protagonist, supporting, antagonists, relationMap, consistency, loading, error,
     generateProtagonistProfile, generateSupportingChars, generateAntagonistsList,
-    buildRelationMap, checkConsistency,
+    buildRelationMap, checkConsistency, generateCharacters, saveCharacters,
   }
 })

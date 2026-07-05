@@ -7,7 +7,7 @@ export const useStoryStore = defineStore('story', () => {
   const projectId = ref('')
   const masterStory = ref<StoryMaster | null>(null)
   const volumes = ref<VolumeOutline[]>([])
-  const summary = ref('')
+  const summary = ref<any>({})
   const theme = ref('')
   const loading = ref(false)
   const error = ref('')
@@ -53,8 +53,32 @@ export const useStoryStore = defineStore('story', () => {
     }
   }
 
+  async function generateStory(pid: string) {
+    loading.value = true
+    try {
+      await generateMaster(pid, {} as any, {} as any, [])
+      await generateVolumesList(pid, 3)
+      return {
+        masterStory: masterStory.value,
+        volumes: volumes.value,
+        summary: summary.value,
+        theme: theme.value,
+        plotEvents: volumes.value?.flatMap((v: any) => v.plotEvents || []) || [],
+      }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function saveStory(pid: string, data: any) {
+    if (data.oneLiner) summary.value.oneLiner = data.oneLiner
+    if (data.coreConflict) summary.value.coreConflict = data.coreConflict
+    if (data.theme) theme.value = data.theme
+    if (data.volumes) volumes.value = data.volumes
+  }
+
   return {
     projectId, masterStory, volumes, summary, theme, loading, error,
-    generateMaster, generateVolumesList, checkConsistency,
+    generateMaster, generateVolumesList, checkConsistency, generateStory, saveStory,
   }
 })

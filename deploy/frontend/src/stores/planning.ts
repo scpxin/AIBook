@@ -105,10 +105,35 @@ export const usePlanningStore = defineStore('planning', () => {
     return saveScene(pid, sceneId, data)
   }
 
+  async function generatePlanning(pid: string) {
+    loading.value = true
+    try {
+      await generateVolumeDetail(pid, 1, {})
+      await generateNodes(pid, {}, {})
+      await planChaptersForVolume(pid, {}, [], 30000)
+      await generateOutline(pid, 1, {})
+      return {
+        volumes: volumes.value,
+        plotNodes: plotNodes.value,
+        chapterPlans: chapterPlans.value,
+        chapterOutlines: chapterOutlines.value,
+      }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function savePlanning(pid: string, data: any) {
+    if (data.volumes) volumes.value = data.volumes
+    if (data.plotNodes) plotNodes.value = data.plotNodes
+    if (data.chapterPlans) chapterPlans.value = data.chapterPlans
+    if (data.chapterOutlines) chapterOutlines.value = data.chapterOutlines
+  }
+
   return {
     projectId, volumes, plotNodes, chapterPlans, chapterOutlines, scenes, loading, error,
     generateVolumeDetail, saveVolumeDetail, generateNodes, saveNode,
     planChaptersForVolume, saveChapterPlanData, generateOutline, saveOutline,
-    designScenesForChapter, saveSceneData,
+    designScenesForChapter, saveSceneData, generatePlanning, savePlanning,
   }
 })
