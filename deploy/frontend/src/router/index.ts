@@ -1,12 +1,26 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory('/fanqie/'),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: () => import('../App.vue'),
+      redirect: '/download',
+    },
+    {
+      path: '/download',
+      name: 'download',
+      component: () => import('../views/Download.vue'),
+    },
+    {
+      path: '/create',
+      name: 'create',
+      component: () => import('../views/Create.vue'),
+    },
+    {
+      path: '/craft',
+      name: 'craft',
+      component: () => import('../views/Craft.vue'),
     },
   ],
 })

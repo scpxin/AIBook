@@ -9,33 +9,18 @@
         <div class="craft-subtab" :class="{ active: craftTab === 'quality' }" @click="craftTab = 'quality'">质量评分</div>
       </div>
 
-      <div class="source-tabs" v-if="craftTab !== 'deconstruct'">
-        <div class="source-tab" :class="{ active: craftSource === 'paste' }" @click="craftSource = 'paste'">粘贴文本</div>
-        <div class="source-tab" :class="{ active: craftSource === 'saved' }" @click="craftSource = 'saved'; loadSavedBooks()">已下载书籍</div>
-      </div>
-      <div v-if="craftTab === 'deconstruct'" class="source-tabs">
-        <div class="source-tab" :class="{ active: craftSource === 'paste' }" @click="craftSource = 'paste'">粘贴前三章</div>
-        <div class="source-tab" :class="{ active: craftSource === 'saved' }" @click="craftSource = 'saved'; loadSavedBooks()">选择已下载书籍</div>
-      </div>
+      <SourceTabs :tabs="sourceTabs" v-model="craftSource" @change="onSourceTabChange" />
 
       <div v-show="craftSource === 'paste'">
         <textarea v-model="craftText" class="text-area" :placeholder="placeholderText"></textarea>
       </div>
       <div v-show="craftSource === 'saved'">
-        <div v-for="b in savedBooks" :key="b.book_id" class="book-item" :class="{ selected: selectedCraftBook === b.book_id }" @click="selectCraftBook(b)">
-          <div>
-            <div class="book-title">{{ b.title }}</div>
-            <div class="book-meta">{{ b.book_id }} | {{ b.total || 0 }} 章 | {{ Math.round(b.size / 1024) }}KB</div>
-          </div>
-          <button class="btn btn-ai" style="padding:4px 12px;font-size:11px">选择</button>
-        </div>
+        <BookSelector :books="savedBooks" v-model="selectedCraftBook" @select="selectCraftBook" />
         <div v-if="!savedBooks.length" class="empty">暂无已下载书籍</div>
       </div>
 
       <div class="select-row" style="margin-top:8px">
-        <select v-model="craftModelIdx" style="flex:1;padding:7px;border:1px solid #ddd;border-radius:4px;font-size:12px">
-          <option v-for="(m, i) in settings.models" :key="m.id" :value="i">{{ m.name }}</option>
-        </select>
+        <ModelSelect v-model="craftModelIdx" />
         <button v-if="craftTab === 'detect'" class="btn btn-craft" @click="runDetectAI()" :disabled="craftLoading"><span v-if="craftLoading" class="spinner"></span>检测AI味</button>
         <button v-if="craftTab === 'deconstruct'" class="btn btn-craft" @click="runDeconstruct()" :disabled="craftLoading"><span v-if="craftLoading" class="spinner"></span>拆解分析</button>
         <button v-if="craftTab === 'quality'" class="btn btn-craft" @click="runQualityScore()" :disabled="craftLoading"><span v-if="craftLoading" class="spinner"></span>质量评分</button>
@@ -163,6 +148,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useSettingsStore } from '../stores/settings'
+import ModelSelect from '../components/ModelSelect.vue'
+import BookSelector from '../components/BookSelector.vue'
+import SourceTabs from '../components/SourceTabs.vue'
 import * as downloadApi from '../api/download'
 import type { SavedBook } from '../api/client'
 
@@ -179,6 +167,11 @@ const detectResult = ref<any>(null)
 const fixedContent = ref('')
 const deconstructResult = ref<any>(null)
 const qualityResult = ref<any>(null)
+
+const sourceTabs = computed(() => {
+  if (craftTab.value === 'deconstruct') return [{ label: '粘贴前三章', value: 'paste' }, { label: '选择已下载书籍', value: 'saved' }]
+  return [{ label: '粘贴文本', value: 'paste' }, { label: '已下载书籍', value: 'saved' }]
+})
 
 const placeholderText = computed(() => {
   if (craftTab.value === 'quality') return '粘贴小说文本（至少1000字，评分准确度随字数增加）...'
@@ -197,6 +190,10 @@ const scoreClass = computed(() => {
 
 function getCraftModel() {
   return settings.models[craftModelIdx.value] || settings.models[0]
+}
+
+function onSourceTabChange(val: string) {
+  if (val === 'saved') loadSavedBooks()
 }
 
 async function loadSavedBooks() {
@@ -248,11 +245,8 @@ async function runFixAI() {
   craftLoading.value = true
   try {
     const d = await downloadApi.craftFixApi({
-      endpoint: m.endpoint,
-      apiKey: m.apiKey,
-      model: m.model,
-      content: craftText.value.trim(),
-      issues: detectResult.value.issues || [],
+      endpoint: m.endpoint, apiKey: m.apiKey, model: m.model,
+      content: craftText.value.trim(), issues: detectResult.value.issues || [],
     })
     fixedContent.value = d.content
   } catch (e: any) {
@@ -295,7 +289,9 @@ async function runQualityScore() {
   craftLoading.value = false
 }
 
-onMounted(() => {
-  loadSavedBooks()
-})
+onMounted(() => { loadSavedBooks() })
 </script>
+
+<style scoped>
+.source-tabs { margin-top: 0; }
+</style>

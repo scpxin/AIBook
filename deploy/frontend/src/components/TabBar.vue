@@ -1,14 +1,12 @@
 <template>
   <div class="tabs">
-    <div class="tab" :class="{ active: active === 0 }" @click="$emit('change', 0)">小说下载</div>
-    <div class="tab" :class="{ active: active === 1 }" @click="$emit('change', 1)">AI创作</div>
-    <div class="tab" :class="{ active: active === 2 }" @click="$emit('change', 2)">网文技法</div>
+    <router-link to="/download" class="tab">小说下载</router-link>
+    <router-link to="/create" class="tab">AI创作</router-link>
+    <router-link to="/craft" class="tab">网文技法</router-link>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{ active: number }>()
-defineEmits<{ change: [tab: number] }>()
 </script>
 
 <style scoped>
@@ -31,7 +29,9 @@ defineEmits<{ change: [tab: number] }>()
   color: #888;
   border-bottom: 3px solid transparent;
   transition: .2s;
+  text-decoration: none;
 }
 .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab.router-link-active { color: var(--primary); border-bottom-color: var(--primary); }
 .tab:hover { color: var(--primary); }
 </style>
