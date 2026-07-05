@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from app.config import PORT, DOWNLOAD_DIR, PROJECTS_DIR
 from app.database import novel_db
 from app.api import projects, chapters, outlines, step_summaries, novel, craft, download, ai
+from app.api.pipeline import router as pipeline_router
 
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(PROJECTS_DIR, exist_ok=True)
@@ -53,11 +54,17 @@ app.include_router(novel.router)
 app.include_router(craft.router)
 app.include_router(download.router)
 app.include_router(ai.router)
+app.include_router(pipeline_router)
 
 
 @app.on_event("startup")
 async def startup_event():
     novel_db.init_db()
+    try:
+        from novel_creator.database_v2 import init_db_v2
+        init_db_v2()
+    except Exception as e:
+        print(f'V2数据库初始化失败: {e}')
     try:
         from novel_creator.database import DB_PATH
         with sqlite3.connect(DB_PATH) as conn:
