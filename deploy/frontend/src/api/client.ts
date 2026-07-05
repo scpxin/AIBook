@@ -60,36 +60,49 @@ export async function apiStream(
   data: any,
   onChunk: (text: string) => void,
   onDone?: () => void,
-  onError?: (err: string) => void
+  onError?: (err: string) => void,
+  maxRetries = 1
 ): Promise<void> {
-  try {
-    const r = await fetch(withPrefix(path), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    if (!r.ok) {
-      const text = await r.text()
-      try {
-        const d = JSON.parse(text)
-        onError?.(d.error || 'HTTP ' + r.status)
-      } catch {
-        onError?.('HTTP ' + r.status)
+  let lastErr = ''
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 600000)
+      const r = await fetch(withPrefix(path), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        signal: controller.signal,
+      })
+      clearTimeout(timer)
+      if (!r.ok) {
+        const text = await r.text()
+        try {
+          const d = JSON.parse(text)
+          lastErr = d.error || 'HTTP ' + r.status
+        } catch {
+          lastErr = 'HTTP ' + r.status
+        }
+        if (attempt < maxRetries) continue
+        onError?.(lastErr)
+        return
       }
+      const reader = r.body!.getReader()
+      const decoder = new TextDecoder()
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const text = decoder.decode(value, { stream: true })
+        if (text) onChunk(text)
+      }
+      onDone?.()
       return
+    } catch (e: any) {
+      lastErr = e.message || String(e)
+      if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000))
     }
-    const reader = r.body!.getReader()
-    const decoder = new TextDecoder()
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      const text = decoder.decode(value, { stream: true })
-      if (text) onChunk(text)
-    }
-    onDone?.()
-  } catch (e: any) {
-    onError?.(e.message || String(e))
   }
+  onError?.(lastErr)
 }
 
 export interface ModelConfig {
