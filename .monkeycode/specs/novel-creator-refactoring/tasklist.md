@@ -154,41 +154,41 @@
 
 ## 后端 — 执行层API
 
-- [ ] 21. 创建场景设计API
+- [x] 21. 创建场景设计API
   - POST `/api/v2/scenes/design` — 场景骨架生成(时间/环境/冲突/战斗/氛围)
   - POST `/api/v2/scenes/save` — 保存场景
   - SceneService引用location_details + foreshadow_plan + power_system
   - 存储到scenes表
 
-- [ ] 22. 创建正文生成API (流式)
+- [x] 22. 创建正文生成API (流式)
   - POST `/api/v2/draft/generate` — 流式正文生成(分段:开场/发展/高潮/结尾)
   - POST `/api/v2/draft/save` — 保存正文
   - DraftService引用scene_skeleton + characters + foreshadow + constraints
   - 支持续写(continuation模式,以上一段结尾为接口)
   - 生成后自动触发content parsing → knowledge update → consistency check
 
-- [ ] 23. 创建润色API
+- [x] 23. 创建润色API
   - POST `/api/v2/polish` — 三阶段润色(语言/节奏/查重)
   - PolishService引用style + foreshadow_protected
   - 返回change_summary + similarity报告
 
-- [ ] 24. 创建内容解析API
+- [x] 24. 创建内容解析API
   - POST `/api/v2/content/parse` — 已写章节解析(场景/对白/动作切分)
   - ContentParser提取status_change → 触发knowledge update
 
-- [ ] 25. 创建知识库API
+- [x] 25. 创建知识库API
   - POST `/api/v2/knowledge/update` — 增量更新知识库
   - GET `/api/v2/knowledge/snapshot` — 获取当前知识库快照
   - GET `/api/v2/knowledge/foreshadows` — 获取活跃伏笔列表
   - KnowledgeService管理累积状态 + 伏笔跟踪
   - 存储到knowledge_states + foreshadowings表
 
-- [ ] 26. 创建一致性检查API
+- [x] 26. 创建一致性检查API
   - POST `/api/v2/consistency/check` — 9项自动校验
   - GET `/api/v2/consistency/report` — 获取最近检查报告
   - ConsistencyService实现9维度校验 + 评分 + 修复建议
 
-- [ ] 27. 检查点 — 确保执行层API测试全部通过
+- [x] 27. 检查点 — 确保执行层API测试全部通过
   - 确保所有测试通过,如有疑问请询问用户
 
 ---
