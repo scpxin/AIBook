@@ -14,6 +14,7 @@ from app.config import PORT, DOWNLOAD_DIR, PROJECTS_DIR
 from app.database import novel_db
 from app.api import projects, chapters, outlines, step_summaries, novel, craft, download, ai
 from app.api.pipeline import router as pipeline_router
+from app.api.design import router as design_router
 
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(PROJECTS_DIR, exist_ok=True)
@@ -55,6 +56,7 @@ app.include_router(craft.router)
 app.include_router(download.router)
 app.include_router(ai.router)
 app.include_router(pipeline_router)
+app.include_router(design_router)
 
 
 @app.on_event("startup")

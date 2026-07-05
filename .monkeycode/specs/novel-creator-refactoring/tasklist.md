@@ -42,7 +42,7 @@
 
 ## 后端 — 设计层API
 
-- [ ] 5. 创建灵感生成API
+- [x] 5. 创建灵感生成API
   - POST `/api/v2/ideas/generate` — 发散生成N个创意
   - POST `/api/v2/ideas/score` — 创意评分(创新性/商业性/可持续性/差异化/难度)
   - POST `/api/v2/ideas/upgrade` — 创意TOP3升级(增加矛盾/设计限制)
@@ -51,14 +51,14 @@
   - 存储到 `ai_generations` 表(entity_type="idea")
   - 实现IdeaService调用NovelGenerator + 评分逻辑
 
-- [ ] 6. 创建项目定位API
+- [x] 6. 创建项目定位API
   - POST `/api/v2/projects/analyze` — 12维度项目策划
   - POST `/api/v2/projects/check-compatibility` — 平台×灵感兼容性检查
   - POST `/api/v2/projects/derive-fields` — 衍生字段计算
   - 扩展现有projects表或新建project_details表存储12维度
   - ProjectService加载平台预设 + 调用NovelGenerator
 
-- [ ] 7. 创建世界观构建API
+- [x] 7. 创建世界观构建API
   - POST `/api/v2/world/origin` — 世界本源设计
   - POST `/api/v2/world/rules` — 世界规则设计(每条规则6要素)
   - POST `/api/v2/world/structure` — 世界结构设计(层级+地点)
@@ -69,7 +69,7 @@
   - WorldService串行调用5步 → 组合为完整文档
   - 存储到world_buildings表(doc_path保存Markdown文件)
 
-- [ ] 8. 创建角色系统API
+- [x] 8. 创建角色系统API
   - POST `/api/v2/characters/protagonist` — 主角九维档案生成
   - POST `/api/v2/characters/supporting` — 配角设计
   - POST `/api/v2/characters/antagonists` — 反派体系设计
@@ -79,14 +79,14 @@
   - CharacterService引用world.rules约束能力设计
   - 存储到characters表 + 文件Markdown
 
-- [ ] 9. 创建故事体系API
+- [x] 9. 创建故事体系API
   - POST `/api/v2/story/master` — 总纲设计(冲突/主题/事件集)
   - POST `/api/v2/story/volumes` — 每卷卷纲生成
   - POST `/api/v2/story/check-consistency` — 故事一致性
   - StoryService引用protagonist.growth_route对齐剧情节点
   - 存储到story_systems表
 
-- [ ] 10. 检查点 — 确保设计层API测试全部通过
+- [x] 10. 检查点 — 确保设计层API测试全部通过
   - 确保所有测试通过,如有疑问请询问用户
 
 ---
