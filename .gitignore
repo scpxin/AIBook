@@ -6,6 +6,9 @@ deploy/_check*.js
 # 本地数据
 *.db
 *.sqlite
+*.db-journal
+*.db-wal
+*.db-shm
 
 # 系统文件
 .DS_Store
@@ -17,14 +20,16 @@ Thumbs.db
 
 # Node
 node_modules/
-frontend/dist/
+deploy/frontend/dist/
 
 # Python
 __pycache__/
 *.pyc
+*.egg-info/
 
-# Legacy (kept for reference, do NOT ignore)
-# legacy/
+# Build artifacts
+deploy/frontend/dist/
 
-# Build artifacts (generated, not source)
-frontend/dist/
+# Environment
+.env
+.env.local

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 
 export interface OutlineItem {
   chapter_number: number | string
@@ -63,7 +63,7 @@ export const useNovelStore = defineStore('novel', () => {
   // AI generate state
   const genLoading = ref(false)
   const genResult = ref('')
-  const genForm = { genre: '', count: 3, protagonist: '', world: '', outline: '' }
+  const genForm = reactive({ genre: '', count: 3, protagonist: '', world: '', outline: '' })
 
   function reset() {
     step.value = 0

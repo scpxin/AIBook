@@ -32,12 +32,6 @@ async def project_save(body: ProjectSaveRequest):
     return {"ok": True, "id": project_id, "name": name, "updated_at": now}
 
 
-@router.get("/api/projects")
-async def projects_get():
-    projects = novel_db.list_projects()
-    return {"projects": projects}
-
-
 @router.post("/api/projects/list")
 async def projects_list():
     projects = novel_db.list_projects()
@@ -59,7 +53,7 @@ async def project_load(body: dict):
                 novel_db.save_project(project_id, old.get('name', '未命名'),
                                      old.get('step', 0), old.get('data', {}))
                 project = novel_db.get_project(project_id)
-            except:
+            except (json.JSONDecodeError, IOError, KeyError):
                 pass
     if project:
         return project

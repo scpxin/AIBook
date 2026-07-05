@@ -9,6 +9,7 @@ from app.models.schemas import (
 )
 from app.services.novel_generator import get_generator, parse_style_profile, send_gen_result
 from app.database import novel_db
+from novel_creator.ai_client import AIClient
 
 router = APIRouter()
 
@@ -471,3 +472,36 @@ async def chapter_summarize(body: ChapterSummarizeRequest):
         return {"summary": text.strip()}
     except Exception as e:
         return {"summary": ""}
+
+
+@router.post("/api/generate_chapter_stream")
+async def generate_chapter_stream(body: dict):
+    """通用流式文本生成（用于自定义提示词重写/润色等）"""
+    model_info = body.get('model', {})
+    endpoint = model_info.get('endpoint', '')
+    api_key = model_info.get('apiKey', '')
+    model_name = model_info.get('model', '')
+    prompt = body.get('prompt', '')
+    if not all([endpoint, api_key, model_name, prompt]):
+        return {"error": "缺少必要参数"}
+
+    temperature = body.get('temperature', 0.7)
+    max_tokens = body.get('max_tokens', 8000)
+
+    async def event_stream():
+        client = AIClient(api_key=api_key, base_url=endpoint, model=model_name,
+                          temperature=temperature, max_tokens=max_tokens)
+        for chunk in client.generate_stream(prompt):
+            if chunk.get('error'):
+                yield f"\n[错误: {chunk['error']}]"
+                return
+            if chunk.get('done'):
+                return
+            content = chunk.get('content', '')
+            if content:
+                yield content
+
+    return StreamingResponse(event_stream(), media_type="text/plain; charset=utf-8", headers={
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+    })

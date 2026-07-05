@@ -29,7 +29,7 @@ app = FastAPI(title="Fanqie Novel API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -37,9 +37,10 @@ app.add_middleware(
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    logging.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"error": str(exc)},
+        content={"error": "服务器内部错误"},
         headers={"Access-Control-Allow-Origin": "*"}
     )
 
