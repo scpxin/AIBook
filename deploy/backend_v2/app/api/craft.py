@@ -117,3 +117,57 @@ async def craft_report(body: dict):
     if err:
         return {"error": err}
     return {"report": result}
+
+
+@router.post("/api/novel/craft/detect-ai")
+async def craft_detect_ai(body: dict):
+    cfg = validate_ai_config(body)
+    if not cfg:
+        return {"error": "缺少AI配置参数"}
+    gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
+    result, err = gen.detect_ai_flavor(body.get('content', ''))
+    if err:
+        return {"error": err}
+    if result is None:
+        return {"error": "生成结果为空，请重试"}
+    return result
+
+
+@router.post("/api/novel/craft/fix-ai")
+async def craft_fix_ai(body: dict):
+    cfg = validate_ai_config(body)
+    if not cfg:
+        return {"error": "缺少AI配置参数"}
+    gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
+    result, err = gen.fix_ai_flavor(body.get('content', ''), body.get('issues', []))
+    if err:
+        return {"error": err}
+    return {"content": result}
+
+
+@router.post("/api/novel/craft/golden-three")
+async def craft_golden_three(body: dict):
+    cfg = validate_ai_config(body)
+    if not cfg:
+        return {"error": "缺少AI配置参数"}
+    gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
+    result, err = gen.analyze_golden_three(body.get('content', ''))
+    if err:
+        return {"error": err}
+    if result is None:
+        return {"error": "生成结果为空，请重试"}
+    return result
+
+
+@router.post("/api/novel/craft/quality-score")
+async def craft_quality_score(body: dict):
+    cfg = validate_ai_config(body)
+    if not cfg:
+        return {"error": "缺少AI配置参数"}
+    gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
+    result, err = gen.quality_score(body.get('content', ''), body.get('title', ''), body.get('genre', ''))
+    if err:
+        return {"error": err}
+    if result is None:
+        return {"error": "生成结果为空，请重试"}
+    return result

@@ -500,3 +500,18 @@ async def generate_chapter_stream(body: dict):
         "Cache-Control": "no-cache",
         "X-Accel-Buffering": "no",
     })
+
+
+@router.post("/api/novel/analyze-style")
+async def novel_analyze_style(body: dict):
+    cfg = validate_ai_config(body)
+    if not cfg:
+        return {"error": "缺少AI配置参数"}
+    from app.services.novel_generator import get_generator
+    gen = get_generator(cfg['endpoint'], cfg['api_key'], cfg['model'], body.get('temperature', 0.7), body.get('maxTokens', 4000))
+    result, err = gen.analyze_style(body.get('content', ''))
+    if err:
+        return {"error": err}
+    if result is None:
+        return {"error": "生成结果为空，请重试"}
+    return {"result": result, "resultJson": json.dumps(result, ensure_ascii=False)}
