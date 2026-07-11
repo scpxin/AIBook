@@ -424,3 +424,62 @@ def _restructure_characters(characters) -> dict:
         else:
             result["supporting"].append(c)
     return result
+
+
+@router.post("/{project_id}/compatibility-check")
+def compatibility_check(project_id: str, body: dict):
+    """检查项目数据与目标平台的兼容性"""
+    platform = body.get("platform", "tomato")
+
+    results = []
+    warnings = []
+
+    try:
+        detail = database_v2.get_project_detail(project_id)
+    except Exception:
+        detail = None
+
+    if not detail:
+        return {"success": True, "results": [], "message": "项目数据为空，无法执行兼容性检查"}
+
+    overview = detail.get("project_overview", "")
+    wordcount_plan = detail.get("wordcount_plan", {})
+
+    # 1. 字数检查
+    planned_words = wordcount_plan.get("total_words", 0) if isinstance(wordcount_plan, dict) else 0
+    if platform == "tomato":
+        if planned_words and planned_words < 100000:
+            warnings.append({
+                "check": "字数要求",
+                "requirement": "番茄小说建议总字数 >= 10万",
+                "actual": f"{planned_words}字",
+                "status": "warning",
+            })
+
+    # 2. 平台兼容性规则
+    platform_rules = {
+        "tomato": {
+            "min_words": 100000,
+            "genres_supported": ["都市", "修仙", "重生", "穿越", "系统", "赘婿", "战神", "玄幻", "仙侠"],
+            "notes": "推荐快节奏、强冲突、每日更新2000+字",
+        },
+        "qidian": {
+            "min_words": 200000,
+            "genres_supported": ["玄幻", "仙侠", "都市", "历史", "科幻", "游戏", "轻小说"],
+            "notes": "推荐章节2000-3000字，重视世界构建和升级体系",
+        },
+    }
+
+    rules = platform_rules.get(platform, platform_rules["tomato"])
+
+    results.append({
+        "check": "平台规则",
+        "platform": platform,
+        "rules": rules,
+        "status": "info",
+    })
+
+    if warnings:
+        results.extend(warnings)
+        return {"success": True, "results": results, "message": f"发现{len(warnings)}个兼容性提示"}
+    return {"success": True, "results": results}
