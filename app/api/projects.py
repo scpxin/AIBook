@@ -382,3 +382,42 @@ async def list_v2_projects():
     for r in rows:
         projects.append({"id": r[0], "name": r[1] or r[0], "created_at": r[2], "updated_at": r[3]})
     return {"projects": projects}
+
+@router.post("/api/v2/projects/derive-fields")
+def derive_project_fields(body: dict):
+    """从项目数据推导结构化字段: 预估章节/字数/关键词/标签/系列潜力"""
+    from app.services.design_service import (
+        _estimate_chapters, _estimate_words, _extract_keywords,
+        _generate_tags, _assess_series_potential,
+    )
+    from novel_creator import database_v2
+
+    project_id = body.get("project_id", "")
+    project_data = body.get("project_data", {})
+
+    if isinstance(project_data, dict):
+        overview = str(project_data.get("overview", project_data.get("project_overview", "")))
+        idea = str(project_data.get("idea", project_data.get("concept", "")))
+    else:
+        overview = str(project_data)
+        idea = ""
+
+    combined_text = f"{overview} {idea}".strip()
+
+    derived = {
+        "estimatedChapters": _estimate_chapters(combined_text),
+        "estimatedWords": _estimate_words(combined_text),
+        "titleKeywords": _extract_keywords(combined_text),
+        "contentTags": _generate_tags(combined_text),
+        "seriesPotential": _assess_series_potential(combined_text),
+    }
+
+    if project_id:
+        try:
+            existing = database_v2.get_project_detail(project_id) or {}
+            existing["derived_fields"] = derived
+            database_v2.save_project_detail(project_id, existing)
+        except Exception as e:
+            logger.warning(f"保存derived_fields失败: {e}")
+
+    return derived
