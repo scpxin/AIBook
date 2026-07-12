@@ -19,6 +19,27 @@ export const useGenerationStore = defineStore('generation', () => {
   const elapsed = ref(0)
 
   let timer: ReturnType<typeof setInterval> | null = null
+  let abortController: AbortController | null = null
+
+  function getAbortSignal(): AbortSignal | undefined {
+    abortController = new AbortController()
+    return abortController.signal
+  }
+
+  function cancelGeneration() {
+    if (abortController) {
+      abortController.abort()
+      abortController = null
+    }
+    if (state.value) {
+      const label = state.value.label
+      state.value = null
+      elapsed.value = 0
+      if (timer) { clearInterval(timer); timer = null }
+      const toast = useToastStore()
+      toast.info(`${label} 已取消`)
+    }
+  }
 
   function start(moduleKey: string, label: string, totalSteps = 1, message = '') {
     state.value = {
@@ -82,5 +103,7 @@ export const useGenerationStore = defineStore('generation', () => {
     update,
     stop,
     fail,
+    getAbortSignal,
+    cancelGeneration,
   }
 })

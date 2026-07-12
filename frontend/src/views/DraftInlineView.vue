@@ -1,5 +1,9 @@
 <template>
-  <div class="draft-inline-view">
+  <div v-if="pageLoading" class="page-loading">
+    <div class="loading-spinner"></div>
+    <p>加载中...</p>
+  </div>
+  <div v-else class="draft-inline-view">
     <div class="section">
       <h3>正文生成</h3>
       <p class="tip">基于场景设计和细纲，生成章节正文内容</p>
@@ -7,7 +11,7 @@
       <div class="form-group">
         <label>选择章节</label>
         <select v-model="form.chapterNo" class="form-select">
-          <option v-for="i in 10" :key="i" :value="i">第 {{ i }} 章</option>
+          <option v-for="ch in chapterOptions" :key="ch.value" :value="ch.value">{{ ch.label }}</option>
         </select>
       </div>
 
@@ -46,23 +50,31 @@
       <div class="action-row">
         <button @click="regenerate" :disabled="loading" class="btn btn-ghost">重新生成</button>
         <button @click="save" class="btn btn-primary">保存正文</button>
-        <button @click="$emit('complete', resultData)" class="btn btn-ghost">确认并通过</button>
+        <button @click="handleComplete" class="btn btn-ghost">确认并通过</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { saveDraft, getDrafts, getAllModuleData } from '../api/v2'
 import { useExecutionStore } from '../stores/execution'
 import { useGeneration } from '../composables/useGeneration'
+import { setupConfirm } from '../composables/useConfirm'
+import { setupErrorBar } from '../composables/useErrorBar'
+import { useChapters } from '../composables/useChapters'
+import { useToastStore } from '../stores/toast'
 
 const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: any] }>()
 const gen = useGeneration('draft_generation', '正文生成')
+const confirm = setupConfirm()
+const errorBar = setupErrorBar()
+const pageLoading = ref(true)
 
 const executionStore = useExecutionStore()
+const toast = useToastStore()
 
 const form = reactive({ chapterNo: 1, skeleton: '', styleNote: '' })
 const loading = ref(false)
@@ -71,8 +83,18 @@ const content = ref('')
 const streamingContent = ref('')
 const isStreaming = ref(false)
 const isOffline = ref(false)
+const chapterOptions = ref<Array<{ value: number | string; label: string }>>([])
+const { fetchChapters } = useChapters(props.projectId)
 
 const wordCount = computed(() => content.value.replace(/\s/g, '').length)
+
+// Watch store streaming content for real-time display
+watch(() => executionStore.draftContent, (val) => {
+  if (isStreaming.value) {
+    streamingContent.value = val
+    content.value = val
+  }
+})
 
 const resultData = computed(() => ({
   chapterNo: form.chapterNo,
@@ -83,6 +105,7 @@ const resultData = computed(() => ({
 }))
 
 async function generate() {
+  const previousContent = content.value
   loading.value = true
   gen.begin()
   error.value = ''
@@ -99,9 +122,12 @@ async function generate() {
     )
     content.value = executionStore.draftContent
     streamingContent.value = executionStore.draftContent
+    hasUnsavedChanges = true
   } catch (e: any) {
-    error.value = e.message || 'AI生成器未配置或生成失败'
-    content.value = ''
+    errorBar.showError(e, () => generate())
+    if (previousContent) {
+      content.value = previousContent
+    }
   } finally {
     isStreaming.value = false
     loading.value = false
@@ -116,20 +142,25 @@ function useOfflineMode() {
   error.value = ''
   setTimeout(() => {
     content.value = generateMockContent(form.chapterNo, form.skeleton, form.styleNote)
+    streamingContent.value = content.value
+    hasUnsavedChanges = true
     loading.value = false
   }, 500)
 }
 
 function generateMockContent(chapter: number, skeleton: string, style: string): string {
-  return `第${chapter}章 ${skeleton.split('\n')[0] || '启程'}
+  const lines = skeleton.split('\n').filter(l => l.trim())
+  const sceneHint = lines.length ? lines[0].slice(0, 30) : '启程'
+  const styleHint = style ? `写作风格：${style}\n\n` : ''
+  return `第${chapter}章 ${sceneHint}
 
-晨光破云而出，洒落在苍茫的山林之间。
-${skeleton || '主角缓步前行，目光坚定地望向前方。'}
-${style ? `\n（${style}）` : ''}
+${styleHint}【场景骨架参考】
+${skeleton || '（暂无场景骨架，请先完成场景设计模块）'}
 
-"终于到了这一刻。"他低声喃喃，握紧了手中长剑。
+【正文开始】
 
-山风拂过，带来远方的气息。等待他的，将是一场改变命运的试炼......
+（请在此处基于场景骨架创作正文内容。建议：${lines.length > 1 ? lines.slice(1).join('；') : '围绕核心事件展开描写，注意人物情感变化和场景氛围营造'}）
+
 
 —— 本章未完 ——`
 }
@@ -138,9 +169,26 @@ async function save() {
   if (!content.value) return
   try {
     await saveDraft(props.projectId, String(form.chapterNo), content.value)
+    lastSavedContent = content.value
+    hasUnsavedChanges = false
+    clearLocalStorageBackup()
+    toast.success('草稿已保存')
   } catch (e: any) {
+    toast.error('保存失败: ' + e.message)
     error.value = e.message
   }
+}
+
+async function handleComplete() {
+  const ok = await confirm.confirm({
+    message: '确定通过正文内容？',
+    detail: '确认后将保存当前正文并进入下一模块',
+    type: 'info',
+  })
+  if (!ok) return
+  hasUnsavedChanges = false
+  clearLocalStorageBackup()
+  emit('complete', resultData.value)
 }
 
 function regenerate() {
@@ -152,37 +200,101 @@ function regenerate() {
 }
 
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null
+let hasUnsavedChanges = false
+let lastSavedContent = ''
+
+function backupToLocalStorage() {
+  if (content.value && hasUnsavedChanges) {
+    try {
+      localStorage.setItem(`draft_backup_${props.projectId}_${form.chapterNo}`, content.value)
+    } catch (e: any) {
+      if (e?.name === 'QuotaExceededError') {
+        toast.info('本地备份空间不足，请手动保存到服务器')
+      }
+    }
+  }
+}
+
+function clearLocalStorageBackup() {
+  try {
+    localStorage.removeItem(`draft_backup_${props.projectId}_${form.chapterNo}`)
+  } catch (_e) { /* ignore */ }
+}
+
+const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+  if (hasUnsavedChanges && content.value) {
+    backupToLocalStorage()
+    e.preventDefault()
+    e.returnValue = ''
+  }
+}
 
 onMounted(async () => {
   try {
-    const drafts = await getDrafts(props.projectId) as unknown as Record<string, string>
-    if (drafts && drafts[String(form.chapterNo)]) {
-      content.value = drafts[String(form.chapterNo)] as string
-    }
-  } catch (_e) { /* ignore */ }
-  try {
-    const allData = await getAllModuleData(props.projectId)
-    const sceneDesign = allData?.modules?.['scene_design']
-    if (sceneDesign && !form.skeleton) {
-      const scenes = sceneDesign.scenes || sceneDesign || []
-      if (Array.isArray(scenes) && scenes.length > 0) {
-        form.skeleton = scenes.map((s: any, i: number) =>
-          `[场景${i + 1}] ${s.sceneName || s.name || ''}: ${s.event || s.summary || ''} (氛围:${s.atmosphere || '未知'})`
-        ).join('\n')
+    try {
+      chapterOptions.value = await fetchChapters()
+      if (chapterOptions.value.length > 0) {
+        const exists = chapterOptions.value.find(c => String(c.value) === String(form.chapterNo))
+        if (!exists) form.chapterNo = chapterOptions.value[0].value
       }
+    } catch (_e) { /* ignore */ }
+    try {
+      const drafts = await getDrafts(props.projectId) as any[]
+      const found = drafts?.find((d: any) => String(d.chapter_no) === String(form.chapterNo))
+      if (found?.content) {
+        content.value = found.content
+      } else {
+        // Restore from localStorage backup if available
+        const backup = localStorage.getItem(`draft_backup_${props.projectId}_${form.chapterNo}`)
+        if (backup) {
+          content.value = backup
+          hasUnsavedChanges = true
+        }
+      }
+    } catch (e) {
+      console.error('[DraftInlineView] load drafts error:', e)
     }
-  } catch (_e) { /* ignore */ }
+    try {
+      const allData = await getAllModuleData(props.projectId)
+      const sceneDesign = allData?.modules?.['scene_design']
+      if (sceneDesign && !form.skeleton) {
+        const scenes = sceneDesign.scenes || sceneDesign || []
+        if (Array.isArray(scenes) && scenes.length > 0) {
+          form.skeleton = scenes.map((s: any, i: number) =>
+            `[场景${i + 1}] ${s.sceneName || s.name || ''}: ${s.event || s.summary || ''} (氛围:${s.atmosphere || '未知'})`
+          ).join('\n')
+        }
+      }
+    } catch (_e) { /* ignore */ }
+  } finally {
+    pageLoading.value = false
+  }
+
+  hasUnsavedChanges = false
   autoSaveTimer = setInterval(async () => {
-    if (content.value) {
-      try { await saveDraft(props.projectId, String(form.chapterNo), content.value) } catch (_e) { /* ignore */ }
+    if (content.value === lastSavedContent) return
+    if (content.value && hasUnsavedChanges) {
+      try {
+        await saveDraft(props.projectId, String(form.chapterNo), content.value)
+        lastSavedContent = content.value
+        hasUnsavedChanges = false
+        clearLocalStorageBackup()
+      } catch (_e) { /* ignore */ }
     }
-  }, 30000)
+  }, 15000)
+
+  window.addEventListener('beforeunload', beforeUnloadHandler)
 })
 
-onBeforeUnmount(async () => {
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', beforeUnloadHandler)
   if (autoSaveTimer) clearInterval(autoSaveTimer)
-  if (content.value) {
-    try { await saveDraft(props.projectId, String(form.chapterNo), content.value) } catch (_e) { /* ignore */ }
+  // Use sendBeacon for reliable unload save
+  if (content.value && hasUnsavedChanges) {
+    const blob = new Blob([content.value], { type: 'text/plain' })
+    const apiPrefix = import.meta.env.VITE_API_PREFIX || ''
+    const success = navigator.sendBeacon(`${apiPrefix}/api/v2/projects/${props.projectId}/drafts/${form.chapterNo}/backup`, blob)
+    if (!success) backupToLocalStorage()
   }
 })
 </script>
@@ -214,4 +326,7 @@ onBeforeUnmount(async () => {
 .dot:nth-child(2) { animation-delay: 0.2s; }
 .dot:nth-child(3) { animation-delay: 0.4s; }
 @keyframes pulse { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

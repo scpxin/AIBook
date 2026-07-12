@@ -1,14 +1,19 @@
 <template>
   <div class="character-view">
+    <div v-if="pageLoading" class="page-loading">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+    <div v-else">
     <div class="tabs">
-      <div v-for="t in tabs" :key="t.key" class="tab" :class="{ active: activeTab === t.key }" @click="activeTab = t.key">{{ t.label }}</div>
+      <div v-for="t in tabs" :key="t.key" class="tab" :class="{ active: activeTab === t.key }" @click="activeTab = t.key" role="tab" tabindex="0" :aria-selected="activeTab === t.key" @keydown.left="handleTabKeydown(-1, $event)" @keydown.right="handleTabKeydown(1, $event)">{{ t.label }}</div>
     </div>
 
     <div class="tab-content">
       <div v-if="activeTab === 'protagonist'" class="tab-pane">
         <h3>主角档案 (九维)</h3>
         <div v-for="group in protagonistGroups" :key="group.key" class="form-group-collapse">
-          <div class="collapse-header" @click="toggleGroup(group.key)">
+          <div class="collapse-header" @click="toggleGroup(group.key)" tabindex="0" @keydown.enter="toggleGroup(group.key)" @keydown.space.prevent="toggleGroup(group.key)">
             <span class="collapse-icon">{{ group.expanded ? '▼' : '▶' }}</span>
             <span class="collapse-title">{{ group.label }}</span>
           </div>
@@ -38,9 +43,10 @@
           <input v-model="newChar.trait" placeholder="性格特点" class="form-input-sm" />
           <button @click="addChar" class="btn-save" :disabled="!newChar.name">添加</button>
         </div>
+        <div v-if="!supportingChars.length && !generating" class="empty-hint tab-pane">暂无配角，点击「AI生成角色」自动填充，或手动添加</div>
         <div class="char-grid">
-          <div v-for="(c, idx) in supportingChars" :key="idx" class="char-card" :class="{ active: selectedChar === c }" @click="selectedChar = c">
-            <div class="char-name">{{ c.name }}</div>
+          <div v-for="(c, idx) in supportingChars" :key="idx" class="char-card" :class="{ active: selectedChar === c }" tabindex="0" @click="selectedChar = c" @keydown.enter="selectedChar = c" v-keyboard-click>
+            <div class="char-name">{{ c.name }}<button @click.stop="deleteChar(idx)" class="btn-delete-sm" title="删除" aria-label="删除配角">×</button></div>
             <div class="char-role">{{ c.role }}</div>
             <div class="char-trait">{{ c.trait }}</div>
           </div>
@@ -58,8 +64,9 @@
 
       <div v-if="activeTab === 'villain'" class="tab-pane">
         <h3>反派体系</h3>
-        <div v-for="(v, idx) in villains" :key="idx" class="villain-card">
-          <div class="villain-name">{{ v.name }} <span class="tier">{{ v.tier }}</span></div>
+        <div v-if="!villains.length && !generating" class="empty-hint tab-pane">暂无反派，点击「AI生成角色」自动填充，或手动添加</div>
+        <div v-for="(v, idx) in villains" :key="idx" class="villain-card" :class="{ active: selectedVillain === v }" tabindex="0" @click="selectedVillain = v" @keydown.enter="selectedVillain = v" v-keyboard-click>
+          <div class="villain-name">{{ v.name }} <span class="tier">{{ v.tier }}</span><button @click.stop="deleteVillain(idx)" class="btn-delete-sm" title="删除" aria-label="删除反派">×</button></div>
           <div class="villain-motivation">{{ v.motivation }}</div>
         </div>
       </div>
@@ -71,24 +78,39 @@
     </div>
 
     <div v-if="error" class="error-box">{{ error }}</div>
-    <div class="actions">
-      <button @click="generate" :disabled="generating" class="btn-primary">
-        <span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : 'AI生成角色' }}
-      </button>
-      <button @click="checkConsistency" class="btn-secondary">一致性检查</button>
+    <div v-if="saveState === 'saving'" class="save-status">保存中...</div>
+    <div v-if="saveState === 'saved'" class="save-status saved">已自动保存</div>
+    <div v-if="saveState === 'error'" class="save-status error">保存失败</div>
+    <div v-if="checkResultMsg" class="check-result-box">{{ checkResultMsg }}</div>
     </div>
+     <div class="actions">
+       <button @click="generate" :disabled="generating" class="btn-primary">
+         <span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : 'AI生成角色' }}
+       </button>
+       <button @click="checkConsistency" class="btn-secondary">一致性检查</button>
+       <button @click="confirm" class="btn-primary" :disabled="confirming">{{ confirming ? '保存中...' : '确认角色，下一步' }}</button>
+     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useCharacterStore } from '../stores/character'
 import * as v2Api from '../api/v2'
 import RelationGraph from '../components/RelationGraph.vue'
 import { useGeneration } from '../composables/useGeneration'
+import { setupConfirm } from '../composables/useConfirm'
+import { setupErrorBar } from '../composables/useErrorBar'
+import { vKeyboardClick } from '../directives/keyboardClick'
+import { useAutoSave } from '../composables/useAutoSave'
+import { useToastStore } from '../stores/toast'
 
 const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: any] }>()
+const confirmDialog = setupConfirm()
+const errorBar = setupErrorBar()
+const toast = useToastStore()
+const pageLoading = ref(true)
 const charStore = useCharacterStore()
 const gen = useGeneration('characters', '角色')
 
@@ -100,7 +122,9 @@ const tabs = [
 ]
 const activeTab = ref('protagonist')
 const generating = ref(false)
+const confirming = ref(false)
 const error = ref('')
+const checkResultMsg = ref('')
 const selectedChar = ref<any>(null)
 const supportingCount = ref(5)
 const showAddForm = ref(false)
@@ -120,6 +144,7 @@ const protagonist = reactive<any>({})
 const supportingChars = ref<any[]>([])
 const villains = ref<any[]>([])
 const relations = ref<any[]>([])
+const selectedVillain = ref<any>(null)
 
 const allCharacters = computed(() => {
   const chars: any[] = []
@@ -147,9 +172,16 @@ const protagonistGroups = ref([
   { key: 'growth', label: '目标与成长', expanded: false, dims: nineDims.slice(6, 9) },
 ])
 
-function toggleGroup(key: string) {
+  function toggleGroup(key: string) {
   const g = protagonistGroups.value.find(g => g.key === key)
   if (g) g.expanded = !g.expanded
+}
+
+function handleTabKeydown(dir: number, e: KeyboardEvent) {
+  e.preventDefault()
+  const idx = tabs.findIndex(t => t.key === activeTab.value)
+  const next = (idx + dir + tabs.length) % tabs.length
+  activeTab.value = tabs[next].key
 }
 
 const worldData = ref<any>(null)
@@ -162,42 +194,98 @@ function addChar() {
   showAddForm.value = false
 }
 
+async function deleteChar(idx: number) {
+  const ok = await confirmDialog.confirm({
+    message: '确定删除该角色？',
+    detail: '删除后不可恢复',
+    type: 'danger',
+  })
+  if (!ok) return
+  supportingChars.value.splice(idx, 1)
+  selectedChar.value = null
+}
+
+async function deleteVillain(idx: number) {
+  const ok = await confirmDialog.confirm({
+    message: '确定删除该反派？',
+    detail: '删除后不可恢复',
+    type: 'danger',
+  })
+  if (!ok) return
+  villains.value.splice(idx, 1)
+}
+
 async function generate() {
   generating.value = true
   error.value = ''
+  let generationSuccess = false
   gen.begin(4, '正在生成主角...')
   try {
     const result = await charStore.generateCharacters(
       props.projectId, worldData.value, storyConcept.value || undefined,
-      (step, msg) => gen.progress(step, msg)
+      (step, msg) => gen.progress(step, msg),
+      { supportingCount: supportingCount.value }
     )
     Object.assign(protagonist, result.protagonist || {})
     supportingChars.value = result.supporting || []
     villains.value = result.villains || []
     relations.value = (result.relations as any) || []
+    generationSuccess = true
     const charData = { protagonist: { ...protagonist }, supporting: supportingChars.value, villains: villains.value, relations: relations.value }
-    try { await v2Api.saveModuleData(props.projectId, 'characters', charData) } catch (_e) { /* ignore */ }
+    try {
+      await v2Api.saveModuleData(props.projectId, 'characters', charData)
+    } catch (_e) {
+      toast.error('角色已生成但保存失败。数据暂存内存中,请不要关闭页面')
+      gen.fail('保存失败')
+      return
+    }
   } catch (e: any) {
-    error.value = e?.message || '生成失败'
-    gen.fail(error.value)
+    errorBar.showError(e, () => generate())
   } finally {
     generating.value = false
-    if (!error.value) gen.end()
+    if (generationSuccess) gen.end()
+    else gen.fail(error.value || '生成失败')
   }
 }
 
 async function checkConsistency() {
-  await v2Api.characterConsistencyCheck(props.projectId)
+  error.value = ''  // 清除之前的错误
+  try {
+    const result = await v2Api.characterConsistencyCheck(props.projectId)
+    if (result.passed) {
+      checkResultMsg.value = `一致性检查通过 (${result.score || 100}分)`
+    } else {
+      checkResultMsg.value = `发现 ${result.issues?.length || 0} 个问题`
+    }
+  } catch (e: any) {
+    error.value = '一致性检查失败: ' + (e?.message || '未知错误')
+  }
 }
 
 async function confirm() {
-  await charStore.saveCharacters(props.projectId, {
-    protagonist: { ...protagonist },
-    supporting: supportingChars.value,
-    villains: villains.value,
-    relations: relations.value,
+  if (confirming.value) return
+  cancel()
+  const ok = await confirmDialog.confirm({
+    message: '确定进入下一步？',
+    detail: '确认后将保存当前角色设定并进入下一模块',
+    type: 'info',
   })
-  emit('complete', { protagonist, supporting: supportingChars.value, villains: villains.value })
+  if (!ok) return
+  confirming.value = true
+  try {
+    await charStore.saveCharacters(props.projectId, {
+      protagonist: { ...protagonist },
+      supporting: supportingChars.value,
+      villains: villains.value,
+      relations: relations.value,
+    })
+    toast.success('角色设定已保存')
+    emit('complete', { protagonist, supporting: supportingChars.value, villains: villains.value })
+  } catch (e: any) {
+    toast.error('保存失败: ' + (e?.message || '未知错误'))
+  } finally {
+    confirming.value = false
+  }
 }
 
 onMounted(async () => {
@@ -223,7 +311,9 @@ onMounted(async () => {
         if (d.relations) relations.value = d.relations
       }
     }
-  } catch (_e) { /* ignore */ }
+  } catch (_e) {
+    console.debug('[CharacterView] restore saved data failed:', _e)
+  }
   try {
     const allData = await v2Api.getAllModuleData(props.projectId)
     const world = allData?.modules?.['world']
@@ -231,8 +321,33 @@ onMounted(async () => {
       worldData.value = world
       storyConcept.value = world.origin?.hiddenTruth || ''
     }
-  } catch (_e) { /* ignore */ }
+  } catch (_e) {
+    console.debug('[CharacterView] prefill from world failed:', _e)
+  }
+  finally { pageLoading.value = false }
 })
+
+const charData = () => ({
+  protagonist: { ...protagonist },
+  supporting: supportingChars.value,
+  villains: villains.value,
+  relations: relations.value,
+})
+const { saveState, scheduleSave, cancel } = useAutoSave({
+  dataRef: charData,
+  saveFn: async (data) => {
+    await v2Api.saveModuleData(props.projectId, 'characters', data)
+  },
+  debounce: 3000,
+  storageKey: `characters_${props.projectId}`,
+  onSaveError: () => toast.error('角色设定自动保存失败，已存至本地备份'),
+  projectId: props.projectId,
+  moduleName: 'characters',
+})
+watch([protagonist, supportingChars, villains, relations], () => {
+  scheduleSave()
+}, { deep: true })
+watch(activeTab, () => { checkResultMsg.value = '' })
 </script>
 
 <style scoped>
@@ -273,6 +388,8 @@ onMounted(async () => {
 .villain-name { font-weight: 600; margin-bottom: 5px; }
 .tier { font-size: 14px; padding: 1px 6px; background: #fff1f0; color: #ff4d4f; border-radius: 4px; }
 .villain-motivation { font-size: 17px; color: #666; }
+.btn-delete-sm { background: none; border: none; color: #c62828; font-size: 18px; cursor: pointer; margin-left: 6px; vertical-align: middle; line-height: 1; }
+.btn-delete-sm:hover { color: #ff0000; }
 .actions { display: flex; gap: 13px; margin-top: 21px; }
 .btn-primary { padding: 13px 24px; background: var(--primary); color: #fff; border: none; border-radius: 8px; cursor: pointer; }
 .btn-primary:disabled { opacity: 0.5; cursor: wait; }
@@ -281,4 +398,6 @@ onMounted(async () => {
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .error-box { color: #e74c3c; background: #fff1f0; border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 14px; }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
 </style>

@@ -1,25 +1,47 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Draft, PolishResult, ContentParseResult, ConsistencyReport } from '../types/v2'
+import type { Draft, SceneSkeleton, PolishResult, ContentParseResult, ConsistencyReport, KnowledgeState, Character, WorldBuilding } from '../types/v2'
 import {
   generateDraft, saveDraft, polishContent, parseContent,
   checkConsistency, getConsistencyReport, getDrafts, getModuleData,
 } from '../api/v2'
 import { useToastStore } from './toast'
 
+interface DraftRaw {
+  chapter_no?: string | number
+  id?: string | number
+  title?: string
+  content?: string
+  word_count_final?: number
+}
+
+interface OutlineItemRaw {
+  chapter_no?: string | number
+  chapter_id?: string | number
+  id?: string | number
+  chapter_title?: string
+  title?: string
+  summary?: string
+  chapter_summary?: string
+  scenes?: any[]
+  scene_list?: any[]
+  key_points?: any[]
+  plot_points?: any[]
+  characters?: any[]
+}
+
 export const useExecutionStore = defineStore('execution', () => {
   const projectId = ref('')
   const currentDraft = ref<Draft | null>(null)
   const draftContent = ref('')
   const polishResult = ref<PolishResult | null>(null)
-  const parseResult = ref<ContentParseResult | null>(null)
   const consistencyReport = ref<ConsistencyReport | null>(null)
   const isGenerating = ref(false)
   const generationProgress = ref(0)
   const loading = ref(false)
   const error = ref('')
 
-  async function generateDraftContent(pid: string, chapterNo: string, sceneSkeleton: any) {
+  async function generateDraftContent(pid: string, chapterNo: string, sceneSkeleton?: any) {
     isGenerating.value = true
     generationProgress.value = 0
     draftContent.value = ''
@@ -76,8 +98,7 @@ export const useExecutionStore = defineStore('execution', () => {
     loading.value = true
     error.value = ''
     try {
-      parseResult.value = await parseContent(pid, chapterNo, content)
-      return parseResult.value
+      return await parseContent(pid, chapterNo, content)
     } catch (e: any) {
       error.value = e.message
       return null
@@ -86,7 +107,7 @@ export const useExecutionStore = defineStore('execution', () => {
     }
   }
 
-  async function runConsistencyCheck(pid: string, chapterNo: string, content: string, knowledgeState?: any, characters?: any[], world?: any) {
+  async function runConsistencyCheck(pid: string, chapterNo: string, content: string, knowledgeState?: KnowledgeState, characters?: Character[], world?: Partial<WorldBuilding>) {
     loading.value = true
     error.value = ''
     try {
@@ -111,11 +132,11 @@ export const useExecutionStore = defineStore('execution', () => {
     }
   }
 
-  async function startDraftGeneration(pid: string, chapterNo: string, onChunk: (text: string) => void) {
+  async function startDraftGeneration(pid: string, chapterNo: string, onChunk: (text: string) => void, sceneSkeleton?: SceneSkeleton) {
     isGenerating.value = true
     draftContent.value = ''
     try {
-      await generateDraftContent(pid, chapterNo, undefined).then(() => {
+      await generateDraftContent(pid, chapterNo, sceneSkeleton).then(() => {
         // Stream already handled via draftContent ref
       })
     } finally {
@@ -133,10 +154,10 @@ export const useExecutionStore = defineStore('execution', () => {
     }
   }
 
-  async function parseContentSimple(pid: string, content: string) {
+  async function parseContentSimple(pid: string, content: string, chapterNo: string = '1') {
     loading.value = true
     try {
-      return await parseWrittenContent(pid, '1', content)
+      return await parseWrittenContent(pid, chapterNo, content)
     } finally {
       loading.value = false
     }
@@ -147,7 +168,7 @@ export const useExecutionStore = defineStore('execution', () => {
       const outlinesRes = await getModuleData(pid, 'chapter_outline')
       const outlines = outlinesRes?.data
       if (outlines) {
-        let outlineList: any[] = []
+        let outlineList: OutlineItemRaw[] = []
         if (Array.isArray(outlines)) {
           outlineList = outlines
         } else if (outlines.chapter_outline && Array.isArray(outlines.chapter_outline)) {
@@ -158,7 +179,7 @@ export const useExecutionStore = defineStore('execution', () => {
           outlineList = outlines.chapters
         }
         if (outlineList.length > 0) {
-          return outlineList.map((o: any, i: number) => ({
+          return outlineList.map((o: OutlineItemRaw, i: number) => ({
             id: o.chapter_no || o.chapter_id || o.id || String(i + 1),
             title: o.chapter_title || o.title || `第${i + 1}章`,
             outline: {
@@ -173,10 +194,10 @@ export const useExecutionStore = defineStore('execution', () => {
           }))
         }
       }
-      const drafts = await getDrafts(pid) as any[]
+      const drafts = await getDrafts(pid) as DraftRaw[]
       if (drafts && drafts.length > 0) {
-        return drafts.map((d: any) => ({
-          id: d.chapter_no || d.id,
+        return drafts.map((d: DraftRaw) => ({
+          id: String(d.chapter_no || d.id),
           title: `第${d.chapter_no}章` || d.title,
           outline: { title: d.title || `第${d.chapter_no}章`, summary: '', scenes: [], key_points: [], characters: [] },
           content: d.content || '',
@@ -188,7 +209,7 @@ export const useExecutionStore = defineStore('execution', () => {
   }
 
   return {
-    projectId, currentDraft, draftContent, polishResult, parseResult,
+    projectId, currentDraft, draftContent, polishResult,
     consistencyReport, isGenerating, generationProgress, loading, error,
     generateDraftContent, saveDraftContent, polish, parseWrittenContent,
     runConsistencyCheck, loadConsistencyReport,

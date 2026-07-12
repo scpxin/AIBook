@@ -1,5 +1,9 @@
 <template>
-  <div class="scene-design-view">
+  <div v-if="pageLoading" class="page-loading">
+    <div class="loading-spinner"></div>
+    <p>加载中...</p>
+  </div>
+  <div v-else class="scene-design-view">
     <div class="section">
       <h3>场景设计</h3>
       <p class="tip">为每个章节设计具体场景：环境氛围、出场人物、关键事件</p>
@@ -57,27 +61,75 @@
 
     <div v-if="scenes.length" class="section">
       <h3>场景列表（{{ scenes.length }}个）</h3>
-      <div v-for="(scene, idx) in scenes" :key="idx" class="scene-card">
-        <div class="scene-header">
-          <span class="scene-ch">第{{ scene.chapterNo }}章</span>
-          <span class="scene-name">{{ scene.sceneName }}</span>
-          <span class="scene-atmo">{{ atmoText(scene.atmosphere) }}</span>
+      <div v-for="(scene, idx) in scenes" :key="idx" class="scene-card" tabindex="0" v-keyboard-click>
+        <div v-if="editingIdx !== idx">
+          <div class="scene-header">
+            <span class="scene-ch">第{{ scene.chapterNo }}章</span>
+            <span class="scene-name">{{ scene.sceneName }}</span>
+            <span class="scene-atmo">{{ atmoText(scene.atmosphere) }}</span>
+            <span class="scene-actions">
+              <button @click="startEdit(idx)" class="btn btn-sm btn-ghost">编辑</button>
+              <button @click="deleteScene(idx)" class="btn btn-sm btn-danger">删除</button>
+            </span>
+          </div>
+          <div class="scene-event">{{ scene.event }}</div>
+          <div class="scene-hook">悬念：{{ scene.hook }}</div>
         </div>
-        <div class="scene-event">{{ scene.event }}</div>
-        <div class="scene-hook">悬念：{{ scene.hook }}</div>
+        <div v-else class="scene-edit-form">
+          <div class="form-group">
+            <label>场景名称</label>
+            <input v-model="editForm.sceneName" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label>氛围</label>
+            <select v-model="editForm.atmosphere" class="form-select">
+              <option value="tense">紧张刺激</option>
+              <option value="calm">平和日常</option>
+              <option value="mysterious">神秘诡异</option>
+              <option value="epic">史诗恢弘</option>
+              <option value="emotional">情感浓烈</option>
+              <option value="humorous">轻松诙谐</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>出场人物</label>
+            <input v-model="editForm.characters" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label>关键事件</label>
+            <textarea v-model="editForm.event" rows="3" class="form-textarea"></textarea>
+          </div>
+          <div class="form-group">
+            <label>悬念钩子</label>
+            <input v-model="editForm.hook" class="form-input" />
+          </div>
+          <div class="action-row">
+            <button @click="saveEdit(idx)" class="btn btn-primary btn-sm">保存</button>
+            <button @click="cancelEdit" class="btn btn-ghost btn-sm">取消</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { saveModuleData, getModuleData, getAllModuleData, designScenes } from '../api/v2'
 import { useGeneration } from '../composables/useGeneration'
+import { setupConfirm } from '../composables/useConfirm'
+import { setupErrorBar } from '../composables/useErrorBar'
+import { useAutoSave } from '../composables/useAutoSave'
+import { useToastStore } from '../stores/toast'
+import { vKeyboardClick } from '../directives/keyboardClick'
 
 const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: any] }>()
 const gen = useGeneration('scene_design', '场景设计')
+const confirm = setupConfirm()
+const errorBar = setupErrorBar()
+const toast = useToastStore()
+const pageLoading = ref(true)
 
 const form = reactive({
   chapterNo: 1,
@@ -91,6 +143,15 @@ const loading = ref(false)
 const error = ref('')
 const scenes = ref<any[]>([])
 const chapterOutlines = ref<any>(null)
+const editingIdx = ref<number | null>(null)
+const editForm = reactive({
+  sceneName: '',
+  atmosphere: 'tense',
+  characters: '',
+  event: '',
+  hook: '',
+  chapterNo: 1,
+})
 
 async function generateAI() {
   loading.value = true
@@ -111,7 +172,7 @@ async function generateAI() {
       error.value = 'AI未返回场景数据'
     }
   } catch (e: any) {
-    error.value = e.message || 'AI场景生成失败，可手动添加'
+    errorBar.showError(e, () => generateAI())
   } finally {
     loading.value = false
     if (!error.value) gen.end()
@@ -137,7 +198,49 @@ function addScene() {
   error.value = ''
 }
 
+function startEdit(idx: number) {
+  const s = scenes.value[idx]
+  editingIdx.value = idx
+  editForm.sceneName = s.sceneName || ''
+  editForm.atmosphere = s.atmosphere || 'tense'
+  editForm.characters = s.characters || ''
+  editForm.event = s.event || ''
+  editForm.hook = s.hook || ''
+  editForm.chapterNo = s.chapterNo || 1
+}
+
+function saveEdit(idx: number) {
+  if (!editForm.sceneName || !editForm.event) {
+    error.value = '请填写场景名称和关键事件'
+    return
+  }
+  scenes.value[idx] = { ...editForm }
+  editingIdx.value = null
+  error.value = ''
+}
+
+function cancelEdit() {
+  editingIdx.value = null
+}
+
+async function deleteScene(idx: number) {
+  const ok = await confirm.confirm({
+    message: '确定删除该场景？',
+    detail: '删除后不可恢复，请确认',
+    type: 'danger',
+  })
+  if (!ok) return
+  scenes.value.splice(idx, 1)
+  if (editingIdx.value === idx) editingIdx.value = null
+}
+
 async function save() {
+  const ok = await confirm.confirm({
+    message: '确定完成场景设计？',
+    detail: '确认后将保存当前场景数据并进入下一模块',
+    type: 'info',
+  })
+  if (!ok) return
   loading.value = true
   gen.begin()
   error.value = ''
@@ -155,21 +258,41 @@ async function save() {
 
 onMounted(async () => {
   try {
-    const saved = await getModuleData(props.projectId, 'scene_design')
-    if (saved?.data) {
-      const d = saved.data
-      scenes.value = Array.isArray(d) ? d : (d.scenes || [])
-    }
-  } catch (_e) { /* ignore */ }
-  try {
-    const allData = await getAllModuleData(props.projectId)
-    chapterOutlines.value = allData?.modules?.['chapter_outline'] || null
-    const characters = allData?.modules?.['characters']
-    if (characters && Array.isArray(characters) && characters.length > 0) {
-      form.characters = characters.map((c: any) => c.name || c.char_id).filter(Boolean).join(', ')
-    }
-  } catch (_e) { /* ignore */ }
+    try {
+      const saved = await getModuleData(props.projectId, 'scene_design')
+      if (saved?.data) {
+        const d = saved.data
+        scenes.value = Array.isArray(d) ? d : (d.scenes || [])
+      }
+    } catch (_e) { /* ignore */ }
+    try {
+      const allData = await getAllModuleData(props.projectId)
+      chapterOutlines.value = allData?.modules?.['chapter_outline'] || null
+      const characters = allData?.modules?.['characters']
+      if (characters && Array.isArray(characters) && characters.length > 0) {
+        form.characters = characters.map((c: any) => c.name || c.char_id).filter(Boolean).join(', ')
+      }
+    } catch (_e) { /* ignore */ }
+  } finally {
+    pageLoading.value = false
+  }
 })
+
+const sceneData = () => ({ scenes: scenes.value })
+const { saveState, scheduleSave } = useAutoSave({
+  dataRef: sceneData,
+  saveFn: async (data) => {
+    await saveModuleData(props.projectId, 'scene_design', data)
+  },
+  debounce: 2000,
+  storageKey: `scenes_${props.projectId}`,
+  onSaveError: () => toast.error('场景设计自动保存失败，已存至本地备份'),
+  projectId: props.projectId,
+  moduleName: 'scene_design',
+})
+watch(scenes, () => {
+  scheduleSave()
+}, { deep: true })
 </script>
 
 <style scoped>
@@ -192,4 +315,11 @@ onMounted(async () => {
 .scene-atmo { background: #e8f8f0; color: #27ae60; padding: 3px 10px; border-radius: 6px; font-size: 13px; font-weight: 600; }
 .scene-event { color: #555; font-size: 15px; line-height: 1.6; margin-bottom: 8px; }
 .scene-hook { font-size: 14px; color: #e67e22; background: #fef3e2; padding: 8px 12px; border-radius: 8px; }
+.scene-actions { display: flex; gap: 6px; }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-danger { background: #fff3f3; color: #c62828; }
+.scene-edit-form { background: #f8f9fa; border-radius: 10px; padding: 18px; }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

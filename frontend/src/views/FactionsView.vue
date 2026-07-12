@@ -1,5 +1,10 @@
 <template>
   <div class="factions-view">
+    <div v-if="pageLoading" class="page-loading">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+    <div v-else>
     <div class="section">
       <h3>势力体系设计</h3>
       <p class="tip">设计世界中的各大势力组织，包含领地、首领、内部冲突等</p>
@@ -36,10 +41,10 @@
       </div>
 
       <div class="action-row">
-        <button @click="generate" :disabled="loading" class="btn btn-primary">
-          <span v-if="loading" class="spinner"></span>{{ loading ? '生成中...' : 'AI生成势力体系' }}
-        </button>
-        <button @click="$emit('complete', resultData)" class="btn btn-ghost">跳过</button>
+         <button @click="proceed" :disabled="loading" class="btn btn-primary">
+           <span v-if="loading" class="spinner"></span>{{ loading ? '生成中...' : 'AI生成势力体系' }}
+         </button>
+         <button @click="$emit('skip', null)" class="btn btn-ghost">跳过</button>
       </div>
 
       <div v-if="error" class="error-box">
@@ -51,10 +56,11 @@
     <div v-if="factions.length" class="section">
       <h3>生成结果</h3>
       <div class="factions-grid">
-        <div v-for="(f, idx) in factions" :key="idx" class="faction-card">
+        <div v-for="(f, idx) in factions" :key="idx" class="faction-card" tabindex="0" v-keyboard-click>
           <div class="faction-header">
             <span class="faction-badge" :style="{ background: f.color || colors[idx] }">{{ f.short_name || f.shortName || (f.name || '').slice(0, 1) }}</span>
             <span class="faction-name">{{ f.name }}</span>
+            <button @click="deleteFaction(idx)" class="btn-delete-sm" title="删除">×</button>
           </div>
           <div class="faction-info">
             <div class="info-row"><span class="label">首领</span>{{ f.leader || f.leader_name || '-' }}</div>
@@ -65,19 +71,27 @@
           <div class="faction-relation" v-if="f.relation || f.core_relation"><strong>核心关系：</strong>{{ f.relation || f.core_relation }}</div>
         </div>
       </div>
-      <button @click="$emit('complete', resultData)" class="btn btn-primary btn-complete">确认并通过</button>
+      <button @click="proceed" class="btn btn-primary btn-complete">确认并通过</button>
+    </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import * as v2Api from '../api/v2'
 import { useGeneration } from '../composables/useGeneration'
+import { setupConfirm } from '../composables/useConfirm'
+import { setupErrorBar } from '../composables/useErrorBar'
+import { vKeyboardClick } from '../directives/keyboardClick'
+import { useAutoSave } from '../composables/useAutoSave'
 
 const props = defineProps<{ projectId: string }>()
-const emit = defineEmits<{ complete: [data: any] }>()
+const emit = defineEmits<{ complete: [data: any]; skip: [data: any] }>()
 const gen = useGeneration('factions', '势力体系')
+const confirm = setupConfirm()
+const errorBar = setupErrorBar()
+const pageLoading = ref(true)
 
 const colors = ['#4a90d9', '#e74c3c', '#27ae60', '#f39c12', '#9b59b6', '#1abc9c']
 
@@ -92,6 +106,23 @@ const resultData = computed(() => ({
   pattern: form.pattern,
   factions: factions.value,
 }))
+
+const factionsData = () => ({
+  pattern: form.pattern,
+  factions: factions.value,
+  conflict: form.conflict,
+})
+const { scheduleSave } = useAutoSave({
+  dataRef: factionsData,
+  saveFn: async (data) => {
+    try { await v2Api.saveModuleData(props.projectId, 'factions', data) } catch (_e) { /* silent */ }
+  },
+  debounce: 1500,
+  storageKey: `factions_${props.projectId}`,
+  projectId: props.projectId,
+  moduleName: 'factions',
+})
+watch([factions, form], () => { scheduleSave() }, { deep: true })
 
 onMounted(async () => {
   try {
@@ -119,10 +150,10 @@ onMounted(async () => {
     if (mods['world']?.civilization && !form.conflict) {
       form.conflict = `基于${mods['world'].origin?.worldType || '当前世界'}文明的核心势力矛盾`
     }
-  } catch (_e) { /* ignore */ }
+  } catch (_e) { /* ignore */ } finally { pageLoading.value = false }
 })
 
-async function generate() {
+async function proceed() {
   loading.value = true
   gen.begin()
   error.value = ''
@@ -149,7 +180,7 @@ async function generate() {
     }
     try { await v2Api.saveModuleData(props.projectId, 'factions', { factions: factions.value, meta_analysis: result.metaAnalysis || '' }) } catch (_e) { /* ignore */ }
   } catch (e: any) {
-    error.value = e.message || 'AI生成器未配置或生成失败'
+     errorBar.showError(e, () => proceed())
     useOfflineMode()
   } finally {
     loading.value = false
@@ -160,8 +191,23 @@ async function generate() {
 
 function useOfflineMode() {
   isOffline.value = true
-  const count = parseInt(form.count)
-  factions.value = getNames(form.pattern, count)
+  loading.value = true
+  error.value = ''
+  setTimeout(() => {
+    const count = parseInt(form.count)
+    factions.value = getNames(form.pattern, count)
+    loading.value = false
+  }, 300)
+}
+
+async function deleteFaction(idx: number) {
+  const ok = await confirm.confirm({
+    message: '确定删除该势力？',
+    detail: '删除后不可恢复',
+    type: 'danger',
+  })
+  if (!ok) return
+  factions.value.splice(idx, 1)
 }
 
 function getNames(pattern: string, count: number): any[] {
@@ -234,6 +280,10 @@ function getRelation(idx: number, count: number, pattern: string): string {
 .info-row .label { font-weight: 600; width: 50px; color: #666; flex-shrink: 0; }
 .faction-desc { color: #555; font-size: 15px; line-height: 1.6; margin-bottom: 10px; }
 .faction-relation { font-size: 14px; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
+.btn-delete-sm { background: none; border: none; color: #c62828; font-size: 18px; cursor: pointer; margin-left: auto; }
+.btn-delete-sm:hover { color: #ff0000; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
 </style>

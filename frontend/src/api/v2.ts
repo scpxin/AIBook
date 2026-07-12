@@ -1,8 +1,8 @@
 // V2 API Service Layer — 所有19模块的API函数
-import { apiPost, apiGet, apiPostLong, apiStream } from './client'
+import { apiPost, apiGet, apiPostLong, apiStream, apiPut, apiDelete } from './client'
 import type {
-  IdeaCandidate, IdeaScore, IdeaUpgrade, RiskAnalysis,
-  NovelPosition, PlatformCompatibility, DerivedFields,
+  IdeaCandidate, IdeaScore, IdeaUpgrade, RiskAnalysis, IdeaTemplate,
+  PlatformCompatibility,
   WorldBuilding, WorldOrigin, WorldRule, WorldConsistencyCheck,
   Character, RelationMap, CharacterConsistencyCheck,
   StoryMaster, VolumeOutline,
@@ -40,23 +40,37 @@ export function analyzeIdeaRisks(projectId: string, concept: string, extra?: any
   })
 }
 
+// ========== 灵感离线模板 ==========
+
+export function getTemplates(projectId: string) {
+  return apiGet<{ templates: IdeaTemplate[] }>(`/api/v2/templates/${projectId}`)
+}
+
+export function createTemplate(data: { project_id: string; name: string; icon?: string; genre: string; prompt: string; reference?: string }) {
+  return apiPost<{ ok: boolean; template: IdeaTemplate }>('/api/v2/templates/', data)
+}
+
+export function updateTemplate(id: number, data: Partial<{ name: string; icon: string; genre: string; prompt: string; reference: string }>) {
+  return apiPut<{ ok: boolean; template: IdeaTemplate }>(`/api/v2/templates/${id}`, data)
+}
+
+export function deleteTemplate(id: number) {
+  return apiDelete<{ ok: boolean }>(`/api/v2/templates/${id}`)
+}
+
 // ========== M2: 项目定位 ==========
 
-export function analyzeProject(projectId: string, idea: string, platform?: string) {
-  return apiPost<NovelPosition>('/api/v2/projects/analyze', {
-    project_id: projectId, idea, platform: platform || 'tomato',
-  }, 300000)
+export function analyzeProjectBatch(projectId: string, idea: string, platform: string, batchIndex: number) {
+  return apiPost<{ dimensions: any[]; _batch_index: number; _total_batches: number }>(
+    '/api/v2/projects/analyze-batch',
+    { project_id: projectId, idea, platform, batch_index: batchIndex },
+    120000
+  )
 }
 
 export function checkProjectCompatibility(projectId: string, idea: string, platform?: string) {
   return apiPost<PlatformCompatibility>('/api/v2/projects/check-compatibility', {
     project_id: projectId, idea, platform: platform || 'tomato',
-  })
-}
-
-export function deriveProjectFields(projectId: string, projectData: any) {
-  return apiPost<DerivedFields>('/api/v2/projects/derive-fields', {
-    project_id: projectId, project_data: projectData,
   })
 }
 
@@ -406,6 +420,13 @@ export function getNextModule(projectId: string) {
   return apiGet<{ nextModule: string | null; moduleInfo: ModuleInfo | null }>(`/api/v2/pipeline/${projectId}/next`)
 }
 
+export function updateModuleStatus(projectId: string, moduleName: string, status: string) {
+  return apiPost<{ success: boolean; module: string; status: string }>(
+    `/api/v2/pipeline/${projectId}/modules/${moduleName}/status`,
+    { status }
+  )
+}
+
 export function getModuleData(projectId: string, moduleName: string) {
   return apiGet<{ module: string; data: any }>(`/api/v2/pipeline/${projectId}/data/${moduleName}`)
 }
@@ -414,47 +435,39 @@ export function saveModuleData(projectId: string, moduleName: string, data: any)
   return apiPost<{ success: boolean }>(`/api/v2/pipeline/${projectId}/data/${moduleName}`, data)
 }
 
-export function getAllModuleData(projectId: string) {
-  return apiGet<{ project_id: string; modules: Record<string, any> }>(`/api/v2/pipeline/${projectId}/data`)
+export { useModuleSaveStore } from '../stores/moduleSave'
+
+export async function saveModuleDataTracked(projectId: string, moduleName: string, data: any): Promise<boolean> {
+  const store = useModuleSaveStore()
+  store.markSaving(projectId, moduleName)
+  try {
+    await saveModuleData(projectId, moduleName, data)
+    store.markSaved(projectId, moduleName)
+    return true
+  } catch (e: any) {
+    store.markError(projectId, moduleName, e?.message || '保存失败')
+    throw e
+  }
 }
 
-export function cleanupPipeline(projectId: string) {
-  return apiPost<{ success: boolean }>(`/api/v2/pipeline/${projectId}`, {})
+export function getAllModuleData(projectId: string) {
+  return apiGet<{ project_id: string; modules: Record<string, any> }>(`/api/v2/pipeline/${projectId}/data`)
 }
 
 export async function confirmIdea(projectId: string, ideaId: string, version: number = 1) {
   return apiPost<{ success: boolean }>(`/api/v2/pipeline/${projectId}/confirm-idea`, { ideaId, version })
 }
 
-export async function compatibilityCheck(projectId: string, platform: string) {
-  return apiPost<{ success: boolean; results: any[] }>(`/api/v2/pipeline/${projectId}/compatibility-check`, { platform })
-}
-
 export async function worldConsistencyCheck(projectId: string) {
-  return apiGet<{ passed: boolean; message: string }>(`/api/v2/world/${projectId}/consistency-check`)
+  return apiGet<{ passed: boolean; score?: number; issues?: string[]; message?: string }>(`/api/v2/world/${projectId}/consistency-check`)
 }
 
 export async function characterConsistencyCheck(projectId: string) {
-  return apiGet<{ passed: boolean; message: string }>(`/api/v2/character/${projectId}/consistency-check`)
-}
-
-export async function runConsistencyCheck(projectId: string, chapterNo: string = '1', content?: string, knowledgeState?: any, characters?: any[], world?: any) {
-  return apiPost<{ success: boolean }>('/api/v2/consistency/check', {
-    project_id: projectId, chapter_no: chapterNo, content,
-    knowledge_state: knowledgeState, characters, world,
-  })
+  return apiGet<{ passed: boolean; score?: number; issues?: string[]; message?: string }>(`/api/v2/character/${projectId}/consistency-check`)
 }
 
 export function getDrafts(projectId: string) {
   return apiGet<any[]>(`/api/v2/pipeline/${projectId}/data/draft_generation`)
-}
-
-export function getChapterPlans(projectId: string) {
-  return apiGet<any[]>(`/api/v2/pipeline/${projectId}/data/chapter_plan`)
-}
-
-export function getPlotNodes(projectId: string) {
-  return apiGet<any[]>(`/api/v2/pipeline/${projectId}/data/plot_nodes`)
 }
 
 export function testModelConnection(endpoint: string, apiKey: string, model: string) {
@@ -463,6 +476,115 @@ export function testModelConnection(endpoint: string, apiKey: string, model: str
   }, 30000)
 }
 
-export function getVolumes(projectId: string) {
-  return apiGet<any[]>(`/api/v2/pipeline/${projectId}/data/volumes`)
+// ========== 生成模板库（全模块模板复用） ==========
+
+export interface GenerationTemplate {
+  id: number
+  name: string
+  module_key: string
+  genre: string
+  sub_genre: string
+  tone: string
+  world_type: string
+  target_audience: string
+  source_project_id: string
+  input_fingerprint: string
+  output_data: any
+  input_context: any
+  entity_refs: any
+  compatibility_group: string
+  usage_count: number
+  quality_rating: number
+  is_public: number
+  created_at: string
+  updated_at: string
 }
+
+export function listGenerationTemplates(params: {
+  module_key?: string
+  genre?: string
+  world_type?: string
+  compatibility_group?: string
+  limit?: number
+  offset?: number
+} = {}) {
+  return apiGet<{ templates: GenerationTemplate[]; total: number }>('/api/v2/generation-templates/', params as any)
+}
+
+export function getGenerationTemplate(id: number) {
+  return apiGet<{ template: GenerationTemplate }>(`/api/v2/generation-templates/${id}`)
+}
+
+export function createGenerationTemplate(data: {
+  name: string
+  module_key: string
+  output_data: any
+  input_context?: any
+  entity_refs?: any
+  compatibility_group?: string
+  source_project_id?: string
+  genre?: string
+  sub_genre?: string
+  tone?: string
+  world_type?: string
+  target_audience?: string
+  is_public?: boolean
+}) {
+  return apiPost<{ ok: boolean; template: GenerationTemplate }>('/api/v2/generation-templates/', data)
+}
+
+export function updateGenerationTemplate(id: number, data: Partial<{
+  name: string
+  genre: string
+  sub_genre: string
+  tone: string
+  world_type: string
+  target_audience: string
+  quality_rating: number
+  is_public: boolean
+}>) {
+  return apiPut<{ ok: boolean; template: GenerationTemplate }>(`/api/v2/generation-templates/${id}`, data)
+}
+
+export function deleteGenerationTemplate(id: number) {
+  return apiDelete<{ ok: boolean }>(`/api/v2/generation-templates/${id}`)
+}
+
+export function matchGenerationTemplates(data: {
+  module_key: string
+  project_context: Record<string, string>
+  selected_templates: Record<string, string>
+}) {
+  return apiPost<{
+    compatible: { template: GenerationTemplate; score: number; is_compatible: boolean; reason?: string }[]
+    incompatible: { template: GenerationTemplate; score: number; is_compatible: boolean; reason?: string }[]
+    total_candidates: number
+  }>('/api/v2/generation-templates/match', data)
+}
+
+export function applyGenerationTemplate(templateId: number, projectId: string) {
+  return apiPost<{
+    success: boolean
+    module: string
+    data: any
+    applied_as: string
+  }>(`/api/v2/generation-templates/${templateId}/apply`, { project_id: projectId })
+}
+
+export function rateGenerationTemplate(id: number, rating: number) {
+  return apiPost<{ ok: boolean }>(`/api/v2/generation-templates/${id}/rate`, { rating })
+}
+
+export function autoSaveGenerationTemplate(data: {
+  project_id: string
+  module_key: string
+  module_data: any
+  input_context?: any
+  compatibility_group?: string
+}) {
+  return apiPost<{ ok: boolean; template_id?: number; auto_saved: boolean }>(
+    '/api/v2/generation-templates/auto-save', data
+  )
+}
+
+

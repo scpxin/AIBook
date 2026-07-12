@@ -1,8 +1,12 @@
 <template>
-  <div class="idea-view">
+  <div v-if="pageLoading" class="page-loading">
+    <div class="loading-spinner"></div>
+    <p>加载灵感模块...</p>
+  </div>
+  <div v-else class="idea-view">
     <div class="section input-section">
       <h3>灵感输入</h3>
-      <textarea v-model="form.prompt" placeholder="用一句话描述你的故事创意..." class="idea-textarea" />
+      <textarea v-model="form.prompt" placeholder="用一句话描述你的故事创意，例如：一个废柴少年意外获得上古传承，踏上逆天之路..." class="idea-textarea" maxlength="2000" />
       <div class="form-row">
         <select v-model="form.genre" class="form-select">
           <option value="">选择类型倾向</option>
@@ -13,17 +17,30 @@
           <span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : '生成创意' }}
         </button>
         <button @click="manualConfirm" :disabled="!form.prompt" class="btn-manual">直接使用</button>
+        <button class="btn-save-tpl" :disabled="form.prompt.trim().length < 5" @click="showSaveDialog = true" aria-label="存为模板"><span aria-hidden="true">💾</span> 存为模板</button>
+        <button v-if="!showTemplatePanel" class="btn-manage" @click="showTemplatePanel = true" aria-label="展开模板面板"><span aria-hidden="true">▲</span> 展开模板</button>
       </div>
     </div>
 
-    <div v-if="!form.prompt.trim()" class="section quick-section">
-      <h3>快速开始</h3>
+    <div v-if="showTemplatePanel" class="section quick-section">
+      <div class="quick-header">
+        <h3>快速开始</h3>
+        <div class="quick-header-actions">
+          <button class="btn-manage" @click="showTemplatePanel = false" aria-label="收起模板面板"><span aria-hidden="true">▼</span> 收起</button>
+          <button class="btn-manage" @click="showManage = true" aria-label="模板管理"><span aria-hidden="true">📋</span> 模板管理</button>
+        </div>
+      </div>
       <p class="tip">不想等待AI生成？选择一个模板或手动输入你的故事创意</p>
+      <div class="genre-filter-bar">
+        <button class="genre-chip" :class="{ active: genreFilter === null }" @click="genreFilter = null">全部</button>
+        <button v-for="g in availableGenres" :key="g" class="genre-chip" :class="{ active: genreFilter === g }" @click="genreFilter = g">{{ g }}</button>
+      </div>
+      <div v-if="!filteredTemplates.length && genreFilter" class="empty-category">该分类下暂无模板</div>
       <div class="quick-grid">
-        <div v-for="tpl in quickTemplates" :key="tpl.label" class="quick-card" @click="form.prompt = tpl.prompt; form.genre = tpl.genre">
+        <div v-for="tpl in filteredTemplates" :key="tpl.id" class="quick-card" tabindex="0" @click="useTemplate(tpl)" @keydown.enter="useTemplate(tpl)">
           <div class="quick-icon">{{ tpl.icon }}</div>
-          <div class="quick-label">{{ tpl.label }}</div>
-          <div class="quick-desc">{{ tpl.desc }}</div>
+          <div class="quick-label">{{ tpl.name }}</div>
+          <div class="quick-desc">{{ tpl.prompt.slice(0, 40) }}...</div>
         </div>
       </div>
     </div>
@@ -35,9 +52,12 @@
     </div>
 
     <div v-if="candidates.length" class="section candidates-section">
-      <h3>候选创意</h3>
-      <div class="candidate-grid">
-        <div v-for="(c, idx) in candidates" :key="idx" class="candidate-card" :class="{ selected: selectedIdx === idx }" @click="selectedIdx = idx">
+      <h3 @click="candidatesCollapsed = !candidatesCollapsed" style="cursor:pointer;user-select:none">
+        <span class="collapse-icon">{{ candidatesCollapsed ? '▶' : '▼' }}</span>
+        候选创意 ({{ candidates.length }})
+      </h3>
+      <div v-show="!candidatesCollapsed" class="candidate-grid">
+        <div v-for="(c, idx) in candidates" :key="idx" class="candidate-card" :class="{ selected: selectedIdx === idx }" tabindex="0" @click="selectedIdx = idx" @keydown.enter="selectedIdx = idx">
           <div class="candidate-title">{{ c.title }}</div>
           <div class="candidate-meta">
             <span class="score">评分: {{ c.score }}</span>
@@ -64,7 +84,12 @@
       </div>
     </div>
 
-    <div v-if="selectedIdx !== null && riskAnalysis" class="section risk-section">
+    <div v-if="selectedIdx !== null && riskAnalysisLoading" class="section risk-section">
+      <h3>风险分析</h3>
+      <p class="risk-loading">正在分析...</p>
+    </div>
+
+    <div v-if="selectedIdx !== null && !riskAnalysisLoading && riskAnalysis" class="section risk-section">
       <h3>风险分析</h3>
       <div class="risk-list">
         <div v-for="(r, idx) in riskAnalysis.risks" :key="idx" class="risk-item">
@@ -75,18 +100,53 @@
       <div class="risk-mitigations">
         <div v-for="(m, idx) in riskAnalysis.mitigations" :key="idx" class="mitigation-item">{{ m }}</div>
       </div>
-      <button @click="confirm" class="btn-confirm">确认创意,进入下一步</button>
+    </div>
+
+    <div v-if="selectedIdx !== null && !riskAnalysisLoading && !riskAnalysis" class="section risk-section">
+      <p class="risk-notice">风险分析暂不可用,您仍可继续</p>
+    </div>
+
+    <div v-if="selectedIdx !== null" class="section confirm-section">
+      <button @click="confirmAndStay" class="btn-confirm btn-confirm-stay" :disabled="confirming || selectedIdx === null">确认创意</button>
+      <button @click="confirm" class="btn-confirm btn-confirm-next" :disabled="confirming || selectedIdx === null">确认并进入下一步 →</button>
     </div>
 
     <div v-if="error" class="error-msg">{{ error }}</div>
+
+    <TemplateDialog
+      v-if="showSaveDialog"
+      :project-id="projectId"
+      :preset-name="form.reference || ''"
+      :preset-genre="form.genre"
+      :preset-prompt="form.prompt"
+      :preset-reference="form.reference"
+      @close="showSaveDialog = false"
+      @saved="onTemplateSaved"
+    />
+    <TemplateManagePanel
+      v-if="showManage"
+      :project-id="projectId"
+      @close="showManage = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted, nextTick, computed } from 'vue'
 import { useIdeaStore } from '../stores/idea'
 import * as v2Api from '../api/v2'
+import { getTemplates } from '../api/v2'
 import { useGeneration } from '../composables/useGeneration'
+import { setupConfirm } from '../composables/useConfirm'
+import { setupErrorBar } from '../composables/useErrorBar'
+import { useToastStore } from '../stores/toast'
+import TemplateDialog from '../components/TemplateDialog.vue'
+import TemplateManagePanel from '../components/TemplateManagePanel.vue'
+import type { IdeaTemplate } from '../types/v2'
+
+const confirmDialog = setupConfirm()
+const errorBar = setupErrorBar()
+const toast = useToastStore()
 
 const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: any] }>()
@@ -101,17 +161,38 @@ const candidates = ref<any[]>([])
 const selectedIdx = ref<number | null>(null)
 const upgrades = ref<any[]>([])
 const riskAnalysis = ref<any>(null)
+const riskAnalysisLoading = ref(false)
 const error = ref('')
 
-const quickTemplates = [
-  { icon: '🗡', label: '玄幻修仙', genre: '玄幻', desc: '逆天改命，凡人修仙', prompt: '一个被宗门抛弃的废柴少年，意外获得神秘传承，从此踏上逆天改命的修仙之路。' },
-  { icon: '🏙', label: '都市异能', genre: '都市', desc: '现代都市，隐藏力量', prompt: '一个普通上班族某天突然觉醒了特殊能力，发现自己卷入了一场隐藏在都市暗处的超能战争。' },
-  { icon: '🚀', label: '科幻星际', genre: '科幻', desc: '星际穿越，未来科技', prompt: '在人类星际殖民的黄金时代，一艘探索飞船在宇宙边缘发现了一个改变人类命运的古老秘密。' },
-  { icon: '💕', label: '言情虐恋', genre: '言情', desc: '爱恨纠葛，虐恋情深', prompt: '高冷霸总与倔强灰姑娘之间一段充满误会与反转的虐恋故事，从互相伤害到彼此救赎。' },
-]
+const confirming = ref(false)
+const showSaveDialog = ref(false)
+const showManage = ref(false)
+const showTemplatePanel = ref(true)
+const selectingIdx = ref<number | null>(null)
+const templates = ref<IdeaTemplate[]>([])
+const genreFilter = ref<string | null>(null)
+
+const availableGenres = computed(() => {
+  const set = new Set(templates.value.map(t => t.genre))
+  return Array.from(set).sort()
+})
+const filteredTemplates = computed(() => {
+  if (!genreFilter.value) return templates.value
+  return templates.value.filter(t => t.genre === genreFilter.value)
+})
 
 async function manualConfirm() {
   if (!form.prompt.trim()) return
+  if (form.prompt.trim().length < 5) {
+    errorBar.show('请输入至少5个字的创意描述')
+    return
+  }
+  const ok = await confirmDialog.confirm({
+    message: '确定直接使用当前创意进入下一步？',
+    detail: '跳过AI生成直接使用手动输入的创意',
+    type: 'warning',
+  })
+  if (!ok) return
   const manualIdea = {
     title: form.prompt.slice(0, 30),
     description: form.prompt,
@@ -131,11 +212,17 @@ async function manualConfirm() {
     riskAnalysis: null,
     confirmedCandidate: manualIdea,
   }
-  try { await v2Api.saveModuleData(props.projectId, 'idea', fullState) } catch (_e) { /* ignore */ }
+  try { await v2Api.saveModuleData(props.projectId, 'idea', fullState) } catch (_e) {
+    toast.error('保存灵感数据失败，请手动备份')
+  }
   emit('complete', fullState)
 }
 
 async function generate() {
+  if (form.prompt.trim().length < 5) {
+    errorBar.show('请输入至少5个字的创意描述')
+    return
+  }
   generating.value = true
   error.value = ''
   gen.begin()
@@ -145,9 +232,10 @@ async function generate() {
     selectedIdx.value = null
     upgrades.value = []
     riskAnalysis.value = null
+    riskAnalysisLoading.value = false
   } catch (e: any) {
-    error.value = e?.message || '生成失败'
-    gen.fail(error.value)
+    errorBar.showError(e, () => generate())
+    gen.fail(e?.message || '生成失败')
   } finally {
     generating.value = false
     if (!error.value) gen.end()
@@ -156,43 +244,164 @@ async function generate() {
 
 async function onSelectCandidate(idx: number) {
   selectedIdx.value = idx
+  selectingIdx.value = idx
   try {
     const candidate = candidates.value[idx]
     await ideaStore.upgradeIdea(candidate)
     upgrades.value = ideaStore.upgradeVersions as any[] || []
-    riskAnalysis.value = await v2Api.analyzeIdeaRisks(props.projectId, candidate.title || candidate.description || '')
+    riskAnalysisLoading.value = true
+    try {
+      riskAnalysis.value = await v2Api.analyzeIdeaRisks(props.projectId, candidate.title || candidate.description || '')
+    } catch (_e) {
+      riskAnalysis.value = null
+    } finally {
+      riskAnalysisLoading.value = false
+    }
   } catch (e: any) {
     error.value = e?.message || '升级失败'
+  } finally {
+    selectingIdx.value = null
+  }
+}
+
+async function confirmAndStay() {
+  if (confirming.value) return
+  if (selectedIdx.value === null) return
+  const candidate = candidates.value[selectedIdx.value]
+  if (!candidate) {
+    errorBar.show('候选创意数据异常，请重新生成')
+    return
+  }
+  confirming.value = true
+  try {
+    await v2Api.confirmIdea(props.projectId, candidate.id, candidate.version)
+    const fullState = {
+      prompt: form.prompt,
+      genre: form.genre,
+      reference: form.reference,
+      candidates: candidates.value,
+      selectedIdx: selectedIdx.value,
+      upgrades: upgrades.value,
+      riskAnalysis: riskAnalysis.value,
+      confirmedCandidate: candidate,
+    }
+    try {
+      await v2Api.saveModuleData(props.projectId, 'idea', fullState)
+      toast.success('创意已确认并保存')
+    } catch (_e) {
+      toast.error('保存灵感数据失败，请重试')
+      return
+    }
+  } catch (e: any) {
+    errorBar.showError(e, () => confirmAndStay())
+  } finally {
+    confirming.value = false
   }
 }
 
 async function confirm() {
+  if (confirming.value) return
   if (selectedIdx.value === null) return
   const candidate = candidates.value[selectedIdx.value]
-  await v2Api.confirmIdea(props.projectId, candidate.id, candidate.version)
-  const fullState = {
-    prompt: form.prompt,
-    genre: form.genre,
-    reference: form.reference,
-    candidates: candidates.value,
-    selectedIdx: selectedIdx.value,
-    upgrades: upgrades.value,
-    riskAnalysis: riskAnalysis.value,
-    confirmedCandidate: candidate,
+  if (!candidate) {
+    errorBar.show('候选创意数据异常，请重新生成')
+    return
   }
-  try { await v2Api.saveModuleData(props.projectId, 'idea', fullState) } catch (_e) { /* ignore */ }
-  emit('complete', fullState)
+  confirming.value = true
+  try {
+    await v2Api.confirmIdea(props.projectId, candidate.id, candidate.version)
+    const fullState = {
+      prompt: form.prompt,
+      genre: form.genre,
+      reference: form.reference,
+      candidates: candidates.value,
+      selectedIdx: selectedIdx.value,
+      upgrades: upgrades.value,
+      riskAnalysis: riskAnalysis.value,
+      confirmedCandidate: candidate,
+    }
+    try {
+      await v2Api.saveModuleData(props.projectId, 'idea', fullState)
+    } catch (_e) {
+      toast.error('保存灵感数据失败，请重试')
+      return
+    }
+    emit('complete', fullState)
+  } catch (e: any) {
+    errorBar.showError(e, () => confirm())
+  } finally {
+    confirming.value = false
+  }
 }
 
-watch(selectedIdx, (val) => {
-  if (val !== null) onSelectCandidate(val)
+async function loadTemplates() {
+  try {
+    const res = await getTemplates(props.projectId)
+    templates.value = res.templates
+  } catch (_e) {
+    console.error('[IdeaView] loadTemplates failed:', _e)
+    toast.error('加载模板列表失败，请检查网络')
+  }
+}
+
+function onTemplateSaved(saved: IdeaTemplate) {
+  templates.value = templates.value.filter(t => t.id !== saved.id)
+  templates.value.unshift(saved)
+}
+
+async function useTemplate(tpl: IdeaTemplate) {
+   form.prompt = tpl.prompt
+   form.genre = tpl.genre
+   form.reference = tpl.reference
+   await nextTick()
+   // 模板直接应用，不触发AI生成
+   const templateIdea = {
+     title: tpl.prompt.slice(0, 30),
+     description: tpl.prompt,
+     genre: tpl.genre || '自定义',
+     score: 85,
+     tags: [tpl.genre || '自定义'],
+     isTemplate: true,
+     templateId: tpl.id,
+   }
+   const fullState = {
+     prompt: form.prompt,
+     genre: form.genre,
+     reference: form.reference,
+     candidates: [templateIdea],
+     selectedIdx: 0,
+     upgrades: [],
+     riskAnalysis: null,
+     confirmedCandidate: templateIdea,
+   }
+   try { await v2Api.saveModuleData(props.projectId, 'idea', fullState) } catch (_e) {
+     toast.error('保存灵感数据失败，请手动备份')
+   }
+   emit('complete', fullState)
+ }
+
+const skipWatch = ref(false)
+const candidatesCollapsed = ref(false)
+let candidateDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(form.prompt, (val) => {
+  showTemplatePanel.value = val.trim().length < 2
 })
+
+watch(selectedIdx, (val) => {
+  if (skipWatch.value || val === null) return
+  if (candidateDebounceTimer) clearTimeout(candidateDebounceTimer)
+  candidateDebounceTimer = setTimeout(() => onSelectCandidate(val), 250)
+})
+
+const pageLoading = ref(true)
 
 onMounted(async () => {
   try {
     const saved = await v2Api.getModuleData(props.projectId, 'idea')
-    if (saved?.data && (saved.data.candidates || saved.data.confirmedCandidate || saved.data.prompt)) {
+    if (saved?.data && Object.keys(saved.data).length > 0) {
       const d = saved.data
+      skipWatch.value = true
       if (d.candidates) {
         candidates.value = d.candidates
         selectedIdx.value = d.selectedIdx ?? null
@@ -201,12 +410,32 @@ onMounted(async () => {
       } else if (d.confirmedCandidate) {
         candidates.value = [d.confirmedCandidate]
         selectedIdx.value = 0
+      } else if (d.title || d.prompt || d.genre) {
+        candidates.value = [{
+          title: d.title || d.prompt || '',
+          genre: d.genre || d.genreHint || '',
+          target_audience: d.target_audience || '',
+          writing_style: d.writing_style || '',
+          tone: d.tone || d.style || '',
+          summary: d.summary || '',
+          isManual: true,
+        }]
+        selectedIdx.value = 0
+      }
+      await nextTick()
+      skipWatch.value = false
+      if (selectedIdx.value !== null) {
+        await onSelectCandidate(selectedIdx.value)
       }
       if (d.prompt || d.title) form.prompt = d.prompt || d.title || ''
       if (d.genre) form.genre = d.genre || ''
       if (d.reference) form.reference = d.reference || ''
     }
-  } catch (_e) { /* ignore */ }
+  } catch (_e) {
+    console.error('[IdeaView] restore saved data failed:', _e)
+  }
+  finally { pageLoading.value = false }
+  loadTemplates()
 })
 </script>
 
@@ -255,6 +484,23 @@ onMounted(async () => {
 .risk-text { color: #555; }
 .risk-mitigations { margin-top: 16px; }
 .mitigation-item { font-size: 16px; color: #666; padding: 4px 0; }
+.risk-loading { color: #888; font-size: 16px; }
 .btn-confirm { margin-top: 21px; width: 100%; padding: 13px; background: #52c41a; color: #fff; border: none; border-radius: 8px; font-size: 20px; cursor: pointer; }
+.btn-confirm-stay { background: #1890ff; margin-bottom: 8px; }
+.btn-confirm-stay:hover { background: #40a9ff; }
+.btn-confirm-next { background: #52c41a; font-size: 16px; padding: 10px; }
+.quick-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.quick-header h3 { margin: 0; }
+.btn-manage { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer; font-size: 14px; }
+.btn-manage:hover { background: #f5f5f5; }
+.genre-filter-bar { display: flex; gap: 6px; margin: 10px 0; flex-wrap: wrap; }
+.genre-chip { padding: 4px 10px; border-radius: 14px; border: 1px solid #ddd; background: #fff; cursor: pointer; font-size: 13px; }
+.genre-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-save-tpl { padding: 10px 16px; background: #faad14; color: #fff; border: none; border-radius: 5px; cursor: pointer; white-space: nowrap; font-size: 16px; }
+.btn-save-tpl:disabled { opacity: 0.5; cursor: not-allowed; }
 .error-msg { color: #ff4d4f; padding: 16px; text-align: center; }
+.collapse-icon { display: inline-block; width: 12px; font-size: 12px; margin-right: 4px; transition: transform 0.2s; }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; color: #666; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

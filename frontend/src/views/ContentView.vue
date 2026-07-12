@@ -1,5 +1,9 @@
 <template>
-  <div class="content-view">
+  <div v-if="pageLoading" class="page-loading">
+    <div class="loading-spinner"></div>
+    <p>加载中...</p>
+  </div>
+  <div v-else class="content-view">
     <div class="section">
       <h3>{{ title }}</h3>
       <p class="tip">{{ desc }}</p>
@@ -7,8 +11,11 @@
       <div class="form-group">
         <label>选择章节</label>
         <select v-model="form.chapterNo" class="form-select">
-          <option v-for="i in 10" :key="i" :value="i">第 {{ i }} 章</option>
+          <option v-for="ch in chapterOptions" :key="ch.value" :value="ch.value">{{ ch.label }}</option>
         </select>
+        <div v-if="!chapterOptions.length" class="empty-chapters-hint">
+          暂无可用章节，请先在章节规划模块中生成章节
+        </div>
       </div>
 
       <div class="form-group">
@@ -57,16 +64,20 @@
           <li v-for="(item, i) in knowledgeAdded" :key="i">{{ item }}</li>
         </ul>
       </div>
-      <button @click="$emit('complete', resultData)" class="btn btn-primary btn-complete">确认并通过</button>
+      <button @click="handleComplete" class="btn btn-primary btn-complete">确认并通过</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
 import * as v2Api from '../api/v2'
 import { useGeneration } from '../composables/useGeneration'
+import { useToastStore } from '../stores/toast'
 import TreeNode from '../components/TreeNode.vue'
+import { setupErrorBar } from '../composables/useErrorBar'
+import { useChapters } from '../composables/useChapters'
+import { useAutoSave } from '../composables/useAutoSave'
 
 const props = defineProps<{
   projectId: string
@@ -86,6 +97,9 @@ const moduleLabel = computed(() => {
   return map[props.moduleType] || '内容处理'
 })
 const gen = useGeneration(props.moduleType, moduleLabel.value)
+const errorBar = setupErrorBar()
+const toast = useToastStore()
+const pageLoading = ref(true)
 
 const form = reactive({ chapterNo: 1, content: '' })
 const loading = ref(false)
@@ -93,6 +107,25 @@ const error = ref('')
 const result = ref<any>(null)
 const polishedContent = ref('')
 const knowledgeAdded = ref<string[]>([])
+const chapterOptions = ref<Array<{ value: number | string; label: string }>>([])
+const { fetchChapters } = useChapters(props.projectId)
+
+const contentData = () => ({
+  chapterNo: form.chapterNo,
+  content: form.content,
+  result: result.value,
+})
+const { scheduleSave } = useAutoSave({
+  dataRef: contentData,
+  saveFn: async (data) => {
+    try { await v2Api.saveModuleData(props.projectId, props.moduleType, data) } catch (_e) { /* silent */ }
+  },
+  debounce: 1500,
+  storageKey: `content_${props.moduleType}_${props.projectId}`,
+  projectId: props.projectId,
+  moduleName: props.moduleType,
+})
+watch([form, result], () => { scheduleSave() }, { deep: true })
 
 const contentLabel = computed(() => {
   const map: Record<string, string> = {
@@ -137,7 +170,19 @@ const resultData = computed(() => ({
   knowledgeAdded: knowledgeAdded.value,
 }))
 
+async function handleComplete() {
+  emit('complete', resultData.value)
+}
+
 async function runModule() {
+  if (!form.content.trim()) {
+    toast.error('请先输入正文内容')
+    return
+  }
+  if (!chapterOptions.value.length) {
+    toast.error('暂无可用章节数据')
+    return
+  }
   loading.value = true
   gen.begin()
   error.value = ''
@@ -155,6 +200,7 @@ async function runModule() {
         const res = await v2Api.polishContent(pid, content, '整体优化')
         result.value = res
         polishedContent.value = (res as any).polished_content || (res as any).polishedContent || content
+        toast.success('润色完成')
         break
       }
       case 'content_parsing': {
@@ -165,6 +211,7 @@ async function runModule() {
         ].filter(Boolean) : undefined)
         const res = await v2Api.parseContent(pid, chapterNo, content, characters)
         result.value = res
+        toast.success('内容解析完成')
         break
       }
       case 'knowledge_update': {
@@ -172,6 +219,7 @@ async function runModule() {
         const res = await v2Api.updateKnowledge(pid, chapterNo, parseRes)
         result.value = { updated: (res as any).updated, count: (res as any).count || 0 }
         knowledgeAdded.value = (res as any).added || []
+        toast.success(`知识库更新完成，新增 ${knowledgeAdded.value.length} 条`)
         break
       }
       case 'consistency_check': {
@@ -188,13 +236,17 @@ async function runModule() {
         const powerSystem = modules['power_system'] || undefined
         const res = await v2Api.checkConsistency(pid, chapterNo, content, knowledgeState, characters, worldData, powerSystem)
         result.value = res
+        toast.success('一致性检查完成')
         break
       }
-      default:
-        result.value = `已保存${props.moduleType}数据`
+      default: {
+        const msg = `未知模块类型: ${props.moduleType}`
+        error.value = msg
+        throw new Error(msg)
+      }
     }
   } catch (e: any) {
-    error.value = e.message || 'AI生成器未配置或处理失败'
+    errorBar.showError(e, () => runModule())
     result.value = null
   } finally {
     loading.value = false
@@ -205,30 +257,41 @@ async function runModule() {
 
 onMounted(async () => {
   try {
-    const saved = await v2Api.getModuleData(props.projectId, props.moduleType)
-    if (saved?.data && (saved.data.chapterNo || saved.data.content || saved.data.result)) {
-      const d = saved.data
-      if (d.chapterNo) form.chapterNo = d.chapterNo
-      if (d.content) form.content = d.content
-      if (d.result) result.value = d.result
-      if (d.polishedContent) polishedContent.value = d.polishedContent
-      return
-    }
-  } catch (_e) { /* ignore */ }
-  try {
-    const allData = await v2Api.getAllModuleData(props.projectId)
-    const drafts = allData?.modules?.['draft_generation']
-    const draftArr = Array.isArray(drafts) ? drafts : []
-    const firstDraft = draftArr.find((d: any) => String(d.chapter_no) === String(form.chapterNo)) || draftArr[0]
-    if (firstDraft) {
-      if (firstDraft.content_raw && !form.content) {
-        form.content = firstDraft.content_raw
+    try {
+      chapterOptions.value = await fetchChapters()
+      if (chapterOptions.value.length > 0) {
+        const exists = chapterOptions.value.find(c => String(c.value) === String(form.chapterNo))
+        if (!exists) form.chapterNo = chapterOptions.value[0].value
       }
-      if (firstDraft.chapter_no && !form.chapterNo) {
-        form.chapterNo = firstDraft.chapter_no
+    } catch (_e) { /* ignore */ }
+    try {
+      const saved = await v2Api.getModuleData(props.projectId, props.moduleType)
+      if (saved?.data && Object.keys(saved.data).length > 0) {
+        const d = saved.data
+        if (d.chapterNo) form.chapterNo = d.chapterNo
+        if (d.content) form.content = d.content
+        if (d.result) result.value = d.result
+        if (d.polishedContent) polishedContent.value = d.polishedContent
+        return
       }
-    }
-  } catch (_e) { /* ignore */ }
+    } catch (_e) { /* ignore */ }
+    try {
+      const allData = await v2Api.getAllModuleData(props.projectId)
+      const drafts = allData?.modules?.['draft_generation']
+      const draftArr = Array.isArray(drafts) ? drafts : []
+      const firstDraft = draftArr.find((d: any) => String(d.chapter_no) === String(form.chapterNo)) || draftArr[0]
+      if (firstDraft) {
+        if (firstDraft.content_raw && !form.content) {
+          form.content = firstDraft.content_raw
+        }
+        if (firstDraft.chapter_no && !form.chapterNo) {
+          form.chapterNo = firstDraft.chapter_no
+        }
+      }
+    } catch (_e) { /* ignore */ }
+  } finally {
+    pageLoading.value = false
+  }
 })
 </script>
 
@@ -241,6 +304,7 @@ onMounted(async () => {
 .form-group { margin-bottom: 18px; }
 .form-group label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 16px; color: #555; }
 .form-select, .form-textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; resize: vertical; font-family: inherit; }
+.empty-chapters-hint { color: #f57c00; font-size: 13px; margin-top: 6px; }
 .form-textarea { min-height: 200px; }
 .action-row { display: flex; gap: 12px; margin-top: 20px; }
 .btn { border: none; border-radius: 10px; padding: 12px 24px; font-size: 16px; font-weight: 600; cursor: pointer; }
@@ -268,5 +332,8 @@ onMounted(async () => {
 .result-key { font-weight: 600; color: var(--primary); }
 .polished-output { margin-top: 16px; background: #f0fff4; border: 1px solid #c6f6d5; border-radius: 10px; padding: 20px; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

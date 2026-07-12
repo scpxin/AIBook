@@ -1,5 +1,10 @@
 <template>
   <div class="power-system-view">
+    <div v-if="pageLoading" class="page-loading">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+    <div v-else>
     <div class="section">
       <h3>力量体系设计</h3>
       <p class="tip">设计修炼等级、战斗方式、能力限制等核心设定</p>
@@ -38,10 +43,10 @@
       </div>
 
       <div class="action-row">
-        <button @click="generate" :disabled="loading" class="btn btn-primary">
-          <span v-if="loading" class="spinner"></span>{{ loading ? '生成中...' : 'AI生成力量体系' }}
-        </button>
-        <button @click="$emit('complete', resultData)" class="btn btn-ghost">跳过</button>
+         <button @click="proceed" :disabled="loading" class="btn btn-primary">
+           <span v-if="loading" class="spinner"></span>{{ loading ? '生成中...' : 'AI生成力量体系' }}
+         </button>
+         <button @click="$emit('skip', null)" class="btn btn-ghost">跳过</button>
       </div>
 
       <div v-if="error" class="error-box">
@@ -52,26 +57,39 @@
 
     <div v-if="resultLevels.length" class="section">
       <h3>生成结果</h3>
-      <div v-for="(level, idx) in resultLevels" :key="idx" class="level-card">
-        <div class="level-name">{{ level.name || level.title }}</div>
-        <div class="level-desc">{{ level.desc || level.description }}</div>
+      <div v-for="(level, idx) in resultLevels" :key="idx" class="level-card" tabindex="0">
+        <div class="level-header">
+          <span class="level-index">L{{ idx + 1 }}</span>
+          <span class="level-name">{{ level.name || level.title || '未命名' }}</span>
+          <span v-if="level.threshold" class="level-threshold">{{ level.threshold }}</span>
+        </div>
+        <div class="level-desc">{{ level.desc || level.description || level.power_description || '' }}</div>
+        <div v-if="level.lifespan" class="level-meta">寿元: {{ level.lifespan }}</div>
         <div v-if="level.abilities" class="level-abilities">
           <span v-for="ab in (Array.isArray(level.abilities) ? level.abilities : [level.abilities])" :key="ab" class="ability-tag">{{ ab }}</span>
         </div>
       </div>
-      <button @click="$emit('complete', resultData)" class="btn btn-primary btn-complete">确认并通过</button>
+      <button @click="proceed" class="btn btn-primary btn-complete">确认并通过</button>
+    </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import * as v2Api from '../api/v2'
 import { useGeneration } from '../composables/useGeneration'
+import { setupConfirm } from '../composables/useConfirm'
+import { setupErrorBar } from '../composables/useErrorBar'
+import { useAutoSave } from '../composables/useAutoSave'
+import { useToastStore } from '../stores/toast'
 
 const props = defineProps<{ projectId: string }>()
-const emit = defineEmits<{ complete: [data: any] }>()
+const emit = defineEmits<{ complete: [data: any]; skip: [data: any] }>()
 const gen = useGeneration('power_system', '力量体系')
+const confirm = setupConfirm()
+const errorBar = setupErrorBar()
+const pageLoading = ref(true)
 
 const form = reactive({
   systemType: 'cultivation',
@@ -115,10 +133,27 @@ onMounted(async () => {
         }
       }
     }
-  } catch (_e) { /* ignore */ }
+  } catch (_e) { /* ignore */ } finally { pageLoading.value = false }
 })
 
-async function generate() {
+const toast = useToastStore()
+const powerData = () => ({ ...form })
+const { saveState, scheduleSave } = useAutoSave({
+  dataRef: powerData,
+  saveFn: async (data) => {
+    await v2Api.saveModuleData(props.projectId, 'power_system', data)
+  },
+  debounce: 2000,
+  storageKey: `power_${props.projectId}`,
+  onSaveError: () => toast.error('力量体系自动保存失败，已存至本地备份'),
+  projectId: props.projectId,
+  moduleName: 'power_system',
+})
+watch(form, () => {
+  scheduleSave()
+}, { deep: true })
+
+async function proceed() {
   loading.value = true
   gen.begin()
   error.value = ''
@@ -140,7 +175,7 @@ async function generate() {
     }
     try { await v2Api.saveModuleData(props.projectId, 'power_system', resultData.value) } catch (_e) { /* ignore */ }
   } catch (e: any) {
-    error.value = e.message || 'AI生成器未配置或生成失败'
+     errorBar.showError(e, () => proceed())
     useOfflineMode()
   } finally {
     loading.value = false
@@ -199,4 +234,6 @@ function useOfflineMode() {
 .ability-tag { font-size: 12px; padding: 2px 8px; background: #e8f4fd; color: var(--primary); border-radius: 4px; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
 </style>

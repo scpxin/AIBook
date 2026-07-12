@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import type { Character, RelationMap, CharacterConsistencyCheck } from '../types/v2'
 import {
   generateProtagonist, generateSupporting, generateAntagonists,
-  generateRelations, checkCharacterConsistency,
+  generateRelations, checkCharacterConsistency, saveModuleData,
 } from '../api/v2'
 
 export const useCharacterStore = defineStore('character', () => {
@@ -21,7 +21,24 @@ export const useCharacterStore = defineStore('character', () => {
     error.value = ''
     projectId.value = pid
     try {
-      protagonist.value = await generateProtagonist(pid, worldRules, storyConcept)
+      const result = await generateProtagonist(pid, worldRules, storyConcept)
+      if (result && !result.name && result.basic_info) {
+        const bi = result.basic_info
+        protagonist.value = {
+          name: bi.name || '',
+          gender: bi.gender || '',
+          age: bi.age || '',
+          appearance: bi.appearance || '',
+          personality: Array.isArray(result.personality?.traits) ? result.personality.traits.join(',') : (result.personality?.traits || ''),
+          background: result.backstory?.origin || '',
+          goal: result.motivation?.outer_goal || '',
+          flaw: Array.isArray(result.personality?.flaws) ? result.personality.flaws.join(',') : (result.personality?.flaws || ''),
+          arc: result.character_arc?.final_state || '',
+          ...result,
+        }
+      } else {
+        protagonist.value = result
+      }
     } catch (e: any) {
       error.value = e.message
     } finally {
@@ -103,10 +120,17 @@ export const useCharacterStore = defineStore('character', () => {
     }
   }
 
-  function saveCharacters(_pid: string, data: any) {
+  async function saveCharacters(pid: string, data: any) {
     if (data.protagonist && protagonist.value) Object.assign(protagonist.value, data.protagonist)
     if (data.supporting) supporting.value = data.supporting
     if (data.villains) antagonists.value = data.villains
+    if (data.relations) relationMap.value = data.relations
+    await saveModuleData(pid, 'characters', {
+      protagonist: protagonist.value,
+      supporting: supporting.value,
+      villains: antagonists.value,
+      relations: relationMap.value,
+    })
   }
 
   return {

@@ -4,6 +4,7 @@ import type { WorldBuilding, WorldOrigin, WorldRule, WorldConsistencyCheck } fro
 import {
   generateWorldOrigin, generateWorldRules, generateWorldStructure,
   generateWorldCivilization, generateWorldHistory, checkWorldConsistency, saveWorld,
+  saveModuleData,
 } from '../api/v2'
 
 export const useWorldStore = defineStore('world', () => {
@@ -15,7 +16,6 @@ export const useWorldStore = defineStore('world', () => {
   const civilization = ref<any>({})
   const history = ref<any>({})
   const consistencyCheck = ref<WorldConsistencyCheck | null>(null)
-  const docPath = ref('')
   const loading = ref(false)
   const error = ref('')
 
@@ -98,36 +98,54 @@ export const useWorldStore = defineStore('world', () => {
   async function save(pid: string): Promise<any> {
     const worldData: WorldBuilding = {
       origin: origin.value, rules: rules.value, structure: structure.value,
-      civilization: civilization.value, history: history.value, docPath: docPath.value,
+      civilization: civilization.value, history: history.value,
     }
-    return saveWorld(pid, worldData)
+    await saveWorld(pid, worldData)
+    await saveModuleData(pid, 'world', { ...worldData })
+    return { saved: true }
   }
 
-  async function generateWorld(pid: string, origin: any, ideaText?: string, genre?: string, onProgress?: (step: number, msg: string) => void) {
+  async function generateWorld(pid: string, originInput: any, ideaText?: string, genre?: string, onProgress?: (step: number, msg: string) => void) {
     loading.value = true
     try {
-      const idea = ideaText || origin.originStory || ''
-      const gen = genre || origin.worldType || ''
+      const idea = ideaText || originInput.originStory || ''
+      const gen = genre || originInput.worldType || ''
       await generateOrigin(pid, idea, gen)
+      const freshOrigin = origin.value
       onProgress?.(1, '正在生成世界规则...')
-      await generateRules(pid, origin)
+      await generateRules(pid, freshOrigin)
       onProgress?.(2, '正在生成世界结构...')
-      await generateStructure(pid, origin)
+      await generateStructure(pid, freshOrigin)
+      const freshStructure = structure.value
       onProgress?.(3, '正在生成文明体系...')
-      await generateCivilization(pid, origin)
+      await generateCivilization(pid, freshStructure)
       onProgress?.(4, '正在生成历史时间线...')
-      await generateHistory(pid, origin, civilization.value)
+      await generateHistory(pid, freshStructure, civilization.value)
       onProgress?.(5, '世界观生成完成')
+      const normalizedRules = Array.isArray(rules.value) ? rules.value.reduce((acc: any, r: any, i: number) => {
+        const key = r.name === '力量体系' ? 'power' : r.name === '经济系统' ? 'economy' : r.name === '政治结构' ? 'politics' : r.name === '科技水平' ? 'technology' : r.name === '文化习俗' ? 'culture' : r.name === '禁忌规则' ? 'taboo' : `rule${i}`
+        acc[key] = r.description || ''
+        return acc
+      }, {}) : rules.value
+      const normalizedHistory = (() => {
+        let h = history.value
+        if (!Array.isArray(h)) {
+          if (h && h.history && Array.isArray(h.history)) h = h.history
+          else if (typeof h === 'object') h = Object.entries(h).map(([k, v]) => ({ era: k, description: String(v) }))
+          else h = []
+        }
+        return h
+      })()
       return {
-        origin: origin.value, rules: rules.value,
-        structure: structure.value, civilization: civilization.value, history: history.value,
+        origin: origin.value, rules: normalizedRules,
+        structure: structure.value, civilization: civilization.value, history: normalizedHistory,
       }
     } finally {
       loading.value = false
     }
   }
 
-  function saveWorld(pid: string, data: any): Promise<any> {
+  function updateLocalWorld(pid: string, data: any): Promise<any> {
     if (data.origin) Object.assign(origin.value, data.origin)
     if (data.rules) Object.assign(rules.value, data.rules)
     return save(pid)
@@ -135,8 +153,9 @@ export const useWorldStore = defineStore('world', () => {
 
   return {
     projectId, origin, rules, metaRule, structure, civilization, history,
-    consistencyCheck, docPath, loading, error,
+    consistencyCheck, loading, error,
     generateOrigin, generateRules, generateStructure, generateCivilization,
-    generateHistory, checkConsistency, save, generateWorld, saveWorld,
+    generateHistory, checkConsistency, save, generateWorld,
+    saveWorldToBackend: saveWorld, updateLocalWorld,
   }
 })

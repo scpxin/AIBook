@@ -1,11 +1,25 @@
 <template>
-  <div class="export-view">
+  <div v-if="pageLoading" class="page-loading">
+    <div class="loading-spinner"></div>
+    <p>加载中...</p>
+  </div>
+  <div v-else class="export-view">
     <div class="section">
       <h3>导出作品</h3>
       <p class="tip">将作品导出为 TXT 或 Markdown 格式</p>
 
-      <div v-if="!loaded" class="action-row">
+      <div v-if="loadError" class="error-state">
+        <p>{{ loadError }}</p>
+        <button @click="loadData" class="btn btn-primary">重试</button>
+      </div>
+
+      <div v-if="!loaded && !loadError" class="action-row">
         <button @click="loadData" class="btn btn-primary">加载作品数据</button>
+      </div>
+
+      <div v-else-if="loaded && !hasAnyData" class="empty-message">
+        <p>暂无作品数据，请先完成前面的创作模块</p>
+        <button @click="loadData" class="btn-secondary">重新加载</button>
       </div>
 
       <div v-else>
@@ -25,8 +39,11 @@
               <option value="draft">仅正文（有章节才导出）</option>
             </select>
           </div>
+          <div v-if="contentWarning" class="content-warning">{{ contentWarning }}</div>
           <div class="action-row">
-            <button @click="doExport" class="btn btn-primary">下载</button>
+            <button @click="doExport" class="btn btn-primary" :disabled="!hasAnyData || exportLoading">
+              {{ exportLoading ? '导出中...' : '下载' }}
+            </button>
             <button @click="preview = !preview" class="btn btn-ghost">{{ preview ? '隐藏预览' : '预览' }}</button>
           </div>
         </div>
@@ -50,10 +67,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import * as v2Api from '../api/v2'
+import { useToastStore } from '../stores/toast'
+import { setupErrorBar } from '../composables/useErrorBar'
 
 const props = defineProps<{ projectId: string }>()
 
+const toast = useToastStore()
+const errorBar = setupErrorBar()
+const pageLoading = ref(true)
+
 const loaded = ref(false)
+const loadError = ref('')
 const format = ref('md')
 const scope = ref('all')
 const preview = ref(false)
@@ -63,6 +87,13 @@ const volumes = ref<any[]>([])
 const chapterPlans = ref<any[]>([])
 const chapterOutlines = ref<any[]>([])
 const drafts = ref<any[]>([])
+
+const hasAnyData = computed(() =>
+  volumes.value.length > 0 ||
+  chapterPlans.value.length > 0 ||
+  chapterOutlines.value.length > 0 ||
+  drafts.value.some(d => !!(d.content || d.content_raw))
+)
 
 async function loadData() {
   try {
@@ -82,7 +113,10 @@ async function loadData() {
 
     loaded.value = true
   } catch (_e) {
+    errorBar.showError(_e)
     loaded.value = false
+  } finally {
+    pageLoading.value = false
   }
 }
 
@@ -162,21 +196,49 @@ function generateContent(): string {
   return lines.join('\n')
 }
 
-function doExport() {
-  const content = generateContent()
-  const ext = format.value
-  const mimeType = format.value === 'md' ? 'text/markdown' : 'text/plain'
-  const blob = new Blob([content], { type: mimeType + ';charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `novel_${props.projectId}.${ext}`
-  a.click()
-  URL.revokeObjectURL(url)
+const contentWarning = computed(() => {
+  if (scope.value === 'all' || scope.value === 'draft') {
+    if (drafts.value.length > 0 && !drafts.value.some(d => !!(d.content || d.content_raw))) {
+      return '草稿中包含空章节，导出文件可能不完整'
+    }
+  }
+  return ''
+})
+
+const exportLoading = ref(false)
+
+async function doExport() {
+  if (exportLoading.value) return
+  exportLoading.value = true
+  try {
+    const content = generateContent()
+    if (!content.trim()) {
+      toast.error('暂无可导出的内容')
+      return
+    }
+    const ext = format.value
+    const mimeType = format.value === 'md' ? 'text/markdown' : 'text/plain'
+    const blob = new Blob([content], { type: mimeType + ';charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `novel_${props.projectId}.${ext}`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success(`已导出为 novel_${props.projectId}.${ext}`)
+  } finally {
+    exportLoading.value = false
+  }
 }
 
-onMounted(() => {
-  if (props.projectId) loadData()
+onMounted(async () => {
+  try {
+    if (props.projectId) await loadData()
+  } catch (e: any) {
+    loadError.value = e?.message || '加载作品数据失败'
+  } finally {
+    pageLoading.value = false
+  }
 })
 </script>
 
@@ -192,9 +254,13 @@ onMounted(() => {
 .btn { border: none; border-radius: 8px; padding: 10px 20px; font-size: 15px; font-weight: 600; cursor: pointer; }
 .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
 .btn-ghost { background: #f0f0f0; color: #555; }
+.content-warning { color: #f57c00; background: #fff8e1; border-radius: 8px; padding: 10px 16px; margin-bottom: 12px; font-size: 14px; }
 .stats { display: flex; gap: 16px; margin: 16px 0; font-size: 13px; color: #888; }
 .stats span { background: #f8f9fa; padding: 6px 12px; border-radius: 6px; }
 .preview-box { margin-top: 20px; background: #f8f9fa; border-radius: 10px; padding: 20px; }
 .preview-box h4 { font-size: 15px; margin-bottom: 12px; color: #333; }
 .preview-box pre { white-space: pre-wrap; font-size: 13px; line-height: 1.6; max-height: 400px; overflow-y: auto; margin: 0; padding: 12px; background: #fff; border-radius: 8px; border: 1px solid #eee; }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

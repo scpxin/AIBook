@@ -1,9 +1,14 @@
 <template>
   <div class="project-view">
+    <div v-if="pageLoading" class="page-loading">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+    <div v-else>
     <div class="section">
       <h3>平台选择</h3>
       <div class="platform-grid">
-        <div v-for="p in platforms" :key="p.id" class="platform-card" :class="{ active: selectedPlatform === p.id }" @click="selectedPlatform = p.id">
+        <div v-for="p in platforms" :key="p.id" class="platform-card" :class="{ active: selectedPlatform === p.id }" tabindex="0" @click="selectedPlatform = p.id" @keydown.enter="selectedPlatform = p.id">
           <strong>{{ p.name }}</strong>
           <span>{{ p.desc }}</span>
         </div>
@@ -28,7 +33,7 @@
         </div>
         <div v-if="dimensions.length" class="dimension-list">
           <div v-for="dim in dimensions" :key="dim.key" class="dimension-item">
-            <div class="dim-header" @click="toggleDim(dim.key)">
+            <div class="dim-header" tabindex="0" @click="toggleDim(dim.key)" @keydown.enter="toggleDim(dim.key)">
               <span class="dim-name">{{ dim.name }}</span>
               <span class="dim-toggle">{{ expandedDims.includes(dim.key) ? '▼' : '▶' }}</span>
             </div>
@@ -51,20 +56,44 @@
       <div class="compat-results">
         <div v-for="r in compatResults" :key="r.name" class="compat-item">
           <span class="compat-name">{{ r.name }}</span>
-          <span class="compat-status" :class="r.passed ? 'pass' : 'fail'">{{ r.passed ? '通过' : '不通过' }}</span>
+          <span class="compat-status" :class="r.level">{{ 
+            r.level === 'pass' ? '通过' : 
+            r.level === 'fail' ? '不通过' : '待检查' 
+          }}</span>
+        </div>
+      </div>
+      <div v-if="compatDetail && compatDetail.adjustment" class="compat-advice">
+        <div class="compat-advice-title">调整建议</div>
+        <p>{{ compatDetail.adjustment }}</p>
+        <div v-if="compatDetail.pros.length" class="compat-pros">
+          <span class="tag-pro" v-for="p in compatDetail.pros" :key="p">{{ p }}</span>
+        </div>
+        <div v-if="compatDetail.cons.length" class="compat-cons">
+          <span class="tag-con" v-for="c in compatDetail.cons" :key="c">{{ c }}</span>
         </div>
       </div>
       <button @click="confirm" class="btn-confirm">确认定位,下一步</button>
+    </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import * as v2Api from '../api/v2'
+import { setupConfirm } from '../composables/useConfirm'
+import { setupErrorBar } from '../composables/useErrorBar'
+import { useGeneration } from '../composables/useGeneration'
+import { useAutoSave } from '../composables/useAutoSave'
+import { useToastStore } from '../stores/toast'
 
 const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: any], goto: [module: string] }>()
+const confirmDialog = setupConfirm()
+const errorBar = setupErrorBar()
+const gen = useGeneration('project', '项目定位分析')
+const toast = useToastStore()
+const pageLoading = ref(true)
 
 const platforms = [
   { id: 'fanqie', name: '番茄', desc: '免费网文,男频女频' },
@@ -76,20 +105,44 @@ const selectedPlatform = ref('fanqie')
 const dimensions = ref<any[]>([])
 const expandedDims = ref<string[]>([])
 const compatResults = ref<any[]>([])
+const compatDetail = ref<{ pros: string[]; cons: string[]; adjustment: string } | null>(null)
 const loading = ref(false)
 const analyzing = ref(false)
 const errorMessage = ref('')
 const lastAnalyzed = ref('')
 const hasIdea = ref(false)
 
-watch(selectedPlatform, () => { if (dimensions.value.length) saveDimension() })
+watch(selectedPlatform, () => {
+  if (dimensions.value.length) saveDimension()
+  checkCompatibility()
+})
+
+const projectData = () => ({
+  platform: selectedPlatform.value,
+  dimensions: dimensions.value,
+  compatResults: compatResults.value,
+  analyzedAt: lastAnalyzed.value,
+})
+const { scheduleSave } = useAutoSave({
+  dataRef: projectData,
+  saveFn: async (data) => {
+    try { await v2Api.saveModuleData(props.projectId, 'project', data) } catch (_e) { /* silent */ }
+  },
+  debounce: 1500,
+  storageKey: `project_${props.projectId}`,
+  projectId: props.projectId,
+  moduleName: 'project',
+})
+watch([selectedPlatform, dimensions, compatResults], () => {
+  scheduleSave()
+}, { deep: true })
 
 onMounted(async () => {
   loading.value = true
   errorMessage.value = ''
   try {
     const saved = await v2Api.getModuleData(props.projectId, 'project')
-    if (saved?.data && (saved.data.dimensions?.length || saved.data.platform)) {
+    if (saved?.data && Object.keys(saved.data).length > 0 && (saved.data.dimensions?.length || saved.data.platform || saved.data.sub_genre || saved.data.tone)) {
       if (saved.data.platform) selectedPlatform.value = saved.data.platform
       if (saved.data.dimensions) {
         dimensions.value = saved.data.dimensions
@@ -106,27 +159,85 @@ onMounted(async () => {
     const ideaText = extractIdeaText(idea)
     if (ideaText) {
       hasIdea.value = true
+      analyzing.value = true
+      gen.begin(12, '正在分析项目定位...')
       try {
-        const result = await v2Api.analyzeProject(props.projectId, ideaText, selectedPlatform.value)
-        if (result && typeof result === 'object') {
-          dimensions.value = mapResultToDimensions(result)
-          lastAnalyzed.value = new Date().toLocaleTimeString()
+        let allDims: any[] = []
+        for (let batch = 0; batch < 3; batch++) {
+          gen.progress(batch * 4, `正在分析第 ${batch + 1}/3 批维度 (${batch * 4 + 1}-${Math.min((batch + 1) * 4, 12)}/12)...`)
+          try {
+            const result = await v2Api.analyzeProjectBatch(props.projectId, ideaText, selectedPlatform.value, batch)
+            if (result?.dimensions?.length) {
+              const mapped = result.dimensions.map((d: any) => ({
+                key: d.key || d.title,
+                name: d.title || formatDimName(d.key),
+                values: { '内容': d.content || '', '优先级': d.priority || '' },
+              }))
+              allDims = allDims.concat(mapped)
+              dimensions.value = allDims
+              lastAnalyzed.value = new Date().toLocaleTimeString()
+            }
+          } catch (batchErr: any) {
+            // 单批失败不中断其他批
+          }
+        }
+        if (allDims.length > 0) {
           await saveDimension()
+        } else {
+          throw new Error('所有批次分析均失败')
         }
       } catch (e: any) {
         errorMessage.value = '分析失败: ' + (e?.message || '未知错误') + '，请检查网络后重试'
+      } finally {
+        analyzing.value = false
+        gen.end()
       }
     }
     compatResults.value = [
-      { name: '题材合规', passed: true },
-      { name: '内容尺度', passed: true },
-      { name: '平台匹配', passed: true },
+      { name: '题材合规', level: 'pending' },
+      { name: '内容尺度', level: 'pending' },
+      { name: '平台匹配', level: 'pending' },
     ]
+    checkCompatibility()
   } catch (e: any) {
-    errorMessage.value = '加载数据失败: ' + (e?.message || '未知错误')
+    errorBar.showError(e, () => checkCompatibility())
+  } finally {
+    pageLoading.value = false
+    loading.value = false
   }
-  loading.value = false
 })
+
+onUnmounted(() => {
+  gen.end()
+})
+
+async function checkCompatibility() {
+  if (!props.projectId) return
+  try {
+    const allData = await v2Api.getAllModuleData(props.projectId)
+    const idea = allData?.modules?.['idea']
+    const ideaText = extractIdeaText(idea)
+    const result = await v2Api.checkProjectCompatibility(props.projectId, ideaText, selectedPlatform.value)
+    if (result) {
+      compatResults.value = [
+        { name: '题材合规', level: result.score >= 60 ? 'pass' : 'fail' },
+        { name: '内容尺度', level: result.fit !== '极低' ? 'pass' : 'fail' },
+        { name: '平台匹配', level: result.score >= 40 ? 'pass' : 'fail' },
+      ]
+      compatDetail.value = {
+        pros: result.pros || [],
+        cons: result.cons || [],
+        adjustment: result.adjustment || '',
+      }
+    }
+  } catch (e) {
+    console.error('[ProjectView] compatibility check failed:', e)
+    compatResults.value = compatResults.value.map((r: any) =>
+      r.level === 'pending' ? r : { ...r, level: r.level, _lastError: '检查失败，显示上次结果' }
+    )
+    errorBar.showError(e, () => checkCompatibility())
+  }
+}
 
 function extractIdeaText(idea: any): string {
   if (!idea) return ''
@@ -182,7 +293,7 @@ function toggleDim(key: string) {
   else expandedDims.value.push(key)
 }
 
-async function saveDimension(_dim?: any) {
+async function saveDimension(): Promise<boolean> {
   try {
     await v2Api.saveModuleData(props.projectId, 'project', {
       platform: selectedPlatform.value,
@@ -190,12 +301,19 @@ async function saveDimension(_dim?: any) {
       compatResults: compatResults.value,
       analyzedAt: lastAnalyzed.value || new Date().toISOString(),
     })
-  } catch (_e) { /* ignore */ }
+    return true
+  } catch (e: any) {
+    errorMessage.value = '保存失败: ' + (e?.message || '未知错误')
+    return false
+  }
 }
 
 async function reanalyze() {
   analyzing.value = true
   errorMessage.value = ''
+  dimensions.value = []
+  lastAnalyzed.value = ''
+  gen.begin(12, '正在分析项目定位...')
   try {
     const allData = await v2Api.getAllModuleData(props.projectId)
     const idea = allData?.modules?.['idea']
@@ -203,23 +321,76 @@ async function reanalyze() {
     if (!ideaText) {
       errorMessage.value = '没有可用的灵感内容，请先在"灵感生成"步骤中确认一个灵感'
       analyzing.value = false
+      gen.end()
       return
     }
-    const result = await v2Api.analyzeProject(props.projectId, ideaText, selectedPlatform.value)
-    if (result && typeof result === 'object') {
-      dimensions.value = mapResultToDimensions(result)
-      lastAnalyzed.value = new Date().toLocaleTimeString()
+    let allDims: any[] = []
+    for (let batch = 0; batch < 3; batch++) {
+      gen.progress(batch * 4, `正在分析第 ${batch + 1}/3 批维度 (${batch * 4 + 1}-${Math.min((batch + 1) * 4, 12)}/12)...`)
+      try {
+        const result = await v2Api.analyzeProjectBatch(props.projectId, ideaText, selectedPlatform.value, batch)
+        if (result?.dimensions?.length) {
+          const mapped = result.dimensions.map((d: any) => ({
+            key: d.key || d.title,
+            name: d.title || formatDimName(d.key),
+            values: { '内容': d.content || '', '优先级': d.priority || '' },
+          }))
+          allDims = allDims.concat(mapped)
+          dimensions.value = allDims
+          lastAnalyzed.value = new Date().toLocaleTimeString()
+        }
+      } catch (batchErr: any) {
+        // 单批失败不中断其他批
+      }
+    }
+    if (dimensions.value.length > 0) {
       await saveDimension()
+    } else {
+      errorMessage.value = '所有维度分析失败，请检查网络后重试'
     }
   } catch (e: any) {
-    errorMessage.value = '分析失败: ' + (e?.message || '未知错误') + '，请检查网络或AI配置后重试'
+    errorBar.showError(e, () => reanalyze())
+  } finally {
+    analyzing.value = false
+    gen.end()
   }
-  analyzing.value = false
 }
 
 async function confirm() {
-  await saveDimension({})
-  emit('complete', { platform: selectedPlatform.value, dimensions: dimensions.value })
+  if (confirming.value) return
+  if (!dimensions.value.length) {
+    const ok = await confirmDialog.confirm({
+      message: '尚未进行项目定位分析',
+      detail: '建议先进行分析以获得更好的创作建议。确定跳过？',
+      type: 'warning',
+    })
+    if (!ok) return
+  }
+  const failed = compatResults.value.filter(r => r.level === 'fail')
+  if (failed.length > 0) {
+    const detail = compatDetail.value
+    let msg = `以下兼容性检查未通过：${failed.map(f => f.name).join('、')}`
+    if (detail && detail.adjustment) {
+      msg += `\n\n调整建议：${detail.adjustment}`
+    }
+    const ok = await confirmDialog.confirm({
+      message: '兼容性检查未通过',
+      detail: msg,
+      type: 'warning',
+    })
+    if (!ok) return
+  }
+  confirming.value = true
+  try {
+    const saved = await saveDimension()
+    if (!saved) {
+      toast.error('保存分析结果失败，请重试')
+      return
+    }
+    emit('complete', { platform: selectedPlatform.value, dimensions: dimensions.value })
+  } finally {
+    confirming.value = false
+  }
 }
 </script>
 
@@ -248,6 +419,12 @@ async function confirm() {
 .compat-name { color: #555; }
 .compat-status.pass { color: #52c41a; }
 .compat-status.fail { color: #ff4d4f; }
+.compat-advice { background: #f6f8fa; border-radius: 8px; padding: 16px; margin-bottom: 16px; font-size: 14px; }
+.compat-advice-title { font-weight: 600; margin-bottom: 8px; color: #333; }
+.compat-advice p { margin: 0 0 12px; color: #555; line-height: 1.6; }
+.compat-pros, .compat-cons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tag-pro { background: #f6ffed; color: #52c41a; padding: 2px 10px; border-radius: 12px; font-size: 12px; border: 1px solid #b7eb8f; }
+.tag-con { background: #fff2e8; color: #ff4d4f; padding: 2px 10px; border-radius: 12px; font-size: 12px; border: 1px solid #ffccc7; }
 .section-desc { font-size: 13px; color: #888; margin: -6px 0 14px; }
 .toolbar { margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
 .btn-reanalyze { padding: 6px 16px; background: var(--primary); color: #fff; border: none; border-radius: 5px; font-size: 14px; cursor: pointer; }
@@ -261,4 +438,6 @@ async function confirm() {
 .btn-confirm { width: 100%; padding: 13px; background: #52c41a; color: #fff; border: none; border-radius: 8px; font-size: 20px; cursor: pointer; }
 .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 4px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
 </style>

@@ -1,9 +1,11 @@
 <template>
   <div class="toast-container">
     <TransitionGroup name="toast">
-      <div v-for="toast in toastStore.toasts" :key="toast.id" :class="['toast', `toast-${toast.type}`]" @click="toastStore.dismiss(toast.id)">
-        <span class="toast-icon">{{ icons[toast.type] }}</span>
+      <div v-for="toast in toastStore.toasts" :key="toast.id" :class="['toast', `toast-${toast.type}`]">
+        <span class="toast-icon">{{ icons[toast.type] || '•' }}</span>
         <span class="toast-msg">{{ toast.message }}</span>
+        <button v-if="toast.action" class="toast-action-btn" @click.stop="toast.action!.handler(); toastStore.dismiss(toast.id)">{{ toast.action.label }}</button>
+        <button class="toast-close" @click.stop="toastStore.dismiss(toast.id)">×</button>
       </div>
     </TransitionGroup>
   </div>
@@ -13,7 +15,7 @@
 import { useToastStore } from '../stores/toast'
 
 const toastStore = useToastStore()
-const icons: Record<string, string> = { success: '✓', error: '✕', info: 'ℹ' }
+const icons: Record<string, string> = { success: '✓', error: '✕', info: 'ℹ', action: '💡' }
 </script>
 
 <style scoped>
@@ -42,8 +44,30 @@ const icons: Record<string, string> = { success: '✓', error: '✕', info: 'ℹ
 .toast-success { background: #52c41a; }
 .toast-error { background: #ff4d4f; }
 .toast-info { background: #1890ff; }
+.toast-action { background: #fa8c16; }
 .toast-icon { font-size: 16px; font-weight: 700; }
 .toast-msg { flex: 1; }
+.toast-action-btn {
+  background: rgba(255,255,255,0.25);
+  border: 1px solid rgba(255,255,255,0.5);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.toast-action-btn:hover { background: rgba(255,255,255,0.4); }
+.toast-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+.toast-close:hover { opacity: 1; }
 .toast-enter-active { animation: toast-in 0.3s ease-out; }
 .toast-leave-active { animation: toast-out 0.3s ease-in; }
 @keyframes toast-in {

@@ -1,5 +1,10 @@
 <template>
   <div class="planning-view">
+    <div v-if="pageLoading" class="page-loading">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+    <div v-else>
     <div v-if="moduleKey === 'volumes'" class="sub-pane">
       <h4>卷纲设计</h4>
       <p class="tip">规划整部小说的卷结构，每卷包含核心冲突与字数目标</p>
@@ -26,7 +31,7 @@
         <textarea v-model="form.themes" rows="4" placeholder="每行一个主题&#10;成长&#10;复仇&#10;守护&#10;终极对决" class="form-textarea"></textarea>
       </div>
       <div v-if="volumeList.length" class="result-list">
-        <div v-for="(v, idx) in volumeList" :key="idx" class="plan-card">
+        <div v-for="(v, idx) in volumeList" :key="idx" class="plan-card" tabindex="0">
           <div class="plan-card-header">
             <span class="plan-num">第{{ idx + 1 }}卷</span>
             <span class="plan-title">{{ v.name || v.title }}</span>
@@ -93,6 +98,10 @@
           <option value="fine">细纲(每章8-15句)</option>
         </select>
       </div>
+      <div v-if="moduleKey === 'chapter_outline'" class="form-group">
+        <label>章节总数</label>
+        <input v-model.number="form.totalChapters" type="number" min="1" max="1000" />
+      </div>
       <div class="form-group">
         <label>重点关注章节（可选）</label>
         <input v-model="form.focusChapters" placeholder="如：1,3,5-8,20（留空则全量生成）" class="form-input" />
@@ -112,12 +121,15 @@
       <button @click="generate" :disabled="generating" class="btn-primary">
         <span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : 'AI生成' }}
       </button>
-      <button @click="$emit('complete', resultPayload)" class="btn-confirm">确认,下一步</button>
+      <button @click="proceed" class="btn-confirm">确认,下一步</button>
     </div>
+
+    <div v-if="isOffline" class="offline-badge">当前数据来自离线模板 (非AI生成) <button @click="generate" class="btn-link">重新AI生成</button></div>
 
     <div v-if="error" class="error-box">
       <p>{{ error }}</p>
       <button @click="useOfflineMode" class="btn btn-ghost btn-sm">使用离线模板</button>
+    </div>
     </div>
   </div>
 </template>
@@ -127,11 +139,19 @@ import { ref, computed, onMounted, watch, shallowRef } from 'vue'
 import EmotionCurveChart from '../components/EmotionCurveChart.vue'
 import { saveModuleData, getAllModuleData, getModuleData } from '../api/v2'
 import { useGeneration } from '../composables/useGeneration'
+import { useToastStore } from '../stores/toast'
+import { setupConfirm } from '../composables/useConfirm'
+import { setupErrorBar } from '../composables/useErrorBar'
 import * as v2Api from '../api/v2'
+import { useAutoSave } from '../composables/useAutoSave'
 
 const props = defineProps<{ projectId: string; currentModule: string }>()
 const emit = defineEmits<{ complete: [data: any] }>()
 const gen = useGeneration(props.currentModule, '规划内容')
+const confirm = setupConfirm()
+const errorBar = setupErrorBar()
+const toast = useToastStore()
+const pageLoading = ref(true)
 
 const moduleKey = computed(() => props.currentModule)
 const generating = ref(false)
@@ -143,7 +163,7 @@ const upstreamRawData = ref<any>({})
 const formDefaults: Record<string, any> = {
   volumes: { volumeCount: '5', chaptersPerVolume: 20, themes: '' },
   chapter_plan: { totalChapters: 100, wordsPerChapter: 3000, rhythmMode: '3chapter' },
-  chapter_outline: { detailLevel: 'medium', focusChapters: '' },
+  chapter_outline: { detailLevel: 'medium', focusChapters: '', totalChapters: 10 },
 }
 
 const form = shallowRef({ ...(formDefaults[props.currentModule] || formDefaults.volumes) })
@@ -156,13 +176,25 @@ const volumeList = ref<any[]>([])
 const chapterPlans = ref<any[]>([])
 const chapterOutlines = ref<any[]>([])
 
-const resultPayload = computed(() => {
-  const key = moduleKey.value
-  if (key === 'volumes') return { volumes: volumeList.value, form: form.value }
-  if (key === 'chapter_plan') return { chapterPlans: chapterPlans.value, form: form.value }
-  if (key === 'chapter_outline') return { chapterOutlines: chapterOutlines.value, form: form.value }
-  return {}
+const planningData = () => {
+   const key = moduleKey.value
+   if (key === 'volumes') return { volumes: volumeList.value, form: form.value }
+   if (key === 'chapter_plan') return { chapterPlans: chapterPlans.value, form: form.value }
+   if (key === 'chapter_outline') return { chapterOutlines: chapterOutlines.value, form: form.value }
+   return { volumes: volumeList.value, chapterPlans: chapterPlans.value, chapterOutlines: chapterOutlines.value, form: form.value }
+}
+const resultPayload = computed(planningData)
+const { scheduleSave } = useAutoSave({
+   dataRef: planningData,
+   saveFn: async (data) => {
+      try { await v2Api.saveModuleData(props.projectId, moduleKey.value || 'volumes', data) } catch (_e) { /* silent */ }
+   },
+   debounce: 1500,
+   storageKey: `planning_${props.currentModule}_${props.projectId}`,
+   projectId: props.projectId,
+   moduleName: moduleKey.value || 'volumes',
 })
+watch([volumeList, chapterPlans, chapterOutlines, form], () => { scheduleSave() }, { deep: true })
 
 onMounted(async () => {
   try {
@@ -204,8 +236,24 @@ onMounted(async () => {
       const plans = modules['chapter_plan']
       upstreamData.value = plans ? `已加载章节规划数据` : ''
     }
-  } catch (_e) { /* ignore */ }
+  } catch (_e) { /* ignore */ } finally { pageLoading.value = false }
 })
+
+async function proceed() {
+  const ok = await confirm.confirm({
+    message: '确定进入下一步？',
+    detail: '确认后将保存规划数据并进入下一模块',
+    type: 'info',
+  })
+  if (!ok) return
+  try {
+    await v2Api.saveModuleData(props.projectId, moduleKey.value || 'volumes', resultPayload.value)
+  } catch (e) {
+    toast.error('保存规划数据失败，请重试')
+    return
+  }
+  emit('complete', resultPayload.value)
+}
 
 async function generate() {
   generating.value = true
@@ -219,11 +267,11 @@ async function generate() {
       const sa = modules['story_architecture'] || {}
       const outline = sa.outline || sa.story || {}
       const count = parseInt(form.value.volumeCount) || 5
-      const result = await v2Api.generateVolumes(props.projectId, count, outline).catch(() => null) as any
+      const result = await v2Api.generateVolumes(props.projectId, count, outline).catch((e) => { console.error('[PlanningView] generateVolumes error:', e); return null }) as any
       const items = result?.volumes || (Array.isArray(result) ? result : (result ? [result] : []))
       volumeList.value = items
       if (!items.length) useOfflineMode()
-      else await saveModuleData(props.projectId, 'volumes', { module_data: volumeList.value })
+      else await saveModuleData(props.projectId, 'volumes', { volumes: volumeList.value, form: form.value })
     } else if (key === 'chapter_plan') {
       const sa = modules['story_architecture'] || {}
       const outline = sa.outline || sa.story || {}
@@ -234,17 +282,17 @@ async function generate() {
       ).catch(() => null)
       chapterPlans.value = result ? (Array.isArray(result) ? result : (result.chapters || [])) : []
       if (!chapterPlans.value.length) useOfflineMode()
-      else await saveModuleData(props.projectId, 'chapter_plan', { module_data: chapterPlans.value })
+      else await saveModuleData(props.projectId, 'chapter_plan', { chapterPlans: chapterPlans.value, form: form.value })
     } else if (key === 'chapter_outline') {
       const chapterPlansData = modules['chapter_plan'] || {}
       const total = form.value.totalChapters || 10
       const result = await v2Api.generateChapterOutlines(props.projectId, total, chapterPlansData)
       const items = (result as any).outlines || (result as any).chapters || (result as any).items || []
       chapterOutlines.value = items
-      await saveModuleData(props.projectId, 'chapter_outline', { module_data: chapterOutlines.value })
+      await saveModuleData(props.projectId, 'chapter_outline', { chapterOutlines: chapterOutlines.value, form: form.value })
     }
   } catch (e: any) {
-    error.value = e.message || 'AI生成器未配置或生成失败'
+    errorBar.showError(e, () => generate())
     useOfflineMode()
   } finally {
     generating.value = false
@@ -254,6 +302,7 @@ async function generate() {
 }
 
 function useOfflineMode() {
+  toast.warning('AI生成不可用，已使用离线模板数据，可稍后重新生成')
   isOffline.value = true
   const key = moduleKey.value
   if (key === 'volumes') {
@@ -326,4 +375,6 @@ function useOfflineMode() {
 .error-box p { color: #c62828; margin-bottom: 8px; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
 </style>

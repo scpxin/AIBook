@@ -1,8 +1,21 @@
 <template>
   <div class="world-view">
+    <div v-if="pageLoading" class="page-loading">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+    <div v-else">
+    <div v-if="!ideaText && !pageLoading" class="upstream-missing-hint">
+      尚未完成灵感生成，建议先完成"灵感"和"项目定位"模块以获得更好的世界观生成效果
+    </div>
+    <div class="auto-save-status">
+      <span v-if="saveState === 'saving'" class="saving">保存中...</span>
+      <span v-else-if="saveState === 'saved'" class="saved">已自动保存</span>
+      <span v-else-if="saveState === 'error'" class="error">保存失败</span>
+    </div>
     <div class="accordion">
       <div v-for="tab in tabs" :key="tab.key" class="accordion-item">
-        <div class="accordion-header" @click="toggleTab(tab.key)">
+        <div class="accordion-header" role="button" :tabindex="0" :aria-expanded="activeTab === tab.key" :aria-controls="`panel-${tab.key}`" @click="toggleTab(tab.key)" @keydown.enter.prevent="toggleTab(tab.key)" @keydown.space.prevent="toggleTab(tab.key)">
           <span class="accordion-icon">{{ activeTab === tab.key ? '▼' : '▶' }}</span>
           <span>{{ tab.label }}</span>
         </div>
@@ -12,17 +25,20 @@
             <div class="form-group">
               <label>世界类型</label>
               <select v-model="world.origin.worldType" class="form-select">
+                <option value="" disabled>请选择世界类型</option>
                 <option>低魔世界</option><option>中魔世界</option><option>高魔世界</option>
                 <option>科幻宇宙</option><option>末日废土</option><option>现实平行</option>
               </select>
             </div>
             <div class="form-group">
               <label>起源故事</label>
-              <textarea v-model="world.origin.originStory" class="form-textarea" rows="4" placeholder="世界的起源..." />
+              <textarea v-model="world.origin.originStory" class="form-textarea" rows="4" placeholder="世界的起源..." maxlength="5000" />
+              <span class="char-count">{{ world.origin.originStory.length }}/5000</span>
             </div>
             <div class="form-group">
               <label>隐藏真相</label>
-              <textarea v-model="world.origin.hiddenTruth" class="form-textarea" rows="3" placeholder="世界背后隐藏的秘密..." />
+              <textarea v-model="world.origin.hiddenTruth" class="form-textarea" rows="3" placeholder="世界背后隐藏的秘密..." maxlength="5000" />
+              <span class="char-count">{{ world.origin.hiddenTruth.length }}/5000</span>
             </div>
           </div>
 
@@ -31,7 +47,8 @@
             <div class="rules-grid">
               <div v-for="rule in worldRules" :key="rule.key" class="rule-card">
                 <div class="rule-name">{{ rule.name }}</div>
-                <textarea v-model="world.rules[rule.key]" class="form-textarea" rows="2" :placeholder="rule.placeholder" />
+                <textarea v-model="world.rules[rule.key]" class="form-textarea" rows="2" :placeholder="rule.placeholder" maxlength="5000" />
+                <span class="char-count">{{ (world.rules[rule.key] || '').length }}/5000</span>
               </div>
             </div>
           </div>
@@ -46,7 +63,8 @@
             <div class="civ-grid">
               <div v-for="dim in civDimensions" :key="dim.key" class="civ-card">
                 <div class="civ-name">{{ dim.name }}</div>
-                <textarea v-model="world.civilization[dim.key]" class="form-textarea" rows="2" />
+                <textarea v-model="world.civilization[dim.key]" class="form-textarea" rows="2" maxlength="5000" />
+                <span class="char-count">{{ (world.civilization[dim.key] || '').length }}/5000</span>
               </div>
             </div>
           </div>
@@ -59,27 +77,38 @@
       </div>
     </div>
 
-    <div class="actions">
-      <button @click="generate" :disabled="generating" class="btn-primary"><span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : 'AI生成世界观' }}</button>
-      <button @click="checkConsistency" class="btn-secondary">一致性检查</button>
-    </div>
+     <div class="actions">
+       <button @click="generate" :disabled="generating" class="btn-primary"><span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : 'AI生成世界观' }}</button>
+       <button @click="checkConsistency" class="btn-secondary">一致性检查</button>
+       <button @click="confirm" class="btn-primary" :disabled="confirming">{{ confirming ? '保存中...' : '确认设定，下一步' }}</button>
+     </div>
     <div v-if="error" class="error-box">{{ error }}</div>
+    <div v-if="loadError" class="load-error-box"><p>{{ loadError }}</p><button @click="location.reload()" class="btn-secondary">重试</button></div>
     <div v-if="checkResult" class="check-result">
       <span :class="checkResult.passed ? 'pass' : 'fail'">{{ checkResult.message }}</span>
+    </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useWorldStore } from '../stores/world'
 import * as v2Api from '../api/v2'
 import WorldMapTree from '../components/WorldMapTree.vue'
 import TimelineChart from '../components/TimelineChart.vue'
 import { useGeneration } from '../composables/useGeneration'
+import { setupConfirm } from '../composables/useConfirm'
+import { useAutoSave } from '../composables/useAutoSave'
+import { useToastStore } from '../stores/toast'
+import { setupErrorBar } from '../composables/useErrorBar'
 
 const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: any] }>()
+const confirmDialog = setupConfirm()
+const errorBar = setupErrorBar()
+const toast = useToastStore()
+const pageLoading = ref(true)
 
 const worldStore = useWorldStore()
 const gen = useGeneration('world', '世界观')
@@ -96,7 +125,9 @@ function toggleTab(key: string) {
   activeTab.value = activeTab.value === key ? '' : key
 }
 const generating = ref(false)
+const confirming = ref(false)
 const error = ref('')
+const loadError = ref('')
 const checkResult = ref<any>(null)
 
 const world = reactive<any>({
@@ -129,6 +160,7 @@ const ideaGenre = ref('')
 async function generate() {
   generating.value = true
   error.value = ''
+  let generationSuccess = false
   gen.begin(5, '正在生成世界本源...')
   try {
     const result = await worldStore.generateWorld(
@@ -136,33 +168,85 @@ async function generate() {
       (step, msg) => gen.progress(step, msg)
     )
     Object.assign(world, result)
-    try { await v2Api.saveModuleData(props.projectId, 'world', { ...world }) } catch (_e) { /* ignore */ }
+    generationSuccess = true
+    try {
+      await v2Api.saveModuleData(props.projectId, 'world', { ...world })
+    } catch (_e) {
+      toast.error('世界观已生成但保存失败。数据暂存内存中，请检查网络后重试')
+      gen.fail('保存失败')
+      return
+    }
   } catch (e: any) {
-    error.value = e?.message || '生成失败'
+    errorBar.showError(e, () => generate())
   } finally {
     generating.value = false
-    if (!error.value) gen.end()
-    else gen.fail(error.value)
+    if (generationSuccess) gen.end()
+    else gen.fail(error.value || '生成失败')
   }
 }
 
 async function checkConsistency() {
-  const result = await v2Api.worldConsistencyCheck(props.projectId)
-  checkResult.value = result
+  error.value = ''  // 清除之前的错误
+  try {
+    const result = await v2Api.worldConsistencyCheck(props.projectId)
+    checkResult.value = result
+    if (result.passed) {
+      toast.success(`一致性检查通过 (${result.score || 100}分)`)
+    } else {
+      toast.warning(`发现 ${result.issues?.length || 0} 个不一致问题`)
+    }
+  } catch (e: any) {
+    error.value = '一致性检查失败: ' + (e?.message || '未知错误')
+  }
 }
 
 async function confirm() {
-  await worldStore.saveWorld(props.projectId, world)
-  emit('complete', world)
+  if (confirming.value) return
+  cancel()
+  const ok = await confirmDialog.confirm({
+    message: '确定进入下一步？',
+    detail: '确认后将保存当前世界观设定并进入下一模块',
+    type: 'info',
+  })
+  if (!ok) return
+  confirming.value = true
+  try {
+    await worldStore.updateLocalWorld(props.projectId, world)
+    toast.success('世界观已保存')
+    emit('complete', world)
+  } catch (e: any) {
+    toast.error('保存失败: ' + (e?.message || '未知错误'))
+  } finally {
+    confirming.value = false
+  }
 }
 
 onMounted(async () => {
   try {
     const saved = await v2Api.getModuleData(props.projectId, 'world')
-    if (saved?.data) {
+    if (saved?.data && Object.keys(saved.data).length > 0) {
       Object.assign(world, saved.data)
     }
-  } catch (_e) { /* ignore */ }
+  } catch (_e) {
+    loadError.value = '加载已保存的世界观数据失败'
+  }
+  if (!world.rules || Object.keys(world.rules).length === 0) {
+    world.rules = {}
+    worldRules.forEach(r => { world.rules[r.key] = '' })
+  }
+  if (!world.civilization || Object.keys(world.civilization).length === 0) {
+    world.civilization = {}
+    civDimensions.forEach(d => { world.civilization[d.key] = '' })
+  }
+  if (!Array.isArray(world.history)) {
+    if (world.history && world.history.history && Array.isArray(world.history.history)) {
+      world.history = world.history.history
+    } else if (typeof world.history === 'object' && world.history !== null) {
+      world.history = Object.entries(world.history).map(([k, v]) => ({ era: k, description: String(v) }))
+    } else {
+      world.history = []
+    }
+  }
   try {
     const allData = await v2Api.getAllModuleData(props.projectId)
     const idea = allData?.modules?.['idea']
@@ -174,18 +258,50 @@ onMounted(async () => {
         world.origin.originStory = `基于创意"${ideaText.value}"构建的世界观`
       }
     }
-  } catch (_e) { /* ignore */ }
+  } catch (_e) {
+    console.debug('[WorldView] prefill from story failed:', _e)
+  }
+  finally { pageLoading.value = false }
 })
+
+const worldData = () => ({ ...world })
+const { saveState, scheduleSave, cancel } = useAutoSave({
+  dataRef: worldData,
+  saveFn: async (data) => {
+    await v2Api.saveModuleData(props.projectId, 'world', data)
+  },
+  debounce: 2000,
+  storageKey: `world_${props.projectId}`,
+  onSaveError: () => toast.error('世界观自动保存失败，已存至本地备份'),
+  projectId: props.projectId,
+  moduleName: 'world',
+})
+watch(world, () => {
+  scheduleSave()
+}, { deep: true })
 </script>
 
 <style scoped>
 .world-view { max-width: 1170px; margin: 0 auto; }
+.upstream-missing-hint {
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  color: #f57c00;
+  font-size: 14px;
+}
 .accordion { border: 1px solid #eee; border-radius: 10px; overflow: hidden; }
 .accordion-item { border-bottom: 1px solid #eee; }
 .accordion-item:last-child { border-bottom: none; }
 .accordion-header { display: flex; align-items: center; gap: 8px; padding: 14px 18px; background: #f8f9fa; cursor: pointer; user-select: none; font-weight: 600; color: #555; }
 .accordion-header:hover { background: #f0f0f0; }
 .accordion-icon { font-size: 12px; color: #888; }
+.auto-save-status { text-align: right; font-size: 12px; color: #888; min-height: 18px; }
+.auto-save-status .saving { color: #1890ff; }
+.auto-save-status .saved { color: #52c41a; }
+.auto-save-status .error { color: #ff4d4f; }
 .accordion-body { padding: 20px; }
 .tab-pane h3 { margin: 0 0 16px; font-size: 21px; }
 .form-group { margin-bottom: 18px; }
@@ -208,4 +324,6 @@ onMounted(async () => {
 .check-result .pass { color: #52c41a; }
 .check-result .fail { color: #ff4d4f; }
 .error-box { color: #e74c3c; background: #fff1f0; border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 14px; }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
 </style>

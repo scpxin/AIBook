@@ -44,9 +44,13 @@ export const useSettingsStore = defineStore('settings', () => {
     localStorage.setItem(STORAGE_KEY_MODELS, JSON.stringify(models.value))
   }
 
+  let userModified = false
+  function markUserModified() { userModified = true }
+
   function setActive(id: string) {
     activeModelId.value = id
     localStorage.setItem(STORAGE_KEY_ACTIVE, id)
+    markUserModified()
     saveToBackend()
   }
 
@@ -55,6 +59,7 @@ export const useSettingsStore = defineStore('settings', () => {
   function addModel(m: ModelConfig) {
     models.value.push(m)
     saveLocal()
+    markUserModified()
     if (!activeModelId.value) setActive(m.id)
     else saveToBackend()
   }
@@ -64,6 +69,7 @@ export const useSettingsStore = defineStore('settings', () => {
     if (idx >= 0) {
       models.value[idx] = { ...models.value[idx], ...data }
       saveLocal()
+      markUserModified()
       saveToBackend()
     }
   }
@@ -75,6 +81,7 @@ export const useSettingsStore = defineStore('settings', () => {
       activeModelId.value = next
     }
     saveLocal()
+    markUserModified()
     saveToBackend()
   }
 
@@ -83,6 +90,23 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   load()
+
+  // Auto-load from backend on init — falls back to localStorage if backend fails
+  loadFromBackend().then(() => {
+    if (userModified) return
+    if (!models.value.length) {
+      // If backend returned nothing, try localStorage one more time
+      try {
+        const local = JSON.parse(localStorage.getItem(STORAGE_KEY_MODELS) || '[]')
+        if (local.length) {
+          models.value = local
+          if (!activeModelId.value) {
+            activeModelId.value = localStorage.getItem(STORAGE_KEY_ACTIVE) || local[0]?.id || ''
+          }
+        }
+      } catch { /* ignore */ }
+    }
+  })
 
   return {
     models,

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { SavedBook } from '../api/client'
 import * as downloadApi from '../api/download'
+import { useToastStore } from './toast'
 
 export interface DownloadSession {
   session_id: string
@@ -89,13 +90,17 @@ export const useDownloadStore = defineStore('download', () => {
       pollDownload()
     } catch (e: any) {
       dlState.value = 'idle'
-      alert('启动下载失败: ' + e.message)
+      useToastStore().error('启动下载失败: ' + e.message)
     }
   }
+
+  let _pollRetryCount = 0
+  const MAX_POLL_RETRIES = 5
 
   async function pollDownload() {
     if (!dlSessionId.value || dlState.value === 'idle') return
     try {
+      _pollRetryCount = 0
       const d = await downloadApi.downloadStatus(dlSessionId.value)
       dlCurrent.value = d.current
       dlTotal.value = d.total
@@ -109,8 +114,19 @@ export const useDownloadStore = defineStore('download', () => {
         dlState.value = 'error'
       }
     } catch {
-      setTimeout(pollDownload, 2000)
+      _pollRetryCount++
+      if (_pollRetryCount >= MAX_POLL_RETRIES) {
+        dlState.value = 'error'
+        useToastStore().error(`下载状态查询失败，已重试${MAX_POLL_RETRIES}次`)
+        return
+      }
+      const delay = Math.min(2000 * Math.pow(2, _pollRetryCount - 1), 30000)
+      setTimeout(pollDownload, delay)
     }
+  }
+
+  function cancelPoll() {
+    _pollRetryCount = MAX_POLL_RETRIES
   }
 
   async function pauseDownload() {

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { KnowledgeState, ConsistencyReport } from '../types/v2'
-import { getKnowledgeSnapshot, getForeshadows, updateKnowledge, runConsistencyCheck, getConsistencyReport } from '../api/v2'
+import { getKnowledgeSnapshot, getForeshadows, updateKnowledge, worldConsistencyCheck, getConsistencyReport } from '../api/v2'
 
 export const useKnowledgeStore = defineStore('knowledge', () => {
   const projectId = ref('')
@@ -72,7 +72,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
   async function executeConsistencyCheck(pid: string) {
     loading.value = true
     try {
-      await runConsistencyCheck(pid, '1')
+      await worldConsistencyCheck(pid)
       await loadConsistencyReports(pid)
     } catch (e: any) {
       error.value = e.message

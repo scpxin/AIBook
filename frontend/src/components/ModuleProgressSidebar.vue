@@ -1,31 +1,35 @@
 <template>
-  <div class="module-progress-sidebar">
+  <div v-if="pageLoading" class="page-loading">
+    <div class="loading-spinner"></div>
+    <p>加载中...</p>
+  </div>
+  <div v-else class="module-progress-sidebar">
     <div class="progress-header">
       <div class="progress-pct">{{ progressPct }}%</div>
       <div class="progress-bar">
         <div class="progress-fill" :style="{ width: progressPct + '%' }"></div>
       </div>
     </div>
-    <div class="module-list">
+    <div class="module-list" ref="moduleListRef">
       <div
         v-for="(mod, idx) in modules"
         :key="mod.name"
         class="module-item"
         :class="{
           active: mod.name === currentModule,
-          done: mod.status === 'done',
-          generating: mod.status === 'generating',
-          failed: mod.status === 'failed',
-          locked: mod.status === 'locked',
+          done: dependencyStates[mod.name] === 'done',
+          locked: dependencyStates[mod.name] === 'locked',
+          generating: mod.name === generatingModule,
         }"
-        @click="mod.status !== 'locked' && $emit('select', mod.name)"
+        :aria-label="(mod.display_name || mod.name) + ' - ' + (dependencyStates[mod.name] === 'locked' ? '未解锁' : dependencyStates[mod.name] === 'done' ? '已完成' : '可编辑')"
+        :title="dependencyStates[mod.name] === 'locked' ? '需先完成: ' + getBlockingModules(mod.name, idx) : (dependencyStates[mod.name] === 'done' ? '已完成' : '')"
+        @click="dependencyStates[mod.name] !== 'locked' && $emit('select', mod.name)"
       >
         <span class="module-idx">{{ idx + 1 }}</span>
         <span class="module-name">{{ mod.display_name || mod.name }}</span>
-        <span v-if="mod.status === 'done'" class="module-icon">&#10003;</span>
-        <span v-else-if="mod.status === 'generating'" class="module-icon spin">&#9696;</span>
-        <span v-else-if="mod.status === 'failed'" class="module-icon">&#10007;</span>
-        <span v-else-if="mod.status === 'locked'" class="module-icon">&#128274;</span>
+        <span v-if="dependencyStates[mod.name] === 'done'" class="module-icon">&#10003;</span>
+        <span v-else-if="dependencyStates[mod.name] === 'locked'" class="module-icon">&#128274;</span>
+        <span v-else-if="mod.name === generatingModule" class="module-icon module-generating" title="正在生成...">&#8595;</span>
       </div>
     </div>
     <div v-if="stats" class="stats-panel">
@@ -38,16 +42,54 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { ref, onMounted, watch, nextTick } from 'vue'
+import { setupConfirm } from '../composables/useConfirm'
+import { setupErrorBar } from '../composables/useErrorBar'
+
+const props = defineProps<{
   modules: any[]
   currentModule: string
   progressPct: number
+  dependencyStates: Record<string, 'locked' | 'ready' | 'done'>
+  generatingModule?: string
   stats?: { volumes: number; chapters: number; words: string; characters: number }
 }>()
+
+const confirm = setupConfirm()
+const errorBar = setupErrorBar()
+const pageLoading = ref(true)
+const moduleListRef = ref<HTMLElement | null>(null)
 
 defineEmits<{
   select: [moduleName: string]
 }>()
+
+onMounted(() => {
+  pageLoading.value = false
+  scrollToActive()
+})
+
+watch(() => props.currentModule, () => {
+  nextTick(scrollToActive)
+})
+
+function scrollToActive() {
+  if (!moduleListRef.value) return
+  const active = moduleListRef.value.querySelector('.module-item.active') as HTMLElement | null
+  if (active) {
+    active.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+}
+
+function getBlockingModules(modName: string, idx: number): string {
+  const blockers = props.modules.slice(0, idx)
+    .filter(m => props.dependencyStates[m.name] !== 'done')
+    .map(m => m.display_name || m.name)
+  if (!blockers.length) return '前置模块'
+  return blockers.slice(-2).join('、')
+}
+
+
 </script>
 
 <style scoped>
@@ -75,6 +117,11 @@ defineEmits<{
 .module-item:hover { background: #f5f5f5; }
 .module-item.active { background: #e8f4fd; border-left-color: var(--primary); }
 .module-item.locked { opacity: 0.4; cursor: not-allowed; }
+.module-item.locked:hover { opacity: 0.6; background: #fafafa; }
+.module-item.generating { background: #fff7e6; }
+.module-item.generating .module-name { color: #fa8c16; }
+.module-generating { color: #fa8c16; font-size: 18px; font-weight: bold; animation: pulse 0.8s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; transform: translateY(0); } 50% { opacity: 0.4; transform: translateY(2px); } }
 .module-item.done .module-name { color: #52c41a; }
 .module-item.failed .module-name { color: #ff4d4f; }
 .module-idx {
@@ -101,4 +148,6 @@ defineEmits<{
 .stat-item { display: flex; flex-direction: column; align-items: center; }
 .stat-label { font-size: 11px; color: #999; }
 .stat-value { font-size: 18px; font-weight: 700; color: var(--primary); }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
 </style>

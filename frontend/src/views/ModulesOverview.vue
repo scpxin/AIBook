@@ -6,11 +6,24 @@
     </div>
 
     <div v-if="loading" class="loading">加载中...</div>
+    <div v-else-if="statusLoadError" class="error-box">{{ statusLoadError }}</div>
     <div v-else-if="!modules.length" class="empty">暂无模块数据</div>
 
-    <div v-else class="modules-grid">
+    <div v-if="modules.length" class="filter-bar">
+      <input v-model="searchQuery" placeholder="搜索模块名称..." class="search-input" />
+      <div class="filter-btns">
+        <button @click="statusFilter = 'all'" :class="{ active: statusFilter === 'all' }" class="filter-btn">全部</button>
+        <button @click="statusFilter = 'done'" :class="{ active: statusFilter === 'done' }" class="filter-btn">已完成</button>
+        <button @click="statusFilter = 'generating'" :class="{ active: statusFilter === 'generating' }" class="filter-btn">生成中</button>
+        <button @click="statusFilter = 'failed'" :class="{ active: statusFilter === 'failed' }" class="filter-btn">失败</button>
+        <button @click="statusFilter = 'pending'" :class="{ active: statusFilter === 'pending' }" class="filter-btn">待开始</button>
+        <button @click="statusFilter = 'locked'" :class="{ active: statusFilter === 'locked' }" class="filter-btn">未解锁</button>
+      </div>
+    </div>
+
+    <div v-if="modules.length" class="modules-grid">
       <div
-        v-for="(mod, idx) in modules"
+        v-for="(mod, idx) in filteredModules"
         :key="mod.name"
         class="module-card"
         :class="{
@@ -19,7 +32,7 @@
           failed: getModuleStatus(mod.name) === 'failed',
           locked: getModuleStatus(mod.name) === 'locked',
         }"
-        @click="navigateToModule(mod.name)"
+        tabindex="0" @click="navigateToModule(mod.name)" @keydown.enter="navigateToModule(mod.name)"
       >
         <div class="card-header">
           <span class="card-idx">{{ idx + 1 }}</span>
@@ -40,22 +53,39 @@
       </div>
     </div>
 
-    <div v-if="modules.length" class="overview-actions">
+    <div v-if="filteredModules.length" class="overview-actions">
       <router-link to="/create-v2" class="btn-goto">进入流水线编辑器</router-link>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePipelineStore } from '../stores/pipeline'
+import { useToastStore } from '../stores/toast'
 
 const router = useRouter()
 const pipeline = usePipelineStore()
+const toast = useToastStore()
 const modules = ref<any[]>([])
 const statuses = ref<Record<string, any>>({})
 const loading = ref(true)
+const statusLoadError = ref('')
+const searchQuery = ref('')
+const statusFilter = ref('all')
+
+const filteredModules = computed(() => {
+  let list = modules.value
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.trim().toLowerCase()
+    list = list.filter(m => (m.display_name || m.name).toLowerCase().includes(q))
+  }
+  if (statusFilter.value !== 'all') {
+    list = list.filter(m => (statuses.value[m.name] || 'pending') === statusFilter.value)
+  }
+  return list
+})
 
 function getModuleStatus(name: string): string {
   return statuses.value[name] || 'pending'
@@ -81,6 +111,9 @@ onMounted(async () => {
       await pipeline.loadStatus(pid)
       statuses.value = pipeline.progress?.modules || {}
     }
+  } catch (e: any) {
+    statusLoadError.value = '加载模块状态失败: ' + (e?.message || '')
+    toast.error('加载模块状态失败')
   } finally {
     loading.value = false
   }
@@ -97,6 +130,12 @@ onMounted(async () => {
 .overview-header h2 { font-size: 28px; margin: 0 0 6px; }
 .sub { color: #888; font-size: 16px; margin: 0; }
 .loading, .empty { text-align: center; padding: 80px 28px; color: #999; font-size: 18px; }
+.error-box { color: #e74c3c; background: #fff1f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 15px; }
+.filter-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.search-input { flex: 1; min-width: 220px; padding: 10px 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 15px; }
+.filter-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-btn { padding: 8px 14px; border: 1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer; font-size: 14px; transition: .15s; }
+.filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 .modules-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

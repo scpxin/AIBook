@@ -1,5 +1,10 @@
 <template>
   <div class="story-arch-view">
+    <div v-if="pageLoading" class="page-loading">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+    <div v-else>
     <div class="section">
       <h3>故事框架</h3>
       <div class="form-group">
@@ -24,7 +29,7 @@
     <div v-if="story.volumes?.length" class="section">
       <h3>卷纲预览</h3>
       <div class="volume-grid">
-        <div v-for="(v, idx) in story.volumes" :key="idx" class="volume-card">
+        <div v-for="(v, idx) in story.volumes" :key="idx" class="volume-card" tabindex="0">
           <div class="volume-header">
             <span class="volume-num">第{{ idx + 1 }}卷</span>
             <span class="volume-title">{{ v.title }}</span>
@@ -37,54 +42,12 @@
       </div>
     </div>
 
-    <div class="section">
-      <h3>全书大纲</h3>
-      <div class="form-group">
-        <label>书名暂定</label>
-        <input v-model="outline.title" class="form-input" placeholder="请输入书名..." />
-      </div>
-      <div class="form-row">
-        <div class="form-group" style="flex:1">
-          <label>核心冲突</label>
-          <textarea v-model="outline.conflict" rows="3" class="form-textarea" placeholder="主角vs命运/社会/自我..." />
-        </div>
-        <div class="form-group" style="flex:1">
-          <label>预计总字数</label>
-          <select v-model="outline.wordCount" class="form-select">
-            <option value="300000">30万字（短篇）</option>
-            <option value="800000">80万字（中篇）</option>
-            <option value="1500000">150万字（长篇）</option>
-            <option value="3000000">300万字（超长篇）</option>
-          </select>
-          <label style="margin-top:10px">主角成长路线</label>
-          <textarea v-model="outline.growthRoute" rows="4" class="form-textarea" placeholder="废柴→觉醒→崛起→称霸→超脱" />
-        </div>
-      </div>
-      <div class="action-row">
-         <button @click="generateOutline" :disabled="generating" class="btn btn-primary">
-           <span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : 'AI生成全书大纲' }}
-         </button>
-      </div>
-    </div>
-
-    <div v-if="outline.title || outline.theme" class="section">
-      <h3>大纲预览</h3>
-      <div class="outline-card">
-        <div v-if="outline.title" class="outline-title">{{ outline.title }}</div>
-        <div class="outline-meta">
-          <span v-if="outline.theme" class="meta-tag">主题：{{ outline.theme }}</span>
-          <span v-if="outline.wordCount" class="meta-tag">字数：{{ formatWords(outline.wordCount) }}</span>
-        </div>
-        <div v-if="outline.conflict" class="outline-section">
-          <h4>核心冲突</h4><p>{{ outline.conflict }}</p>
-        </div>
-        <div v-if="outline.growthRoute" class="outline-section">
-          <h4>主角成长路线</h4>
-          <div class="growth-timeline">
-            <span v-for="(step, idx) in growthSteps" :key="idx" class="growth-step">
-              {{ step }}<span v-if="idx < growthSteps.length - 1" class="arrow">→</span>
-            </span>
-          </div>
+    <div v-if="story.plotEvents?.length" class="section">
+      <h3>剧情节点</h3>
+      <div class="plot-node-list">
+        <div v-for="(n, i) in story.plotEvents" :key="i" class="plot-node-card">
+          <span class="node-chapter">第{{ n.chapter || '?' }}章</span>
+          <span class="node-event">{{ n.event }}</span>
         </div>
       </div>
     </div>
@@ -121,35 +84,35 @@
     </div>
 
     <div v-if="error" class="error">{{ error }}</div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted, watch } from 'vue'
 import { generateStoryMaster, generateMasterOutline, generatePlotNodes as genPlotNodes, getModuleData, getAllModuleData, saveModuleData } from '../api/v2'
 import { useGeneration } from '../composables/useGeneration'
+import { setupConfirm } from '../composables/useConfirm'
+import { setupErrorBar } from '../composables/useErrorBar'
+import { useAutoSave } from '../composables/useAutoSave'
+import { useToastStore } from '../stores/toast'
 import TimelineChart from '../components/TimelineChart.vue'
 
+const confirmDialog = setupConfirm()
+const errorBar = setupErrorBar()
+const pageLoading = ref(true)
+
 const props = defineProps<{ projectId: string }>()
-const emit = defineEmits<{ complete: [data: any] }>()
+const emit = defineEmits<{ complete: [data: Record<string, unknown>] }>()
 const gen = useGeneration('story_architecture', '故事架构')
 const generating = ref(false)
 const error = ref('')
 const plotNodeCount = ref(6)
-const plotNodes = ref<any[]>([])
+const plotNodes = ref<Record<string, unknown>[]>([])
 
-const story = reactive<any>({ oneLiner: '', theme: '', coreConflict: '', volumes: [], plotEvents: [] })
-const outline = reactive({ title: '', theme: '', conflict: '', wordCount: '1500000', growthRoute: '' })
+const story = reactive<Record<string, unknown>>({ oneLiner: '', theme: '', coreConflict: '', volumes: [], plotEvents: [] })
 
-const growthSteps = computed(() =>
-  outline.growthRoute.split(/[→\n,，]/).map((s: string) => s.trim()).filter(Boolean)
-)
-
-function formatWords(n: string): string {
-  const num = parseInt(n); return num >= 10000 ? (num / 10000) + '万字' : n + '字'
-}
-
-function onReorderEvents(newEvents: any[]) { story.plotEvents = newEvents }
+function onReorderEvents(newEvents: unknown[]) { story.plotEvents = newEvents }
 
 async function generateStory() {
   generating.value = true; error.value = ''; gen.begin(3, '正在生成故事框架...')
@@ -166,10 +129,10 @@ async function generateStory() {
     const result = await generateStoryMaster(props.projectId, protagonist, world, characters) as any
     if (result) {
       if (result.oneLiner) story.oneLiner = result.oneLiner
-      if (result.theme) story.theme = story.theme || result.theme
+      if (result.theme) story.theme = result.theme
       if (result.coreConflict) story.coreConflict = result.coreConflict
       if (result.masterStory) {
-        if (result.masterStory.theme) story.theme = story.theme || result.masterStory.theme
+        if (result.masterStory.theme) story.theme = result.masterStory.theme
         if (result.masterStory.volumes) story.volumes = result.masterStory.volumes
         if (result.masterStory.plotEvents) story.plotEvents = result.masterStory.plotEvents
       }
@@ -181,21 +144,21 @@ async function generateStory() {
     gen.progress(3, '故事框架生成完成')
     gen.end()
   } catch (e: any) {
-    error.value = e?.message || '生成失败'
-    gen.fail(error.value)
+    errorBar.showError(e, () => generateStory())
+    gen.fail(e?.message || '生成失败')
   }
   finally { generating.value = false }
 }
 
-async function generateOutline() {
+async function generatePlotNodesFromStory() {
   generating.value = true; error.value = ''; gen.begin()
   try {
     const allData = await getAllModuleData(props.projectId)
     const world = allData?.modules?.['world']
     const chars = allData?.modules?.['characters']
     const storySystem = {
-      theme: story.theme || outline.theme,
-      conflict: story.coreConflict || outline.conflict,
+      theme: story.theme,
+      conflict: story.coreConflict,
       protagonist: chars?.protagonist || {},
       world: world || {},
       characters: [chars?.protagonist, ...(chars?.supporting || []), ...(chars?.villains || [])].filter(Boolean),
@@ -204,34 +167,25 @@ async function generateOutline() {
     const result = await generateMasterOutline(props.projectId, storySystem)
     if (result) {
       const r = result as any
-      if (r.title) outline.title = r.title
-      if (r.theme) outline.theme = r.theme
-      if (r.conflict) outline.conflict = r.conflict
-      if (r.wordCount) outline.wordCount = String(r.wordCount)
-      if (r.growthRoute) outline.growthRoute = r.growthRoute
-      if (r.growth_route) outline.growthRoute = r.growth_route
+      if (r.plotEvents) story.plotEvents = r.plotEvents
+      else if (r.event_chain) story.plotEvents = r.event_chain.map((e: any) => ({ chapter: e.chapter_hint || 1, event: e.event || e.name || '' }))
     }
     gen.end()
-  } catch (e: any) { error.value = e?.message || 'AI生成失败，可手动填写'; gen.fail(error.value) }
+  } catch (e: any) { errorBar.showError(e, () => generatePlotNodesFromStory()); gen.fail(e?.message || 'AI生成失败') }
   finally { generating.value = false }
 }
 
-async function generatePlotNodes() {
-  generating.value = true; error.value = ''; gen.begin()
-  try {
-    const chapterPlan = { totalChapters: 100 }
-    const masterOutline = { theme: story.theme || outline.theme, conflict: story.coreConflict || outline.conflict }
-    const result = await genPlotNodes(props.projectId, chapterPlan, masterOutline) as any
-    plotNodes.value = Array.isArray(result) ? result : (result?.nodes || result?.plotNodes || result?.plot_nodes || [])
-    gen.end()
-  } catch (e: any) { error.value = e?.message || '生成失败'; gen.fail(error.value) }
-  finally { generating.value = false }
-}
+
 
 async function confirm() {
+  const ok = await confirmDialog.confirm({
+    message: '确定进入下一步？',
+    detail: '确认后将保存当前故事架构数据并进入下一模块',
+    type: 'info',
+  })
+  if (!ok) return
   const data = {
     story: { ...story },
-    outline: { ...outline },
     plot_nodes: plotNodes.value,
   }
   await saveModuleData(props.projectId, 'story_architecture', { module_data: data })
@@ -244,7 +198,6 @@ onMounted(async () => {
     if (saved?.data) {
       const d = saved.data
       if (d.story) Object.assign(story, d.story)
-      if (d.outline) Object.assign(outline, d.outline)
       if (d.plot_nodes) plotNodes.value = d.plot_nodes
     }
   } catch (_e) { /* ignore */ }
@@ -258,7 +211,25 @@ onMounted(async () => {
     const world = allData?.modules?.['world']
     if (world && !story.theme && world.theme) story.theme = world.theme
   } catch (_e) { /* ignore */ }
+  finally { pageLoading.value = false }
 })
+
+const toast = useToastStore()
+const storyArchData = () => ({ ...story })
+const { saveState, scheduleSave } = useAutoSave({
+  dataRef: storyArchData,
+  saveFn: async (data) => {
+    await saveModuleData(props.projectId, 'story_architecture', { module_data: { story: data } })
+  },
+  debounce: 2000,
+  storageKey: `story_arch_${props.projectId}`,
+  onSaveError: () => toast.error('故事架构自动保存失败，已存至本地备份'),
+  projectId: props.projectId,
+  moduleName: 'story_architecture',
+})
+watch(story, () => {
+  scheduleSave()
+}, { deep: true })
 </script>
 
 <style scoped>
@@ -301,4 +272,6 @@ onMounted(async () => {
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .btn-confirm { padding: 13px 24px; background: #52c41a; color: #fff; border: none; border-radius: 8px; cursor: pointer; margin-left: auto; }
+.page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
 </style>

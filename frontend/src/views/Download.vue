@@ -9,7 +9,7 @@
           placeholder="书名 / 章节链接 / book_id"
           @keydown.enter="store.search()"
         />
-        <button @click="store.search()" :disabled="store.searchLoading">
+        <button         tabindex="0" @click="store.search()" :disabled="store.searchLoading">
           <span v-if="store.searchLoading" class="spinner"></span>搜索
         </button>
       </div>
@@ -19,7 +19,7 @@
         :key="r.book_id"
         class="book-item"
         :class="{ selected: store.selectedBook && store.selectedBook.book_id === r.book_id }"
-        @click="store.selectBook(r)"
+        tabindex="0" @click="store.selectBook(r)" @keydown.enter="store.selectBook(r)"
       >
         <div>
           <div class="book-title">{{ r.title || r.book_name || '未知书名' }}</div>
