@@ -375,7 +375,8 @@ def project_restore(body: dict):
 @router.get("/api/v2/projects/list")
 async def list_v2_projects():
     import sqlite3
-    conn = sqlite3.connect("/app/data/fanqie.db")
+    from app.config import DB_PATH
+    conn = sqlite3.connect(DB_PATH)
     rows = conn.execute("SELECT project_id, project_overview, created_at, updated_at FROM v2_projects ORDER BY updated_at DESC").fetchall()
     conn.close()
     projects = []

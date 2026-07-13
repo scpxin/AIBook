@@ -67,7 +67,9 @@ PIPELINE_MODULES: Dict[str, PipelineModule] = {
     "factions": PipelineModule("factions", "势力体系", "structure",
                                ["world", "characters", "story_architecture"], is_parallel=True),
     "outline": PipelineModule("outline", "全书大纲", "structure",
-                              ["story_architecture"], is_parallel=True),
+                               ["story_architecture"], is_parallel=True),
+    "timeline": PipelineModule("timeline", "时间线", "structure",
+                                ["world", "characters", "story_architecture"], is_parallel=True),
 
     # 规划层 (M10-M13): 串行
     "volumes": PipelineModule("volumes", "卷纲", "planning", ["story_architecture"]),
@@ -99,7 +101,7 @@ PIPELINE_MODULES: Dict[str, PipelineModule] = {
 MODULE_ORDER = [
     "idea", "project", "world", "characters", "story_architecture",
     "outline",
-    "power_system", "factions",
+    "power_system", "factions", "timeline",
     "volumes", "chapter_plan", "chapter_outline",
     "plot_nodes",
     "scene_design", "draft_generation", "content_parsing", "polish",

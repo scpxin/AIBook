@@ -153,7 +153,8 @@ def _ensure_v2_project_exists(project_id, name=""):
 
 def _get_db_local():
     import sqlite3
-    return sqlite3.connect("/app/data/fanqie.db")
+    from novel_creator.database_v2 import DB_PATH as V2_DB_PATH
+    return sqlite3.connect(V2_DB_PATH)
 
 def _now_iso_str():
     from datetime import datetime
@@ -194,7 +195,7 @@ def save_module_data(project_id: str, module_name: str, data: Any = Body(...)):
     save_fn(project_id, data)
 
     # 自动存模板（AI生成完成后的副作用，不阻塞主流程，不处理模板复用场景）
-    if not data.get('_apply_from_template'):
+    if isinstance(data, dict) and not data.get('_apply_from_template'):
         try:
             from app.services.template_service import auto_save_template
             auto_save_template(
@@ -220,6 +221,14 @@ def _save_draft_generation(project_id: str, data):
     chapters = data.get('chapters') if isinstance(data, dict) else None
     if isinstance(chapters, dict) and chapters:
         database_v2.save_drafts_batch(project_id, chapters)
+    elif isinstance(chapters, list) and chapters:
+        for ch in chapters:
+            database_v2.save_draft(project_id, str(ch.get('chapter_no', ch.get('chapter_id', ''))), {
+                "content_raw": ch.get("content", ""),
+                "word_count_raw": int(ch.get("word_count", 0) or 0),
+                "skeleton": ch.get("skeleton", ""),
+                "style_note": ch.get("style_note", ""),
+            })
     elif isinstance(data, dict) and data.get('chapter_no'):
         # 单章格式
         database_v2.save_draft(project_id, str(data['chapter_no']), {
@@ -394,6 +403,7 @@ def _query_v2_data(project_id: str, module_name: str):
         "draft_generation": database_v2.get_drafts,
         "story_architecture": lambda pid: database_v2.get_pipeline_module_data(pid, "story_architecture"),
         "outline": lambda pid: database_v2.get_pipeline_module_data(pid, "outline"),
+        "timeline": lambda pid: {"events": database_v2.get_timeline(pid)},
     }
     query_fn = query_map.get(module_name)
     if not query_fn:
