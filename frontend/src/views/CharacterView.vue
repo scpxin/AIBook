@@ -223,8 +223,7 @@ async function generate() {
   try {
     const result = await charStore.generateCharacters(
       props.projectId, worldData.value, storyConcept.value || undefined,
-      (step, msg) => gen.progress(step, msg),
-      { supportingCount: supportingCount.value }
+      (step: number, msg: string) => gen.progress(step, msg),
     )
     Object.assign(protagonist, result.protagonist || {})
     supportingChars.value = result.supporting || []

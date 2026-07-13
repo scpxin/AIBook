@@ -82,10 +82,10 @@ const canSave = computed(() =>
 onMounted(() => {
   if (props.template) {
     form.name = props.template.name
-    form.icon = props.template.icon
+    form.icon = props.template.icon || ''
     form.genre = props.template.genre
     form.prompt = props.template.prompt
-    form.reference = props.template.reference
+    form.reference = props.template.reference || ''
   } else {
     form.name = props.presetName || ''
     form.genre = props.presetGenre || ''

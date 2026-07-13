@@ -7,7 +7,7 @@
       <div class="loading-spinner"></div>
       <p>正在初始化创作流程...</p>
     </div>
-    <div v-else-if="modulesLoadError" class="error-page"><h3>创作流程加载失败</h3><p>{{ modulesLoadError }}</p><button @click="location.reload()" class="btn-primary">重试</button></div>
+    <div v-else-if="modulesLoadError" class="error-page"><h3>创作流程加载失败</h3><p>{{ modulesLoadError }}</p><button @click="reloadPage" class="btn-primary">重试</button></div>
     <div v-else style="display:flex;flex-direction:column;flex:1;min-height:0">
     <div v-if="!isOnline" class="offline-banner">
       <span>📡 网络已断开 — 仍可查看和编辑已保存内容，模板复用功能离线可用</span>
@@ -198,6 +198,8 @@ const moduleSaveStore = useModuleSaveStore()
 const toast = useToastStore()
 const confirmDialog = setupConfirm()
 const projectNameError = ref('')
+
+function reloadPage() { window.location.reload() }
 
 function validateProjectName() {
   const name = projectName.value.trim()
@@ -481,7 +483,7 @@ async function onModuleComplete(moduleData?: any) {
         genre: currentProjectGenre.value,
         sub_genre: currentProjectSubGenre.value,
         tone: currentProjectTone.value,
-        world_type: tplStore.sharedContext.worldType,
+        world_type: (tplStore.sharedContext as any).worldType,
         target_audience: currentProjectAudience.value,
       }
       toast.action(`模块"${currentModuleInfo.value?.display_name || currentModule.value}"已完成`, {
@@ -532,11 +534,11 @@ const templateSupportedModules = [
 const nonSkippableModules = ['idea', 'project', 'story_architecture', 'outline']
 
 const projectContextForTemplate = computed(() => ({
-  genre: projectStore.currentProjectGenre || '',
-  world_type: tplStore.sharedContext.worldType || '',
-  sub_genre: projectStore.currentProjectSubGenre || '',
-  tone: projectStore.currentProjectTone || '',
-  target_audience: projectStore.currentProjectAudience || '',
+  genre: currentProjectGenre.value || '',
+  world_type: (tplStore.sharedContext as any).worldType || '',
+  sub_genre: currentProjectSubGenre.value || '',
+  tone: currentProjectTone.value || '',
+  target_audience: currentProjectAudience.value || '',
 }))
 
 function openTemplateSelector() {
@@ -604,10 +606,10 @@ function flashSaveSuccess() {
 
 async function saveProject() {
    pendingModuleData.value['__progress'] = pipeline.progress
-   await projectStore.saveV2({
+   await projectStore.saveV2Full({
      id: projectId.value,
      name: projectName.value,
-     pipelineData: { ...pipeline.progress, moduleData: pendingModuleData.value },
+     pipeline: { ...pipeline.progress, moduleData: pendingModuleData.value },
    })
    flashSaveSuccess()
 }
@@ -638,15 +640,15 @@ async function saveProjectFull() {
        currentModule: currentModule.value,
        modules: {} as Record<string, any>,
      }
-     const allMods = await getPipelineModules()
-     for (const mod of allMods.modules || []) {
-       const name = mod.name
-       const modState = pipeline.progress?.modules?.[name] || {}
-       pipelineState.modules[name] = {
-         status: modules[name] ? (modState.status === 'done' ? 'done' : 'done') : (modState.status || 'pending'),
-         completedAt: modState.completedAt || '',
-       }
-     }
+      const allMods = modules.value
+      for (const mod of allMods) {
+        const name = mod.name
+        const modState: any = pipeline.progress?.modules?.[name] || {}
+        pipelineState.modules[name] = {
+          status: modules[name] ? (modState.status === 'done' ? 'done' : 'done') : (modState.status || 'pending'),
+          completedAt: modState.completedAt || '',
+        }
+      }
 
      // 4. 保存
      const result = await projectStore.saveV2Full({
@@ -778,27 +780,27 @@ function startNewProject() {
          }
        }
       // Restore project context for template matching
-     const ideaData = allData?.modules?.['idea']
-     if (ideaData) {
-       currentProjectGenre.value = ideaData.genre || ideaData.genreHint || ''
-       currentProjectAudience.value = ideaData.target_audience || ''
-     }
-     const projData = allData?.modules?.['project']
-     if (projData) {
-       currentProjectSubGenre.value = projData.sub_genre || projData.subGenre || ''
-       currentProjectTone.value = projData.tone || projData.style || ''
-     }
-     const worldData = allData?.modules?.['world']
-     if (worldData) {
-       const wbData = worldData.world_building || worldData
-       tplStore.updateSharedContext('world', {
-          world_type: wbData.world_type || wbData.worldType || '',
-          locations: wbData.locations || wbData.territories || [],
-       }, projectId.value)
-     }
-     const charData = allData?.modules?.['characters']
+      const ideaData = v2Data?.modules?.['idea']
+      if (ideaData) {
+        currentProjectGenre.value = ideaData.genre || ideaData.genreHint || ''
+        currentProjectAudience.value = ideaData.target_audience || ''
+      }
+      const projData = v2Data?.modules?.['project']
+      if (projData) {
+        currentProjectSubGenre.value = projData.sub_genre || projData.subGenre || ''
+        currentProjectTone.value = projData.tone || projData.style || ''
+      }
+      const worldData = v2Data?.modules?.['world']
+      if (worldData) {
+        const wbData = worldData.world_building || worldData
+        tplStore.updateSharedContext('world', {
+           world_type: wbData.world_type || wbData.worldType || '',
+           locations: wbData.locations || wbData.territories || [],
+        }, projectId.value)
+      }
+      const charData = v2Data?.modules?.['characters']
      if (charData) tplStore.updateSharedContext('characters', charData, projectId.value)
-     const facData = allData?.modules?.['factions']
+      const facData = v2Data?.modules?.['factions']
      if (facData) tplStore.updateSharedContext('factions', facData, projectId.value)
   } catch (_e) {
     console.error('[CreateV2] restore module data failed:', _e)

@@ -111,6 +111,7 @@ const analyzing = ref(false)
 const errorMessage = ref('')
 const lastAnalyzed = ref('')
 const hasIdea = ref(false)
+const confirming = ref(false)
 
 watch(selectedPlatform, () => {
   if (dimensions.value.length) saveDimension()
@@ -293,7 +294,7 @@ function toggleDim(key: string) {
   else expandedDims.value.push(key)
 }
 
-async function saveDimension(): Promise<boolean> {
+async function saveDimension(_dim?: any): Promise<boolean> {
   try {
     await v2Api.saveModuleData(props.projectId, 'project', {
       platform: selectedPlatform.value,

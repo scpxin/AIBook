@@ -6,7 +6,7 @@ import * as projectApi from '../api/project'
 export interface V2ProjectData {
   id?: string
   name: string
-  modules: Record<string, any>
+  modules?: Record<string, any>
   pipeline: any
   templateSelections?: Record<string, string>
   sharedContext?: Record<string, any>
@@ -70,7 +70,7 @@ export const useProjectStore = defineStore('project', () => {
     const r = await projectApi.saveV2Project({
       id: data.id,
       name: data.name,
-      modules: data.modules,
+      modules: data.modules || {},
       pipeline: data.pipeline,
       templateSelections: data.templateSelections || {},
       sharedContext: data.sharedContext || {},
@@ -93,7 +93,7 @@ export const useProjectStore = defineStore('project', () => {
     currentProjectId.value = data.id
     selectedProjectId.value = data.id
     projectName.value = data.name
-    projectUpdatedAt.value = data.updatedAt || ''
+    projectUpdatedAt.value = data.updated_at || ''
     v2ProjectMeta.value = {
       templateSelections: data.templateSelections || {},
       sharedContext: data.sharedContext || {},

@@ -110,7 +110,7 @@ const error = ref('')
 const plotNodeCount = ref(6)
 const plotNodes = ref<Record<string, unknown>[]>([])
 
-const story = reactive<Record<string, unknown>>({ oneLiner: '', theme: '', coreConflict: '', volumes: [], plotEvents: [] })
+const story: any = reactive({ oneLiner: '', theme: '', coreConflict: '', volumes: [], plotEvents: [] })
 
 function onReorderEvents(newEvents: unknown[]) { story.plotEvents = newEvents }
 
@@ -150,7 +150,7 @@ async function generateStory() {
   finally { generating.value = false }
 }
 
-async function generatePlotNodesFromStory() {
+async function generatePlotNodes() {
   generating.value = true; error.value = ''; gen.begin()
   try {
     const allData = await getAllModuleData(props.projectId)
@@ -171,7 +171,7 @@ async function generatePlotNodesFromStory() {
       else if (r.event_chain) story.plotEvents = r.event_chain.map((e: any) => ({ chapter: e.chapter_hint || 1, event: e.event || e.name || '' }))
     }
     gen.end()
-  } catch (e: any) { errorBar.showError(e, () => generatePlotNodesFromStory()); gen.fail(e?.message || 'AI生成失败') }
+  } catch (e: any) { errorBar.showError(e, () => generatePlotNodes()); gen.fail(e?.message || 'AI生成失败') }
   finally { generating.value = false }
 }
 

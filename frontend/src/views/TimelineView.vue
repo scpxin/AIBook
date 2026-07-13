@@ -45,7 +45,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
-import { buildTimeline as buildTimelineApi, saveTimeline, getModuleData, getAllModuleData } from '../api/v2'
+import { buildTimeline as buildTimelineApi, saveTimeline, getModuleData, getAllModuleData, saveModuleData } from '../api/v2'
 import TimelineChart from '../components/TimelineChart.vue'
 import { useGeneration } from '../composables/useGeneration'
 import { setupConfirm } from '../composables/useConfirm'
@@ -72,7 +72,7 @@ const timelineData = () => ({ events: timeline.events })
 const { scheduleSave } = useAutoSave({
   dataRef: timelineData,
   saveFn: async (data) => {
-    try { await v2Api.saveModuleData(props.projectId, 'timeline', data) } catch (_e) { /* silent */ }
+    try { await saveModuleData(props.projectId, 'timeline', data) } catch (_e) { /* silent */ }
   },
   debounce: 1500,
   storageKey: `timeline_${props.projectId}`,

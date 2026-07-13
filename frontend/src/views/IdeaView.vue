@@ -173,12 +173,12 @@ const templates = ref<IdeaTemplate[]>([])
 const genreFilter = ref<string | null>(null)
 
 const availableGenres = computed(() => {
-  const set = new Set(templates.value.map(t => t.genre))
+  const set = new Set(templates.value.map((t: IdeaTemplate) => t.genre))
   return Array.from(set).sort()
 })
 const filteredTemplates = computed(() => {
   if (!genreFilter.value) return templates.value
-  return templates.value.filter(t => t.genre === genreFilter.value)
+  return templates.value.filter((t: IdeaTemplate) => t.genre === genreFilter.value)
 })
 
 async function manualConfirm() {
@@ -345,14 +345,14 @@ async function loadTemplates() {
 }
 
 function onTemplateSaved(saved: IdeaTemplate) {
-  templates.value = templates.value.filter(t => t.id !== saved.id)
+  templates.value = templates.value.filter((t: IdeaTemplate) => t.id !== saved.id)
   templates.value.unshift(saved)
 }
 
 async function useTemplate(tpl: IdeaTemplate) {
    form.prompt = tpl.prompt
    form.genre = tpl.genre
-   form.reference = tpl.reference
+   form.reference = tpl.reference || ''
    await nextTick()
    // 模板直接应用，不触发AI生成
    const templateIdea = {
@@ -384,8 +384,8 @@ const skipWatch = ref(false)
 const candidatesCollapsed = ref(false)
 let candidateDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
-watch(form.prompt, (val) => {
-  showTemplatePanel.value = val.trim().length < 2
+watch(() => form.prompt, (val) => {
+  showTemplatePanel.value = (val as string).trim().length < 2
 })
 
 watch(selectedIdx, (val) => {

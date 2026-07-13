@@ -25,17 +25,17 @@ export const useCharacterStore = defineStore('character', () => {
       if (result && !result.name && result.basic_info) {
         const bi = result.basic_info
         protagonist.value = {
+          ...result,
           name: bi.name || '',
           gender: bi.gender || '',
           age: bi.age || '',
           appearance: bi.appearance || '',
-          personality: Array.isArray(result.personality?.traits) ? result.personality.traits.join(',') : (result.personality?.traits || ''),
+          personality: (Array.isArray(result.personality?.traits) ? result.personality.traits.join(',') : (result.personality?.traits || '')) as any,
           background: result.backstory?.origin || '',
-          goal: result.motivation?.outer_goal || '',
+          goal: result.motivation?.outerGoal || '',
           flaw: Array.isArray(result.personality?.flaws) ? result.personality.flaws.join(',') : (result.personality?.flaws || ''),
           arc: result.character_arc?.final_state || '',
-          ...result,
-        }
+        } as Character
       } else {
         protagonist.value = result
       }

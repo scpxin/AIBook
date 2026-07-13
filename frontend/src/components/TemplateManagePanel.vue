@@ -11,7 +11,7 @@
             <span class="tpl-icon">{{ tpl.icon }}</span>
             <div class="tpl-detail">
               <div class="tpl-name">{{ tpl.name }}</div>
-              <div class="tpl-meta">{{ tpl.genre }} · {{ tpl.updated_at?.slice(0, 10) }}</div>
+              <div class="tpl-meta">{{ tpl.genre }} · {{ tpl.updatedAt?.slice(0, 10) }}</div>
             </div>
           </div>
           <div class="tpl-actions">
@@ -73,7 +73,7 @@ function handleEdit(tpl: IdeaTemplate) {
 }
 
 function handleSaved(saved: IdeaTemplate) {
-  templates.value = templates.value.map(t => t.id === saved.id ? saved : t)
+  templates.value = templates.value.map((t: any) => t.id === saved.id ? saved : t)
 }
 
 function handleDelete(tpl: IdeaTemplate) {
@@ -85,7 +85,7 @@ async function doDelete() {
   const id = confirmDelete.value.id
   try {
     await deleteTemplate(id)
-    templates.value = templates.value.filter(t => t.id !== id)
+    templates.value = templates.value.filter((t: any) => t.id !== id)
     toast.success('模板已删除')
   } catch (e: any) {
     toast.error(e.message || '删除失败')

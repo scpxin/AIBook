@@ -50,11 +50,11 @@ export function createTemplate(data: { project_id: string; name: string; icon?: 
   return apiPost<{ ok: boolean; template: IdeaTemplate }>('/api/v2/templates/', data)
 }
 
-export function updateTemplate(id: number, data: Partial<{ name: string; icon: string; genre: string; prompt: string; reference: string }>) {
+export function updateTemplate(id: string | number, data: Partial<{ name: string; icon: string; genre: string; prompt: string; reference: string }>) {
   return apiPut<{ ok: boolean; template: IdeaTemplate }>(`/api/v2/templates/${id}`, data)
 }
 
-export function deleteTemplate(id: number) {
+export function deleteTemplate(id: string | number) {
   return apiDelete<{ ok: boolean }>(`/api/v2/templates/${id}`)
 }
 
@@ -435,7 +435,9 @@ export function saveModuleData(projectId: string, moduleName: string, data: any)
   return apiPost<{ success: boolean }>(`/api/v2/pipeline/${projectId}/data/${moduleName}`, data)
 }
 
-export { useModuleSaveStore } from '../stores/moduleSave'
+import { useModuleSaveStore } from '../stores/moduleSave'
+
+export { useModuleSaveStore }
 
 export async function saveModuleDataTracked(projectId: string, moduleName: string, data: any): Promise<boolean> {
   const store = useModuleSaveStore()

@@ -83,7 +83,7 @@
        <button @click="confirm" class="btn-primary" :disabled="confirming">{{ confirming ? '保存中...' : '确认设定，下一步' }}</button>
      </div>
     <div v-if="error" class="error-box">{{ error }}</div>
-    <div v-if="loadError" class="load-error-box"><p>{{ loadError }}</p><button @click="location.reload()" class="btn-secondary">重试</button></div>
+    <div v-if="loadError" class="load-error-box"><p>{{ loadError }}</p><button @click="reloadPage" class="btn-secondary">重试</button></div>
     <div v-if="checkResult" class="check-result">
       <span :class="checkResult.passed ? 'pass' : 'fail'">{{ checkResult.message }}</span>
     </div>
@@ -129,6 +129,8 @@ const confirming = ref(false)
 const error = ref('')
 const loadError = ref('')
 const checkResult = ref<any>(null)
+
+function reloadPage() { window.location.reload() }
 
 const world = reactive<any>({
   origin: { worldType: '', originStory: '', hiddenTruth: '' },

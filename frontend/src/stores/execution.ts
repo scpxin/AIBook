@@ -213,6 +213,6 @@ export const useExecutionStore = defineStore('execution', () => {
     consistencyReport, isGenerating, generationProgress, loading, error,
     generateDraftContent, saveDraftContent, polish, parseWrittenContent,
     runConsistencyCheck, loadConsistencyReport,
-    generateDraft: startDraftGeneration, polishDraft, parseContent: parseContentSimple, getChaptersForWriting,
+    generateDraft: startDraftGeneration, polishDraft, parseContent: parseContentSimple, getChaptersForWriting, getDrafts,
   }
 })

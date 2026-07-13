@@ -573,8 +573,20 @@ export interface ConsistencyReport {
   chapterNo?: string
 }
 
+// ========== IdeaTemplate ==========
+export interface IdeaTemplate {
+  id: string
+  name: string
+  icon?: string
+  genre: string
+  prompt: string
+  reference?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 // ========== 流水线 ==========
-export type ModuleStatus = 'locked' | 'pending' | 'generating' | 'done' | 'failed'
+export type ModuleStatus = 'locked' | 'pending' | 'generating' | 'done' | 'skipped' | 'failed'
 
 export interface ModuleState {
   name: string

@@ -261,7 +261,7 @@ onMounted(async () => {
       chapterOptions.value = await fetchChapters()
       if (chapterOptions.value.length > 0) {
         const exists = chapterOptions.value.find(c => String(c.value) === String(form.chapterNo))
-        if (!exists) form.chapterNo = chapterOptions.value[0].value
+        if (!exists) form.chapterNo = Number(chapterOptions.value[0].value)
       }
     } catch (_e) { /* ignore */ }
     try {
