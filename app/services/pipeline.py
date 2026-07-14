@@ -173,6 +173,17 @@ def _build_full_state(project_id: str) -> Dict[str, Any]:
     else:
         current = MODULE_ORDER[-1]  # 全部完成则显示最后一个
 
+    # 重新计算依赖解锁：依赖全部 DONE 的 LOCKED 模块应变为 PENDING
+    for name in MODULE_ORDER:
+        mod_state = modules.get(name, {})
+        if mod_state.get("status") == ModuleStatus.LOCKED.value:
+            deps_ok = all(
+                modules.get(dep, {}).get("status") == ModuleStatus.DONE.value
+                for dep in PIPELINE_MODULES[name].dependencies
+            )
+            if deps_ok:
+                modules[name]["status"] = ModuleStatus.PENDING.value
+
     return {
         "project_id": project_id,
         "current_module": current,

@@ -162,8 +162,8 @@ def _now_iso_str():
 
 @router.post("/{project_id}/data/{module_name}")
 
-def save_module_data(project_id: str, module_name: str, data: Any = Body(...)):
-    """保存模块的V2数据"""
+def save_module_data(project_id: str, module_name: str, data: Any = Body(None)):
+    """保存模块的V2数据。data 为 None 时仅标记模块完成，跳过数据存储。"""
     save_map = {
         "idea": lambda pid, d: database_v2.save_pipeline_state(pid, "idea", d),
         "project": lambda pid, d: database_v2.save_pipeline_state(pid, "project", d),
@@ -187,25 +187,25 @@ def save_module_data(project_id: str, module_name: str, data: Any = Body(...)):
     }
     _ensure_v2_project_exists(project_id)
     save_fn = save_map.get(module_name)
-    if not save_fn:
-        known_modules = list(save_map.keys())
-        logger.warning(f"保存到未知模块 '{module_name}' (已知模块: {known_modules})")
-        database_v2.save_pipeline_state(project_id, module_name, data)
-        return {"success": True, "module": module_name, "project_id": project_id, "warning": "模块名未在流水线中注册"}
-    save_fn(project_id, data)
+    if data is not None:
+        if not save_fn:
+            known_modules = list(save_map.keys())
+            logger.warning(f"保存到未知模块 '{module_name}' (已知模块: {known_modules})")
+            database_v2.save_pipeline_state(project_id, module_name, data)
+            return {"success": True, "module": module_name, "project_id": project_id, "warning": "模块名未在流水线中注册"}
+        save_fn(project_id, data)
 
-    # 自动存模板（AI生成完成后的副作用，不阻塞主流程，不处理模板复用场景）
-    if isinstance(data, dict) and not data.get('_apply_from_template'):
-        try:
-            from app.services.template_service import auto_save_template
-            auto_save_template(
-                project_id=project_id,
-                module_key=module_name,
-                module_data=data.get('module_data', data),
-                input_context=data.get('input_context', {}),
-            )
-        except Exception as e:
-            logger.warning(f"自动存模板失败（不影响保存）: {e}")
+        if isinstance(data, dict) and not data.get('_apply_from_template'):
+            try:
+                from app.services.template_service import auto_save_template
+                auto_save_template(
+                    project_id=project_id,
+                    module_key=module_name,
+                    module_data=data.get('module_data', data),
+                    input_context=data.get('input_context', {}),
+                )
+            except Exception as e:
+                logger.warning(f"自动存模板失败（不影响保存）: {e}")
 
     # Mark module as done in pipeline_state
     try:
