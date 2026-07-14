@@ -109,7 +109,7 @@
             <span v-if="moduleSavedMap[currentModule]" class="save-badge">已保存</span>
           </span>
           <button @click="skipModule" :disabled="!canGoNext || nonSkippableModules.includes(currentModule)" class="btn-nav btn-skip" title="跳过当前模块">跳过</button>
-          <button @click="completeAndNext" :disabled="!canGoNext || completing" class="btn-nav btn-next">下一步 →</button>
+          <button @click="completeAndNext" :disabled="!canGoNext || !hasModuleData || completing" class="btn-nav btn-next">下一步 →</button>
         </div>
 
         <div class="module-content">
@@ -244,6 +244,11 @@ const currentModuleIndex = computed(() => {
 
 const canGoPrev = computed(() => currentModuleIndex.value > 0)
 const canGoNext = computed(() => currentModuleIndex.value < modules.value.length - 1)
+
+const hasModuleData = computed(() => {
+  const data = pendingModuleData.value[currentModule.value]
+  return data !== undefined && data !== null
+})
 
 const moduleDependencyStates = computed((): Record<string, 'locked' | 'ready' | 'done'> => {
   const states: Record<string, 'locked' | 'ready' | 'done'> = {}
@@ -399,33 +404,35 @@ async function nextModule() {
 }
 
 async function completeAndNext() {
-   if (completing.value) return
-   if (canGoNext.value) {
-      completing.value = true
-      try {
-        const pending = pendingModuleData.value[currentModule.value]
-        if (pending) {
-          try {
-            await saveModuleData(projectId.value, currentModule.value, pending)
-            moduleSavedMap.value[currentModule.value] = true
-          } catch (_e) {
-            toast.error('保存模块数据失败，请重试')
-            return
-          }
-        }
-        pipeline.updateModuleStatus(currentModule.value, 'done')
-        try {
-          await updateModuleStatus(projectId.value, currentModule.value, 'done')
-        } catch (_e) {
-          console.warn('[CreateV2] backend status sync failed:', _e)
-        }
-        await flushAllSaves()
-        nextModule()
-      } finally {
-        completing.value = false
-      }
+    if (completing.value) return
+    if (!hasModuleData.value) {
+      toast.warning('当前模块没有数据，请先完成输入输出后再继续')
+      return
+    }
+    if (canGoNext.value) {
+       completing.value = true
+       try {
+         const pending = pendingModuleData.value[currentModule.value]
+         try {
+           await saveModuleData(projectId.value, currentModule.value, pending)
+           moduleSavedMap.value[currentModule.value] = true
+         } catch (_e) {
+           toast.error('保存模块数据失败，请重试')
+           return
+         }
+         pipeline.updateModuleStatus(currentModule.value, 'done')
+         try {
+           await updateModuleStatus(projectId.value, currentModule.value, 'done')
+         } catch (_e) {
+           console.warn('[CreateV2] backend status sync failed:', _e)
+         }
+         await flushAllSaves()
+         nextModule()
+       } finally {
+         completing.value = false
+       }
+   }
   }
- }
 
  // P2-1: Skip a non-critical module
  async function skipModule() {
