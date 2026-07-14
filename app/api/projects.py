@@ -6,7 +6,6 @@ import json
 import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Body
-from app.models.schemas import ProjectSaveRequest
 from app.database import novel_db
 from app.config import PROJECT_ID_PATTERN, PROJECTS_DIR
 
@@ -30,75 +29,6 @@ def validate_project_id(project_id: str) -> bool:
     """校验项目ID格式（仅允许 proj_ 前缀 + 字母数字下划线，上限 64 字符）"""
     return bool(project_id and re.match(PROJECT_ID_PATTERN, project_id))
 
-
-@router.post("/api/projects/save")
-def project_save(body: ProjectSaveRequest):
-    project_id = body.id or ('proj_' + uuid.uuid4().hex[:12])
-    if not validate_project_id(project_id):
-        return {"error": "无效的项目ID"}
-    name = sanitize_project_name(body.name)
-    data = body.data if isinstance(body.data, dict) else {}
-    step = min(body.step, 10)
-    tags = body.tags
-    if len(json.dumps(data, ensure_ascii=False)) > 10 * 1024 * 1024:
-        return {"error": "项目数据过大（上限10MB）"}
-    novel_db.save_project(project_id, name, step, data, tags)
-    now = time.strftime('%Y-%m-%d %H:%M:%S')
-    return {"ok": True, "id": project_id, "name": name, "updated_at": now}
-
-
-@router.post("/api/projects/list")
-def projects_list():
-    projects = novel_db.list_projects()
-    # 5.4-2: Filter out soft-deleted projects (check full project data)
-    filtered = []
-    for p in projects:
-        try:
-            full = novel_db.get_project(p['id'])
-            data = json.loads(full.get('data', '{}')) if isinstance(full.get('data'), str) else (full.get('data') or {})
-            if isinstance(data, dict) and data.get('deleted_at'):
-                continue
-        except (json.JSONDecodeError, TypeError, KeyError):
-            pass
-        filtered.append(p)
-    return {"projects": filtered}
-
-
-@router.post("/api/projects/load")
-def project_load(body: dict):
-    project_id = body.get('id', '')
-    if not validate_project_id(project_id):
-        return {"error": "无效的项目ID"}
-    project = novel_db.get_project(project_id)
-    if not project:
-        filepath = os.path.join(PROJECTS_DIR, project_id + '.json')
-        if os.path.exists(filepath):
-            try:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    old = json.load(f)
-                novel_db.save_project(project_id, old.get('name', '未命名'),
-                                     old.get('step', 0), old.get('data', {}))
-                project = novel_db.get_project(project_id)
-            except (json.JSONDecodeError, IOError, KeyError):
-                pass
-    if project:
-        return project
-    return {"error": "项目不存在"}
-
-
-@router.post("/api/projects/delete")
-def project_delete(body: dict):
-    project_id = body.get('id', '')
-    if not validate_project_id(project_id):
-        return {"error": "无效的项目ID"}
-    project = novel_db.get_project(project_id)
-    if not project:
-        return {"error": "项目不存在"}
-    novel_db.delete_project_cascade(project_id)
-    return {"ok": True}
-
-
-# ==================== V2 项目全量保存/加载 ====================
 
 @router.post("/api/projects/save-v2")
 def project_save_v2(body: dict):
@@ -374,9 +304,8 @@ def project_restore(body: dict):
 
 @router.get("/api/v2/projects/list")
 async def list_v2_projects():
-    import sqlite3
-    from app.config import DB_PATH
-    conn = sqlite3.connect(DB_PATH)
+    from novel_creator.database_v2 import _v2_db
+    conn = _v2_db()
     rows = conn.execute("SELECT project_id, project_overview, created_at, updated_at FROM v2_projects ORDER BY updated_at DESC").fetchall()
     conn.close()
     projects = []

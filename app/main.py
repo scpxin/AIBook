@@ -1,5 +1,4 @@
 import os
-import sqlite3
 import logging
 import asyncio
 import time
@@ -13,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import PORT, DOWNLOAD_DIR, PROJECTS_DIR
 from app.database import novel_db
-from app.api import projects, chapters, outlines, step_summaries, novel, craft, download, ai, settings
+from app.api import projects, download, settings
 from app.api.template import router as template_router
 from app.api.generation_template import router as generation_template_router
 from app.api.pipeline import router as pipeline_router
@@ -112,13 +111,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 app.include_router(projects.router)
-app.include_router(chapters.router)
-app.include_router(outlines.router)
-app.include_router(step_summaries.router)
-app.include_router(novel.router)
-app.include_router(craft.router)
 app.include_router(download.router)
-app.include_router(ai.router)
 app.include_router(settings.router)
 app.include_router(template_router)
 app.include_router(generation_template_router)
@@ -145,15 +138,6 @@ async def startup_event():
         seed_system_templates()
     except Exception as e:
         logging.warning(f'预置模板初始化失败: {e}')
-    try:
-        from novel_creator.database import DB_PATH
-        with sqlite3.connect(DB_PATH) as conn:
-            conn.execute("UPDATE outline_generation_status SET is_running=0, is_paused=0 WHERE is_running=1")
-            conn.execute("UPDATE generation_status SET is_running=0, is_paused=0 WHERE is_running=1")
-            conn.commit()
-        logging.info('已清理陈旧的生成状态')
-    except Exception as e:
-        logging.error(f'清理陈旧状态失败: {e}', exc_info=True)
 
 
 if __name__ == "__main__":

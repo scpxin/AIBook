@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { ModelConfig } from '../api/client'
-import { testConnectionApi } from '../api/novel'
+import { apiPost } from '../api/client'
 import { getSettings, saveModelSettings } from '../api/settings'
 
 const STORAGE_KEY_MODELS = 'fanqie_models'
@@ -86,7 +86,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   async function testConnection(model: ModelConfig): Promise<{ ok: boolean; error?: string; response?: string }> {
-    return testConnectionApi({ endpoint: model.endpoint, apiKey: model.apiKey, model: model.model })
+    return apiPost('/api/v2/settings/test-connection', { endpoint: model.endpoint, apiKey: model.apiKey, model: model.model })
   }
 
   load()

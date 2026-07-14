@@ -36,25 +36,8 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
-  async function save(data: { id?: string; name: string; step: number; novelData: any }) {
-    const r = await projectApi.saveProjectApi({
-      id: data.id,
-      name: data.name,
-      step: data.step,
-      data: data.novelData,
-      tags: '',
-    })
-    currentProjectId.value = r.id
-    selectedProjectId.value = r.id
-    return r
-  }
-
-  async function load(id: string) {
-    return projectApi.loadProjectApi(id)
-  }
-
   async function remove(id: string) {
-    await projectApi.deleteProjectApi(id)
+    await projectApi.softDeleteV2Project(id)
     if (currentProjectId.value === id) {
       currentProjectId.value = ''
       projectName.value = ''
@@ -109,8 +92,6 @@ export const useProjectStore = defineStore('project', () => {
     v2ProjectMeta,
     projectUpdatedAt,
     loadList,
-    save,
-    load,
     remove,
     saveV2Full,
     loadV2Full,
