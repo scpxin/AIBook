@@ -184,12 +184,11 @@ def rate_template(template_id: int, body: dict):
         raise HTTPException(status_code=422, detail="评分必须在1-5之间")
     try:
         tpl = update_generation_template(template_id, quality_rating=rating)
-        if not tpl:
-            raise HTTPException(status_code=404, detail="模板不存在")
-        return {"ok": True, "template": tpl}
-    except Exception as e:
-        logger.error(f"评分模板失败: {e}")
-        raise HTTPException(status_code=500, detail="评分失败，请稍后重试")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not tpl:
+        raise HTTPException(status_code=404, detail="模板不存在")
+    return {"ok": True, "template": tpl}
 
 
 # ========== 自动保存钩子（供内部调用） ==========

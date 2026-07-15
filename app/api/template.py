@@ -42,6 +42,8 @@ async def update(template_id: int, payload: TemplateUpdateRequest):
         raise HTTPException(status_code=400, detail="无更新内容")
     try:
         tpl = update_idea_template(template_id, **fields)
+        if tpl is None:
+            raise HTTPException(status_code=404, detail="模板不存在")
         return {"ok": True, "template": tpl}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

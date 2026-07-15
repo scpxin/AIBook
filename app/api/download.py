@@ -73,6 +73,8 @@ def health():
 def search(q: str = ''):
     if not q:
         return {"error": "missing q"}
+    if not SEARCH_API:
+        return JSONResponse({"error": "search source not configured", "books": []}, status_code=503)
     data = _http_get(SEARCH_API.format(urllib.parse.quote(q)))
     result = json.loads(data)
     books = []

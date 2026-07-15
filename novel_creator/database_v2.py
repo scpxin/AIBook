@@ -1444,7 +1444,7 @@ def update_idea_template(template_id: int, **fields) -> dict:
         conn.commit()
         row = conn.execute("SELECT * FROM idea_templates WHERE id=?", (template_id,)).fetchone()
         conn.close()
-    return dict(row)
+    return dict(row) if row else None
 
 
 def delete_idea_template(template_id: int) -> bool:

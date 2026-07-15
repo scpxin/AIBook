@@ -30,7 +30,7 @@ def categorize_error(err: str) -> tuple[str, int]:
 
     server_keywords = ['urlopen', 'connection', 'timeout', 'name resolution', 'refused', 'json', 'decode', 'parse', 'schema']
     if any(kw in err_lower for kw in server_keywords):
-        return (safe_error(err), 500)
+        return (safe_error(err), 503)
 
     if '未配置' in err or 'not configured' in err_lower:
         return (safe_error(err), 503)
