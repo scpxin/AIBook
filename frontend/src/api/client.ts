@@ -271,8 +271,9 @@ export interface ModelConfig {
 export interface Project {
   id: string
   name: string
-  step: number
+  step?: number
   updated_at: string
+  created_at?: string
   tags?: string
   category?: string
 }

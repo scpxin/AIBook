@@ -113,13 +113,16 @@ def _save_module_data(project_id: str, module_name: str, data: any):
         "outline": lambda pid, d: database_v2.save_pipeline_state(pid, "outline", d.get('module_data', d) if isinstance(d, dict) else d),
         "draft_generation": lambda pid, d: _save_drafts_from_data(pid, d),
     }
-
     save_fn = save_map.get(module_name)
     if save_fn:
-        save_fn(project_id, data)
+        try:
+            save_fn(project_id, data)
+        except Exception:
+            database_v2.save_pipeline_state(project_id, module_name,
+                data.get('module_data', data) if isinstance(data, dict) else data)
     else:
-        # 默认使用 pipeline_state 存储
-        database_v2.save_pipeline_state(project_id, module_name, data.get('module_data', data) if isinstance(data, dict) else data)
+        database_v2.save_pipeline_state(project_id, module_name,
+            data.get('module_data', data) if isinstance(data, dict) else data)
 
 
 def _save_characters_from_data(project_id, data):

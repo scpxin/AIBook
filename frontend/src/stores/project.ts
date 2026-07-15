@@ -27,9 +27,9 @@ export const useProjectStore = defineStore('project', () => {
       projectList.value = (r.projects || []).map(p => ({
         id: p.id,
         name: p.name,
-        step: p.step,
+        step: p.step || 0,
         updated_at: p.updated_at,
-        tags: p.tags,
+        created_at: p.created_at,
       }))
     } catch {
       projectList.value = []

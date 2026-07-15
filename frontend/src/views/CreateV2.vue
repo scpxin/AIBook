@@ -189,6 +189,8 @@ import TimelineView from './TimelineView.vue'
 import OutlineView from './OutlineView.vue'
 import { useTemplateStore } from '../composables/useTemplateStore'
 import type { GenerationTemplate } from '../composables/useTemplateStore'
+import AppConfirmDialog from '../components/AppConfirmDialog.vue'
+import AppErrorBar from '../components/AppErrorBar.vue'
 
 const route = useRoute()
 const router = useRouter()

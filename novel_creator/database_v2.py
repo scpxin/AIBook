@@ -1090,7 +1090,7 @@ def get_foreshadows(project_id, status=None):
     with _v2_lock:
         conn = _v2_db()
         if status:
-            rows = conn.execute("SELECT * FROM v2_foreshadowings WHERE project_id=? AND status? ORDER BY id",
+            rows = conn.execute("SELECT * FROM v2_foreshadowings WHERE project_id=? AND status=? ORDER BY id",
                               (project_id, status)).fetchall()
         else:
             rows = conn.execute("SELECT * FROM v2_foreshadowings WHERE project_id=?  ORDER BY id",
@@ -1606,12 +1606,6 @@ def get_project_templates(project_id: str) -> list:
         ).fetchall()
         conn.close()
     return [dict(r) for r in rows]
-
-
-def save_drafts_batch(project_id, chapters_data):
-    """批量保存草稿 — chapters_data格式: {"1": {"title":"...", "content":"...", "char_count":3000}, ...}"""
-    with _v2_lock:
-        conn = _v2_db()
 
 
 def save_drafts_batch(project_id, chapters_data):

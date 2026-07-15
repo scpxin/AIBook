@@ -207,6 +207,8 @@ class VolumeGenerateBatchRequest(BaseV2Request):
     """M10: 批量卷生成请求"""
     count: int = Field(..., ge=1, le=20)
     master_outline: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    world: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    characters: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 class VolumeSaveRequest(BaseV2Request):
@@ -244,12 +246,16 @@ class ChaptersOutlineRequest(BaseV2Request):
     """M13: 章节细纲生成请求"""
     chapter_no: str = Field(..., max_length=5)
     chapter_plan: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    foreshadow_plan: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    knowledge_state: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 class ChaptersOutlineBatchRequest(BaseV2Request):
     """M13: 批量章节细纲生成请求"""
     total_chapters: int = Field(..., ge=1)
     chapter_plan: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    foreshadow_plan: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    knowledge_state: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 class ChaptersOutlineSaveRequest(BaseV2Request):

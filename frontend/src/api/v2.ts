@@ -473,8 +473,8 @@ export function getDrafts(projectId: string) {
 }
 
 export function testModelConnection(endpoint: string, apiKey: string, model: string) {
-  return apiPost<{ ok: boolean; model?: string; response?: string; error?: string }>('/api/ai/test-connection', {
-    endpoint, apiKey, model,
+  return apiPost<{ ok: boolean; model?: string; response?: string; error?: string }>('/api/v2/settings/test-connection', {
+    endpoint, api_key: apiKey, model,
   }, 30000)
 }
 

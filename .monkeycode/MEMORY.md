@@ -36,13 +36,13 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
 - Context: 服务器环境配置汇总
 - Category: 运维部署
 - Instructions:
-  - 服务器: 140.143.210.177, ubuntu用户, SSH: `sshpass -p 'Tencent123c' ssh -o StrictHostKeyChecking=no ubuntu@140.143.210.177`
+  - 服务器: 140.143.210.177, ubuntu用户, SSH: `sshpass -p '<SSH_PASSWORD>' ssh -o StrictHostKeyChecking=no ubuntu@140.143.210.177`
   - 部署方式: Docker容器（fanqie-v2-frontend:80, fanqie-v2-backend:8000）
   - 服务器路径: `/home/ubuntu/fanqie-v2/` (仓库直接部署)
   - 后端文件注入: `docker cp到容器 → docker restart → sleep 5`
   - 前端部署: `frontend/dist/` 由docker构建时生成
   - 数据目录: `/home/ubuntu/fanqie_data/` volume mount到 `/app/data/`
-  - git: remote=`scpxin:ghp_...@github.com/scpxin/AIBook.git`, 默认分支=master
+  - git: remote=`scpxin:<GITHUB_TOKEN>@github.com/scpxin/AIBook.git`, 默认分支=master
   - AI模型: LongCat-2.0, endpoint: `https://api.longcat.chat/openai//v1/chat/completions`
   - DB: SQLite, `/app/data/fanqie.db`
 
@@ -64,7 +64,7 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
 - Category: 环境配置
 - Instructions:
   - Endpoint: `https://api.longcat.chat/openai`
-  - API Key: `ak_21Z7r97HM3lR0PA6Q68Qh0SR8Nd77`
+  - API Key: `<LONGCAT_API_KEY>`
 
 ### 代码修改流程规范
 - Date: 2026-07-11
@@ -77,7 +77,7 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
   - 服务器路径: `/home/ubuntu/fanqie-v2/` (直接 git clone 的仓库)
   - 本地路径: `/workspace/deploy/` (backend_v2/app/, novel_creator/, frontend/)
   - 模型: `LongCat-2.0`
-  - 启动方式: `cd /workspace/deploy/backend_v2 && PYTHONPATH=/workspace/deploy:$PYTHONPATH AI_ENDPOINT=https://api.longcat.chat/openai AI_API_KEY=ak_21Z7r97HM3lR0PA6Q68Qh0SR8Nd77 AI_MODEL=LongCat-2.0 python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1`
+  - 启动方式: `cd /workspace/deploy/backend_v2 && PYTHONPATH=/workspace/deploy:$PYTHONPATH AI_ENDPOINT=https://api.longcat.chat/openai AI_API_KEY=<LONGCAT_API_KEY> AI_MODEL=LongCat-2.0 python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1`
   - 注意: proxy.monkeycode-ai.com的key在当前环境返回403,不可用
 
 ### V2流水线测试项目
