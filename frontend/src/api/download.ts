@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPostLong } from './client'
+import { apiGet } from './client'
 import type { SavedBook } from './client'
 
 export async function searchBooks(q: string): Promise<{ books: any[] }> {
@@ -44,43 +44,4 @@ export async function listSavedBooks(): Promise<{ books: SavedBook[] }> {
 
 export async function getBookContent(bookId: string): Promise<{ content: string; length: number }> {
   return apiGet('/api/downloads/content', { book_id: bookId })
-}
-
-export async function craftDetectApi(data: {
-  endpoint: string
-  apiKey: string
-  model: string
-  content: string
-}): Promise<any> {
-  return apiPostLong('/api/novel/craft/detect-ai', data)
-}
-
-export async function craftFixApi(data: {
-  endpoint: string
-  apiKey: string
-  model: string
-  content: string
-  issues: any[]
-}): Promise<{ content: string }> {
-  return apiPostLong('/api/novel/craft/fix-ai', data)
-}
-
-export async function craftGoldenThreeApi(data: {
-  endpoint: string
-  apiKey: string
-  model: string
-  content: string
-}): Promise<any> {
-  return apiPostLong('/api/novel/craft/golden-three', data)
-}
-
-export async function craftQualityScoreApi(data: {
-  endpoint: string
-  apiKey: string
-  model: string
-  content: string
-  title?: string
-  genre?: string
-}): Promise<any> {
-  return apiPostLong('/api/novel/craft/quality-score', data)
 }

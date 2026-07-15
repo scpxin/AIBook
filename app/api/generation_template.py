@@ -92,7 +92,71 @@ def create_template(body: dict):
         raise HTTPException(status_code=500, detail="更新模板失败，请稍后重试")
 
 
-# ========== 兼容组查询 ==========
+# ========== 更新模板 ==========
+
+@router.put("/{template_id}")
+def update_template(template_id: int, body: dict):
+    """更新模板"""
+    updated = update_generation_template(template_id, **{k: v for k, v in body.items() if k in (
+        'name', 'module_key', 'output_data', 'input_context', 'entity_refs',
+        'compatibility_group', 'source_project_id', 'genre', 'sub_genre', 'tone',
+        'world_type', 'target_audience', 'is_public', 'quality_rating',
+    )})
+    if not updated:
+        raise HTTPException(status_code=404, detail="模板不存在")
+    return {"ok": True, "template": updated}
+
+
+# ========== 删除模板 ==========
+
+@router.delete("/{template_id}")
+def delete_template(template_id: int):
+    """删除模板"""
+    deleted = delete_generation_template(template_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="模板不存在")
+    return {"ok": True}
+
+
+# ========== 模板匹配 ==========
+
+@router.post("/match")
+def match_templates(body: dict):
+    """匹配模板 — 对指定模块的全部模板做兼容性打分，返回 compatible/incompatible 两组"""
+    module_key = body.get('module_key', '')
+    project_context = body.get('project_context', {})
+    selected_templates = body.get('selected_templates', {})
+
+    all_templates = list_generation_templates(module_key=module_key, limit=200)
+    compatible, incompatible = [], []
+    for tpl in all_templates:
+        result = match_templates_strict(tpl, project_context, selected_templates, all_templates)
+        if result.get('is_compatible'):
+            compatible.append(result)
+        else:
+            incompatible.append(result)
+
+    return {
+        "compatible": compatible,
+        "incompatible": incompatible,
+        "total_candidates": len(all_templates),
+    }
+
+
+# ========== 应用模板 ==========
+
+@router.post("/{template_id}/apply")
+def apply_template(template_id: int, body: dict):
+    """应用模板到项目"""
+    project_id = body.get('project_id', '')
+    if not project_id:
+        raise HTTPException(status_code=422, detail="缺少 project_id")
+
+    try:
+        result = apply_template_to_project(template_id, project_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return result
 
 @router.get("/compat-group/{group_id}")
 def get_compat_group(group_id: str):
