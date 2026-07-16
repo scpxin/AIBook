@@ -52,6 +52,13 @@ function convertKeys(obj: any, parentKey: string | null = null): any {
   return obj
 }
 
+function unwrapResponse(data: any): any {
+  if (data && typeof data === 'object' && data.ok === true && 'data' in data) {
+    return data.data
+  }
+  return data
+}
+
 export async function apiGet<T>(path: string, params: Record<string, string> = {}, timeout = 30000): Promise<T> {
   let url = withPrefix(path)
   const qs = Object.keys(params)
@@ -66,7 +73,7 @@ export async function apiGet<T>(path: string, params: Record<string, string> = {
       const d = await r.json().catch(() => ({}))
       throw new ApiError(formatError(d.error || d.detail || '请求失败 (HTTP ' + r.status + ')', r.status), r.status, d)
     }
-    return convertKeys(await r.json())
+    return unwrapResponse(convertKeys(await r.json()))
   } catch (e: any) {
     if (e instanceof ApiError) throw e
     if (e.name === 'AbortError') throw new ApiError('请求超时，请检查网络连接', 0)
@@ -104,7 +111,7 @@ export async function apiPost<T>(path: string, data: any, timeout = 120000, dedu
         throw new ApiError(msg, r.status)
       }
     }
-    return convertKeys(await r.json())
+    return unwrapResponse(convertKeys(await r.json()))
   } catch (e: any) {
     if (e instanceof ApiError) throw e
     if (e.name === 'AbortError') throw new ApiError('请求超时，请稍后重试或缩小数据量', 0)
@@ -172,7 +179,7 @@ export async function apiPut<T>(path: string, data: any, timeout = 120000): Prom
         throw new ApiError(formatError('操作失败 (HTTP ' + r.status + '): ' + text.slice(0, 200), r.status), r.status)
       }
     }
-    return convertKeys(await r.json())
+    return unwrapResponse(convertKeys(await r.json()))
   } catch (e: any) {
     if (e instanceof ApiError) throw e
     if (e.name === 'AbortError') throw new ApiError('请求超时，请稍后重试', 0)
@@ -200,7 +207,7 @@ export async function apiDelete<T>(path: string, timeout = 120000): Promise<T> {
         throw new ApiError(formatError('操作失败 (HTTP ' + r.status + '): ' + text.slice(0, 200), r.status), r.status)
       }
     }
-    return convertKeys(await r.json())
+    return unwrapResponse(convertKeys(await r.json()))
   } catch (e: any) {
     if (e instanceof ApiError) throw e
     if (e.name === 'AbortError') throw new ApiError('请求超时，请稍后重试', 0)

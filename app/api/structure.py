@@ -38,7 +38,7 @@ def power_generate(payload: PowerSystemGenerateRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/power-system/save")
@@ -50,7 +50,7 @@ def power_save(payload: PowerSystemSaveRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M7: 势力体系 ==========
@@ -66,7 +66,7 @@ def factions_generate(payload: FactionsGenerateRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/factions/save")
@@ -78,7 +78,7 @@ def factions_save(payload: FactionsSaveRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M8: 时间线 ==========
@@ -94,7 +94,7 @@ def timeline_build(payload: TimelineBuildRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/timeline/save")
@@ -106,7 +106,7 @@ def timeline_save(payload: TimelineSaveRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M9: 全书大纲 ==========
@@ -126,12 +126,12 @@ def outline_master(payload: OutlineMasterRequest):
         if 'outline_content' in result and len(result) <= 2:
             inner = result['outline_content']
             if isinstance(inner, dict):
-                return inner
+                return {"ok": True, "data": inner}
         if 'master_outline' in result and len(result) <= 2:
             inner = result['master_outline']
             if isinstance(inner, dict):
-                return inner
-    return result
+                return {"ok": True, "data": inner}
+    return {"ok": True, "data": result}
 
 
 @router.post("/outline/save")
@@ -143,7 +143,7 @@ def outline_save(payload: OutlineSaveRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M10: 卷纲 ==========
@@ -160,8 +160,8 @@ def story_volumes(payload: VolumeGenerateRequest):
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
     if isinstance(result, list):
-        return {"volumes": result}
-    return result
+        return {"ok": True, "data": {"volumes": result}}
+    return {"ok": True, "data": result}
 
 
 @router.post("/volumes/generate-batch")
@@ -177,7 +177,7 @@ def volumes_generate_batch(payload: VolumeGenerateBatchRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/volumes/save")
@@ -191,7 +191,7 @@ def volumes_save(payload: VolumeSaveRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M11: 剧情节点 ==========
@@ -207,7 +207,7 @@ def plot_nodes_generate(payload: PlotNodesGenerateRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/plot-nodes/save")
@@ -221,7 +221,7 @@ def plot_nodes_save(payload: PlotNodesSaveRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M12: 章节规划 ==========
@@ -241,8 +241,8 @@ def chapters_plan(payload: ChaptersPlanRequest):
     if isinstance(result, dict) and 'chapter_plan' in result and len(result) <= 2:
         inner = result['chapter_plan']
         if isinstance(inner, dict):
-            return inner
-    return result
+            return {"ok": True, "data": inner}
+    return {"ok": True, "data": result}
 
 
 @router.post("/chapters/plan-save")
@@ -256,7 +256,7 @@ def chapters_plan_save(payload: ChaptersPlanSaveRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M13: 章节细纲 ==========
@@ -274,7 +274,7 @@ def chapters_outline_generate(payload: ChaptersOutlineRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/chapters/outline-batch")
@@ -290,7 +290,7 @@ def chapters_outline_batch(payload: ChaptersOutlineBatchRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/chapters/outline-save")
@@ -304,4 +304,4 @@ def chapters_outline_save(payload: ChaptersOutlineSaveRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}

@@ -61,7 +61,7 @@ def scenes_design(payload: ScenesDesignRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/scenes/save")
@@ -75,7 +75,7 @@ def scenes_save(payload: ScenesSaveRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M15: 正文生成 (流式) ==========
@@ -112,7 +112,7 @@ def draft_save(payload: DraftSaveRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M16: 润色 ==========
@@ -130,7 +130,7 @@ def polish(payload: PolishRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M17: 内容解析 ==========
@@ -147,7 +147,7 @@ def content_parse(payload: ContentParseRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M18: 知识库 ==========
@@ -163,7 +163,7 @@ def knowledge_update(payload: KnowledgeUpdateRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.get("/knowledge/snapshot")
@@ -173,7 +173,7 @@ def knowledge_snapshot(project_id: str):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.get("/knowledge/foreshadows")
@@ -183,7 +183,7 @@ def knowledge_foreshadows(project_id: str, status: str = None):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M19: 一致性检查 ==========
@@ -203,7 +203,7 @@ def consistency_check(payload: ConsistencyCheckRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.get("/consistency/report")
@@ -213,4 +213,4 @@ def consistency_report(project_id: str, chapter_no: str = None):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}

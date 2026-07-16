@@ -54,7 +54,7 @@ def idea_generate(payload: IdeaGenerateRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/ideas/score")
@@ -64,7 +64,7 @@ def idea_score(payload: IdeaScoreRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/ideas/upgrade")
@@ -74,7 +74,7 @@ def idea_upgrade(payload: IdeaUpgradeRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/ideas/analyze-risks")
@@ -84,7 +84,7 @@ def idea_analyze_risks(payload: IdeaAnalyzeRisksRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M2: 项目定位 ==========
@@ -103,7 +103,7 @@ def project_analyze_batch(payload: ProjectAnalyzeRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/projects/analyze")
@@ -118,7 +118,7 @@ def project_analyze(payload: ProjectAnalyzeRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return _adapt_novel_position(result)
+    return {"ok": True, "data": _adapt_novel_position(result)}
 
 
 def _adapt_novel_position(data: dict) -> dict:
@@ -160,7 +160,7 @@ def project_check_compatibility(payload: ProjectCheckCompatibilityRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M3: 世界观 ==========
@@ -175,7 +175,7 @@ def world_origin(payload: WorldOriginRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/world/rules")
@@ -188,7 +188,7 @@ def world_rules(payload: WorldRulesRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/world/structure")
@@ -200,7 +200,7 @@ def world_structure(payload: WorldStructureRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/world/civilization")
@@ -212,7 +212,7 @@ def world_civilization(payload: WorldCivilizationRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/world/history")
@@ -225,7 +225,7 @@ def world_history(payload: WorldHistoryRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/world/check-consistency")
@@ -237,7 +237,7 @@ def world_check_consistency(payload: WorldCheckConsistencyRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/world/save")
@@ -249,7 +249,7 @@ def world_save(payload: WorldSaveRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M4: 角色系统 ==========
@@ -266,7 +266,7 @@ def char_protagonist(payload: CharacterProtagonistRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/characters/supporting")
@@ -279,7 +279,7 @@ def char_supporting(payload: CharacterSupportingRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/characters/antagonists")
@@ -292,7 +292,7 @@ def char_antagonists(payload: CharacterAntagonistsRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/characters/relations")
@@ -304,7 +304,7 @@ def char_relations(payload: CharacterRelationsRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/characters/check-consistency")
@@ -316,7 +316,7 @@ def char_check_consistency(payload: CharacterCheckConsistencyRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 # ========== M5: 故事体系 ==========
@@ -334,7 +334,7 @@ def story_master(payload: StoryMasterServiceRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/story/volumes")
@@ -347,7 +347,7 @@ def story_volumes(payload: StoryVolumesRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}
 
 
 @router.post("/story/check-consistency")
@@ -360,4 +360,4 @@ def story_check_consistency(payload: StoryCheckConsistencyRequest):
     if err:
         msg, status = _categorize_error(err)
         raise HTTPException(status, msg)
-    return result
+    return {"ok": True, "data": result}

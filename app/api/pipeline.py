@@ -116,7 +116,7 @@ def cleanup_state(project_id: str, confirm: bool = False):
     return {"success": True, "message": f"已清理项目 {project_id} 的流水线状态"}
 
 
-# ========== V2 数据查询API(18模块) ==========
+# ========== V2 数据查询API(19模块) ==========
 
 @router.get("/{project_id}/data/{module_name}")
 def get_module_data(project_id: str, module_name: str):
