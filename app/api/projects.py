@@ -4,7 +4,6 @@ import time
 import uuid
 import json
 import logging
-from typing import Optional
 from fastapi import APIRouter, HTTPException, Body
 from app.database import novel_db
 from app.config import PROJECT_ID_PATTERN, PROJECTS_DIR
@@ -15,7 +14,6 @@ logger = logging.getLogger('novel_creator.api.projects')
 
 def sanitize_project_name(name: str) -> str:
     """清理项目名，限制长度和字符集"""
-    import re
     if not name or not name.strip():
         return '未命名项目'
     name = name.strip()[:64]
@@ -132,10 +130,13 @@ def _save_characters_from_data(project_id, data):
     if isinstance(data, dict):
         chars = data.get('characters') or data.get('protagonists') or []
         villains = data.get('villains') or data.get('antagonists') or []
-        if chars:
-            database_v2.save_characters(project_id, chars)
-        if villains:
-            database_v2.save_villains(project_id, villains)
+        for i, c in enumerate(chars if isinstance(chars, list) else [chars]):
+            cid = c.get('charId') or c.get('id') or c.get('name', f'char_{i}')
+            database_v2.save_character(project_id, str(cid), c)
+        for i, v in enumerate(villains if isinstance(villains, list) else [villains]):
+            vid = v.get('charId') or v.get('id') or v.get('name', f'villain_{i}')
+            v_data = {**v, 'role_type': 'antagonist'}
+            database_v2.save_character(project_id, str(vid), v_data)
 
 
 def _save_factions_from_data(project_id, data):
@@ -143,8 +144,9 @@ def _save_factions_from_data(project_id, data):
     if isinstance(data, dict) and 'module_data' in data:
         data = data['module_data']
     factions = data.get('factions', data) if isinstance(data, dict) else data
-    if isinstance(factions, list) and factions:
-        database_v2.save_factions(project_id, factions)
+    for i, f in enumerate(factions if isinstance(factions, list) else [factions] if isinstance(factions, dict) else []):
+        fid = f.get('faction_id') or f.get('id') or f.get('name', f'faction_{i}')
+        database_v2.save_faction(project_id, str(fid), f)
 
 
 def _save_volumes_from_data(project_id, data):
@@ -152,8 +154,9 @@ def _save_volumes_from_data(project_id, data):
     if isinstance(data, dict) and 'module_data' in data:
         data = data['module_data']
     volumes = data.get('volumes', data) if isinstance(data, dict) else data
-    if isinstance(volumes, list) and volumes:
-        database_v2.save_volumes(project_id, volumes)
+    for v in (volumes if isinstance(volumes, list) else [volumes] if isinstance(volumes, dict) else []):
+        vno = v.get('volume_no') or v.get('id') or 1
+        database_v2.save_volume(project_id, int(vno), v)
 
 
 def _save_chapter_plans_from_data(project_id, data):
@@ -161,8 +164,9 @@ def _save_chapter_plans_from_data(project_id, data):
     if isinstance(data, dict) and 'module_data' in data:
         data = data['module_data']
     plans = data.get('chapterPlans', data) if isinstance(data, dict) else data
-    if isinstance(plans, list) and plans:
-        database_v2.save_chapter_plans(project_id, plans)
+    for p in (plans if isinstance(plans, list) else [plans] if isinstance(plans, dict) else []):
+        cno = p.get('chapter_no') or p.get('id') or '1'
+        database_v2.save_chapter_plan(project_id, str(cno), p)
 
 
 def _save_plot_nodes_from_data(project_id, data):

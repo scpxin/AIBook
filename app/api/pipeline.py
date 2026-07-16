@@ -348,22 +348,6 @@ def _save_factions_batch(project_id: str, data):
             database_v2.save_faction(project_id, fid, data)
 
 
-def _save_scenes_batch(project_id: str, data):
-    """批量保存场景(支持{scenes:[...]}结构或list或单条)"""
-    if isinstance(data, list):
-        for i, s in enumerate(data):
-            sid = s.get("scene_id", s.get("sceneName", f"s{i+1}"))
-            database_v2.save_scene(project_id, sid, s)
-    elif isinstance(data, dict):
-        if "scenes" in data and isinstance(data["scenes"], list):
-            for i, s in enumerate(data["scenes"]):
-                sid = s.get("scene_id", s.get("sceneName", f"s{i+1}"))
-                database_v2.save_scene(project_id, sid, s)
-        elif data.get("scene_id") or data.get("sceneName"):
-            sid = data.get("scene_id", data.get("sceneName", "s1"))
-            database_v2.save_scene(project_id, sid, data)
-
-
 def _map_power_system(d: dict) -> dict:
     """将前端power_system字段映射到数据库schema"""
     import json as _json

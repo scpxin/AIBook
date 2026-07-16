@@ -10,7 +10,7 @@ from app.services.design_service import (
     CharacterService, StoryService,
 )
 from app.services.novel_generator import parse_style_profile
-from app.utils.errors import safe_error as _safe_error
+from app.utils.errors import categorize_error as _categorize_error
 from app.models.v2_schemas import (
     IdeaGenerateRequest, IdeaScoreRequest, IdeaUpgradeRequest,
     IdeaAnalyzeRisksRequest, ProjectAnalyzeRequest,
@@ -52,7 +52,8 @@ def idea_generate(payload: IdeaGenerateRequest):
         count=payload.count,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -61,7 +62,8 @@ def idea_score(payload: IdeaScoreRequest):
     """POST /api/v2/ideas/score — 创意评分"""
     result, err = IdeaService.score(payload.project_id, payload.ideas)
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -70,7 +72,8 @@ def idea_upgrade(payload: IdeaUpgradeRequest):
     """POST /api/v2/ideas/upgrade — TOP3创意升级"""
     result, err = IdeaService.upgrade(payload.project_id, payload.ideas)
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -79,7 +82,8 @@ def idea_analyze_risks(payload: IdeaAnalyzeRisksRequest):
     """POST /api/v2/ideas/analyze-risks — 风险分析"""
     result, err = IdeaService.analyze_risks(payload.project_id, payload.concept, **(payload.extra or {}))
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -97,7 +101,8 @@ def project_analyze_batch(payload: ProjectAnalyzeRequest):
         batch_index=payload.batch_index,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -111,7 +116,8 @@ def project_analyze(payload: ProjectAnalyzeRequest):
         style_profile=None,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return _adapt_novel_position(result)
 
 
@@ -152,7 +158,8 @@ def project_check_compatibility(payload: ProjectCheckCompatibilityRequest):
         payload.platform,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -166,7 +173,8 @@ def world_origin(payload: WorldOriginRequest):
         payload.genre, _get_style(payload.style_profile),
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -178,7 +186,8 @@ def world_rules(payload: WorldRulesRequest):
         payload.power_system,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -189,7 +198,8 @@ def world_structure(payload: WorldStructureRequest):
         payload.project_id, payload.origin or {},
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -200,7 +210,8 @@ def world_civilization(payload: WorldCivilizationRequest):
         payload.project_id, payload.structure or {},
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -212,7 +223,8 @@ def world_history(payload: WorldHistoryRequest):
         payload.civilization or {},
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -223,7 +235,8 @@ def world_check_consistency(payload: WorldCheckConsistencyRequest):
         payload.project_id, payload.world_data,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -234,7 +247,8 @@ def world_save(payload: WorldSaveRequest):
         payload.project_id, payload.world_data,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -250,7 +264,8 @@ def char_protagonist(payload: CharacterProtagonistRequest):
         _get_style(payload.style_profile),
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -262,7 +277,8 @@ def char_supporting(payload: CharacterSupportingRequest):
         payload.count,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -274,7 +290,8 @@ def char_antagonists(payload: CharacterAntagonistsRequest):
         payload.world or {},
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -285,7 +302,8 @@ def char_relations(payload: CharacterRelationsRequest):
         payload.project_id, payload.characters,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -296,7 +314,8 @@ def char_check_consistency(payload: CharacterCheckConsistencyRequest):
         payload.project_id, payload.characters,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -313,7 +332,8 @@ def story_master(payload: StoryMasterServiceRequest):
         _get_style(payload.style_profile),
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -325,7 +345,8 @@ def story_volumes(payload: StoryVolumesRequest):
         payload.volume_count,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
 
 
@@ -337,5 +358,6 @@ def story_check_consistency(payload: StoryCheckConsistencyRequest):
         payload.characters,
     )
     if err:
-        raise HTTPException(400, _safe_error(err))
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
     return result
