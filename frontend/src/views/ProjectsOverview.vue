@@ -243,7 +243,7 @@ async function openProject(p: any) {
   if (p.tags === 'v2' || p.tags?.includes('v2')) {
     router.push({ path: '/create-v2', query: { projectId: p.id } })
   } else {
-    router.push({ path: '/writing', query: { projectId: p.id } })
+    router.push({ path: '/create-v2', query: { projectId: p.id } })
   }
 }
 

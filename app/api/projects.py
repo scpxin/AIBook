@@ -313,11 +313,24 @@ def project_restore(body: dict):
 async def list_v2_projects():
     from novel_creator.database_v2 import _v2_db
     conn = _v2_db()
-    rows = conn.execute("SELECT project_id, project_overview, created_at, updated_at FROM v2_projects ORDER BY updated_at DESC").fetchall()
+    rows = conn.execute("""
+        SELECT v2.project_id, v2.project_overview, v2.created_at, v2.updated_at,
+               COALESCE(p.name, v2.project_overview) as display_name
+        FROM v2_projects v2
+        LEFT JOIN projects p ON v2.project_id = p.id
+        WHERE v2.deleted_at IS NULL
+        ORDER BY v2.updated_at DESC
+    """).fetchall()
     conn.close()
     projects = []
     for r in rows:
-        projects.append({"id": r[0], "name": r[1] or r[0], "created_at": r[2], "updated_at": r[3]})
+        projects.append({
+            "id": r[0],
+            "name": r[4] or r[1] or r[0],
+            "created_at": r[2],
+            "updated_at": r[3],
+            "tags": "v2",
+        })
     return {"projects": projects}
 
 @router.post("/api/v2/projects/derive-fields")

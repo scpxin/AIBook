@@ -2,7 +2,7 @@ import os
 import re
 
 PORT = int(os.environ.get('PORT', 8000))
-DB_PATH = os.environ.get('DB_PATH', os.environ.get('DATABASE_PATH', '/app/data/fanqie.db'))
+DB_PATH = os.environ.get('DB_PATH', os.environ.get('DATABASE_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'fanqie.db')))
 DOWNLOAD_DIR = os.environ.get('DOWNLOAD_DIR', '/app/data/downloads')
 PROJECTS_DIR = os.environ.get('PROJECTS_DIR', '/app/data/projects')
 LOG_DIR = os.environ.get('LOG_DIR', '/app/data/logs')
