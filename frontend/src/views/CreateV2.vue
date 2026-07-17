@@ -231,7 +231,7 @@ const { isAIConfigured } = useAIGuard()
 
 const currentModule = computed(() => {
   const m = route.params.module as string
-  return m || pipeline.currentModule || 'idea'
+  return m || 'idea'
 })
 
 const currentModuleInfo = computed(() => {

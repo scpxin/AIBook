@@ -84,6 +84,10 @@
     </div>
 
     <div v-if="error" class="error">{{ error }}</div>
+
+    <div class="actions">
+      <button @click="confirm" class="btn-confirm" :disabled="confirming">{{ confirming ? '保存中...' : '确认架构，下一步' }}</button>
+    </div>
     </div>
   </div>
 </template>
@@ -106,6 +110,7 @@ const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: Record<string, unknown>] }>()
 const gen = useGeneration('story_architecture', '故事架构')
 const generating = ref(false)
+const confirming = ref(false)
 const error = ref('')
 const plotNodeCount = ref(6)
 const plotNodes = ref<Record<string, unknown>[]>([])
@@ -178,18 +183,28 @@ async function generatePlotNodes() {
 
 
 async function confirm() {
+  if (confirming.value) return
+  cancel()
   const ok = await confirmDialog.confirm({
     message: '确定进入下一步？',
     detail: '确认后将保存当前故事架构数据并进入下一模块',
     type: 'info',
   })
   if (!ok) return
+  confirming.value = true
   const data = {
     story: { ...story },
     plot_nodes: plotNodes.value,
   }
-  await saveModuleData(props.projectId, 'story_architecture', { module_data: data })
-  emit('complete', data)
+  try {
+    await saveModuleData(props.projectId, 'story_architecture', data)
+    toast.success('故事架构已保存')
+    emit('complete', data)
+  } catch (e: any) {
+    toast.error('保存失败: ' + (e?.message || '未知错误'))
+  } finally {
+    confirming.value = false
+  }
 }
 
 onMounted(async () => {
@@ -215,11 +230,11 @@ onMounted(async () => {
 })
 
 const toast = useToastStore()
-const storyArchData = () => ({ ...story })
-const { saveState, scheduleSave } = useAutoSave({
+const storyArchData = () => ({ story: { ...story }, plot_nodes: plotNodes.value })
+const { saveState, scheduleSave, cancel } = useAutoSave({
   dataRef: storyArchData,
   saveFn: async (data) => {
-    await saveModuleData(props.projectId, 'story_architecture', { module_data: { story: data } })
+    await saveModuleData(props.projectId, 'story_architecture', data)
   },
   debounce: 2000,
   storageKey: `story_arch_${props.projectId}`,

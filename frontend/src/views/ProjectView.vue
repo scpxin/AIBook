@@ -16,6 +16,41 @@
     </div>
 
     <div class="section">
+      <h3>创作参数</h3>
+      <p class="section-desc">完善创作参数，为后续AI生成提供更精准的上下文</p>
+      <div class="params-grid">
+        <div class="param-item">
+          <label>小说体裁</label>
+          <select v-model="subGenre" class="form-select">
+            <option value="">选择体裁</option>
+            <option v-for="g in genreOptions" :key="g" :value="g">{{ g }}</option>
+          </select>
+        </div>
+        <div class="param-item">
+          <label>文风基调</label>
+          <select v-model="tone" class="form-select">
+            <option value="">选择文风</option>
+            <option v-for="t in toneOptions" :key="t" :value="t">{{ t }}</option>
+          </select>
+        </div>
+        <div class="param-item">
+          <label>目标字数</label>
+          <select v-model="wordCountPlan" class="form-select">
+            <option value="">选择字数</option>
+            <option v-for="w in wordCountOptions" :key="w.value" :value="w.value">{{ w.label }}</option>
+          </select>
+        </div>
+        <div class="param-item">
+          <label>更新频率</label>
+          <select v-model="updateFrequency" class="form-select">
+            <option value="">选择频率</option>
+            <option v-for="u in updateFrequencyOptions" :key="u" :value="u">{{ u }}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
       <h3>项目定位分析</h3>
       <p class="section-desc">基于灵感内容，分析12个定位维度。"待分析"表示AI未能识别，可直接手动填写。</p>
       <div v-if="loading" class="loading-hint">加载中...</div>
@@ -102,6 +137,20 @@ const platforms = [
   { id: 'custom', name: '自定义', desc: '灵活配置' },
 ]
 const selectedPlatform = ref('fanqie')
+const subGenre = ref('')
+const tone = ref('')
+const wordCountPlan = ref('')
+const updateFrequency = ref('')
+const genreOptions = ['玄幻', '都市', '科幻', '言情', '悬疑', '历史', '游戏', '轻小说', '仙侠', '武侠']
+const toneOptions = ['热血', '轻松', '沉重', '爽文', '黑暗', '治愈', '写实', '悬疑', '虐心', '搞笑']
+const wordCountOptions = [
+  { value: '1000000', label: '100万字' },
+  { value: '2000000', label: '200万字' },
+  { value: '3000000', label: '300万字' },
+  { value: '5000000', label: '500万字' },
+  { value: '10000000', label: '1000万字' },
+]
+const updateFrequencyOptions = ['日更6000', '日更4000', '隔日更', '每周2次', '每周1次']
 const dimensions = ref<any[]>([])
 const expandedDims = ref<string[]>([])
 const compatResults = ref<any[]>([])
@@ -120,6 +169,10 @@ watch(selectedPlatform, () => {
 
 const projectData = () => ({
   platform: selectedPlatform.value,
+  sub_genre: subGenre.value,
+  tone: tone.value,
+  word_count_plan: wordCountPlan.value,
+  update_frequency: updateFrequency.value,
   dimensions: dimensions.value,
   compatResults: compatResults.value,
   analyzedAt: lastAnalyzed.value,
@@ -134,7 +187,7 @@ const { scheduleSave } = useAutoSave({
   projectId: props.projectId,
   moduleName: 'project',
 })
-watch([selectedPlatform, dimensions, compatResults], () => {
+watch([selectedPlatform, subGenre, tone, wordCountPlan, updateFrequency, dimensions, compatResults], () => {
   scheduleSave()
 }, { deep: true })
 
@@ -145,6 +198,10 @@ onMounted(async () => {
     const saved = await v2Api.getModuleData(props.projectId, 'project')
     if (saved?.data && Object.keys(saved.data).length > 0 && (saved.data.dimensions?.length || saved.data.platform || saved.data.sub_genre || saved.data.tone)) {
       if (saved.data.platform) selectedPlatform.value = saved.data.platform
+      if (saved.data.sub_genre) subGenre.value = saved.data.sub_genre
+      if (saved.data.tone) tone.value = saved.data.tone
+      if (saved.data.word_count_plan) wordCountPlan.value = saved.data.word_count_plan
+      if (saved.data.update_frequency) updateFrequency.value = saved.data.update_frequency
       if (saved.data.dimensions) {
         dimensions.value = saved.data.dimensions
         lastAnalyzed.value = saved.data.analyzedAt || ''
@@ -275,15 +332,6 @@ function formatDimName(key: string): string {
     subplot_count: '支线数量',
     climax_pattern: '高潮模式',
     ending_direction: '结局方向',
-    market_position: '市场定位',
-    competition: '竞品分析',
-    trend_alignment: '趋势匹配',
-    platform_fit: '平台匹配度',
-    serialization: '连载策略',
-    word_count: '字数规划',
-    update_frequency: '更新频率',
-    monetization: '变现模式',
-    risk_assessment: '风险评估',
   }
   return map[key] || key
 }
@@ -298,6 +346,10 @@ async function saveDimension(_dim?: any): Promise<boolean> {
   try {
     await v2Api.saveModuleData(props.projectId, 'project', {
       platform: selectedPlatform.value,
+      sub_genre: subGenre.value,
+      tone: tone.value,
+      word_count_plan: wordCountPlan.value,
+      update_frequency: updateFrequency.value,
       dimensions: dimensions.value,
       compatResults: compatResults.value,
       analyzedAt: lastAnalyzed.value || new Date().toISOString(),
@@ -388,7 +440,7 @@ async function confirm() {
       toast.error('保存分析结果失败，请重试')
       return
     }
-    emit('complete', { platform: selectedPlatform.value, dimensions: dimensions.value })
+    emit('complete', { platform: selectedPlatform.value, sub_genre: subGenre.value, tone: tone.value, word_count_plan: wordCountPlan.value, update_frequency: updateFrequency.value, dimensions: dimensions.value })
   } finally {
     confirming.value = false
   }
@@ -405,6 +457,11 @@ async function confirm() {
 .platform-card span { font-size: 16px; color: #888; }
 .platform-card:hover { border-color: var(--primary); }
 .platform-card.active { border-color: var(--primary); background: #f0f8ff; }
+.params-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+.param-item { display: flex; flex-direction: column; gap: 6px; }
+.param-item label { font-weight: 600; font-size: 15px; color: #555; }
+.form-select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; color: #333; width: 100%; }
+.form-select:focus { border-color: var(--primary); outline: none; }
 .dimension-list { display: flex; flex-direction: column; gap: 5px; }
 .dimension-item { border: 1px solid #f0f0f0; border-radius: 5px; }
 .dim-header { display: flex; justify-content: space-between; padding: 10px 12px; cursor: pointer; font-weight: 500; }
