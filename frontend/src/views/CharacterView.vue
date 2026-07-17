@@ -65,9 +65,20 @@
       <div v-if="activeTab === 'villain'" class="tab-pane">
         <h3>反派体系</h3>
         <div v-if="!villains.length && !generating" class="empty-hint tab-pane">暂无反派，点击「AI生成角色」自动填充，或手动添加</div>
-        <div v-for="(v, idx) in villains" :key="idx" class="villain-card" :class="{ active: selectedVillain === v }" tabindex="0" @click="selectedVillain = v" @keydown.enter="selectedVillain = v" v-keyboard-click>
-          <div class="villain-name">{{ v.name }} <span class="tier">{{ v.tier }}</span><button @click.stop="deleteVillain(idx)" class="btn-delete-sm" title="删除" aria-label="删除反派">×</button></div>
-          <div class="villain-motivation">{{ v.motivation }}</div>
+        <div class="villain-grid">
+          <div v-for="(v, idx) in villains" :key="idx" class="villain-card" :class="{ active: selectedVillain === v }" tabindex="0" @click="selectedVillain = v" @keydown.enter="selectedVillain = v" v-keyboard-click>
+            <div class="villain-name">{{ v.name }} <span class="tier">{{ v.tier }}</span><button @click.stop="deleteVillain(idx)" class="btn-delete-sm" title="删除" aria-label="删除反派">x</button></div>
+            <div class="villain-motivation">{{ v.motivation }}</div>
+          </div>
+        </div>
+        <div v-if="selectedVillain" class="char-detail">
+          <h4>{{ selectedVillain.name }} 详情</h4>
+          <div class="char-form-grid">
+            <div v-for="dim in villainDims" :key="dim.key" class="form-group">
+              <label>{{ dim.label }}</label>
+              <input v-model="selectedVillain[dim.key]" class="form-input" :placeholder="dim.placeholder" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -140,6 +151,17 @@ const charDims = [
   { key: 'relation', label: '与主角关系', placeholder: '如：挚友/暗恋/师徒' },
 ]
 
+const villainDims = [
+  { key: 'name', label: '姓名', placeholder: '反派姓名' },
+  { key: 'tier', label: '等级', placeholder: '小Boss/中Boss/大Boss/终极Boss' },
+  { key: 'motivation', label: '动机', placeholder: '作恶的根本原因' },
+  { key: 'trait', label: '性格', placeholder: '性格特点' },
+  { key: 'appearance', label: '外貌', placeholder: '外貌特征' },
+  { key: 'background', label: '背景', placeholder: '背景故事' },
+  { key: 'goal', label: '目标', placeholder: '角色追求的终极目标' },
+  { key: 'relation', label: '与主角关系', placeholder: '如：宿敌/仇人/对手' },
+]
+
 const protagonist = reactive<any>({})
 const supportingChars = ref<any[]>([])
 const villains = ref<any[]>([])
@@ -186,6 +208,21 @@ function handleTabKeydown(dir: number, e: KeyboardEvent) {
 
 const worldData = ref<any>(null)
 const storyConcept = ref('')
+const projectContext = ref<any>(null)
+
+function enrichedStoryConcept(): string {
+  const parts = [storyConcept.value]
+  const ctx: string[] = []
+  if (projectContext.value) {
+    if (projectContext.value.sub_genre) ctx.push(`体裁: ${projectContext.value.sub_genre}`)
+    if (projectContext.value.tone) ctx.push(`文风: ${projectContext.value.tone}`)
+    if (projectContext.value.platform) ctx.push(`平台: ${projectContext.value.platform}`)
+  }
+  if (ctx.length > 0) {
+    parts.push(`项目设定: ${ctx.join(', ')}`)
+  }
+  return parts.filter(Boolean).join(' | ')
+}
 
 function addChar() {
   if (!newChar.name) return
@@ -222,7 +259,7 @@ async function generate() {
   gen.begin(4, '正在生成主角...')
   try {
     const result = await charStore.generateCharacters(
-      props.projectId, worldData.value, storyConcept.value || undefined,
+      props.projectId, worldData.value, enrichedStoryConcept() || undefined,
       (step: number, msg: string) => gen.progress(step, msg),
     )
     Object.assign(protagonist, result.protagonist || {})
@@ -320,6 +357,10 @@ onMounted(async () => {
       worldData.value = world
       storyConcept.value = world.origin?.hiddenTruth || ''
     }
+    const project = allData?.modules?.['project']
+    if (project) {
+      projectContext.value = project
+    }
   } catch (_e) {
     console.debug('[CharacterView] prefill from world failed:', _e)
   }
@@ -383,7 +424,10 @@ watch(activeTab, () => { checkResultMsg.value = '' })
 .btn-add { padding: 8px 16px; background: #e8f4fd; color: var(--primary); border: 1px solid var(--primary); border-radius: 6px; cursor: pointer; font-size: 15px; }
 .btn-save { padding: 8px 16px; background: var(--primary); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; }
 .btn-save:disabled { opacity: 0.5; }
-.villain-card { border: 1px solid #eee; border-radius: 8px; padding: 16px; margin-bottom: 10px; }
+.villain-card { border: 1px solid #eee; border-radius: 8px; padding: 16px; margin-bottom: 10px; cursor: pointer; transition: 0.15s; }
+.villain-card:hover { border-color: var(--primary); }
+.villain-card.active { border-color: var(--primary); background: #f0f8ff; }
+.villain-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 13px; }
 .villain-name { font-weight: 600; margin-bottom: 5px; }
 .tier { font-size: 14px; padding: 1px 6px; background: #fff1f0; color: #ff4d4f; border-radius: 4px; }
 .villain-motivation { font-size: 17px; color: #666; }

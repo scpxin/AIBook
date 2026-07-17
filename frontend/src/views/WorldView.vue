@@ -158,6 +158,22 @@ const civDimensions = [
 
 const ideaText = ref('')
 const ideaGenre = ref('')
+const projectPlatform = ref('')
+const projectSubGenre = ref('')
+const projectTone = ref('')
+
+function enrichedIdeaContext(): string {
+  const parts = [ideaText.value]
+  const ctx: string[] = []
+  if (ideaGenre.value) ctx.push(`题材: ${ideaGenre.value}`)
+  if (projectPlatform.value) ctx.push(`目标平台: ${projectPlatform.value}`)
+  if (projectSubGenre.value) ctx.push(`小说体裁: ${projectSubGenre.value}`)
+  if (projectTone.value) ctx.push(`文风基调: ${projectTone.value}`)
+  if (ctx.length > 0) {
+    parts.push(`\n项目上下文:\n${ctx.join('\n')}`)
+  }
+  return parts.join('\n')
+}
 
 async function generate() {
   generating.value = true
@@ -166,7 +182,7 @@ async function generate() {
   gen.begin(5, '正在生成世界本源...')
   try {
     const result = await worldStore.generateWorld(
-      props.projectId, world.origin, ideaText.value, ideaGenre.value,
+      props.projectId, world.origin, enrichedIdeaContext(), ideaGenre.value,
       (step, msg) => gen.progress(step, msg)
     )
     Object.assign(world, result)
@@ -258,6 +274,15 @@ onMounted(async () => {
       ideaGenre.value = idea.genre || ''
       if (!world.origin.originStory) {
         world.origin.originStory = `基于创意"${ideaText.value}"构建的世界观`
+      }
+    }
+    const project = allData?.modules?.['project']
+    if (project) {
+      projectPlatform.value = project.platform || ''
+      projectSubGenre.value = project.sub_genre || ''
+      projectTone.value = project.tone || ''
+      if (!world.origin.worldType && project.sub_genre) {
+        world.origin.worldType = project.sub_genre
       }
     }
   } catch (_e) {
