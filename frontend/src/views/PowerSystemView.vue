@@ -69,7 +69,7 @@
           <span v-for="ab in (Array.isArray(level.abilities) ? level.abilities : [level.abilities])" :key="ab" class="ability-tag">{{ ab }}</span>
         </div>
       </div>
-      <button @click="proceed" class="btn btn-primary btn-complete">确认并通过</button>
+      <button @click="confirm" class="btn btn-primary btn-complete">确认并通过</button>
     </div>
     </div>
   </div>
@@ -87,7 +87,7 @@ import { useToastStore } from '../stores/toast'
 const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: any]; skip: [data: any] }>()
 const gen = useGeneration('power_system', '力量体系')
-const confirm = setupConfirm()
+const confirmDialog = setupConfirm()
 const errorBar = setupErrorBar()
 const pageLoading = ref(true)
 
@@ -182,6 +182,17 @@ async function proceed() {
     if (!error.value) gen.end()
     else gen.fail(error.value)
   }
+}
+
+async function confirm() {
+  const ok = await confirmDialog.confirm({
+    message: '确定进入下一步？',
+    detail: '确认后将保存当前力量体系数据并进入下一模块',
+    type: 'info',
+  })
+  if (!ok) return
+  try { await v2Api.saveModuleData(props.projectId, 'power_system', powerData()) } catch (_e) { /* ignore */ }
+  emit('complete', resultData.value)
 }
 
 function buildLocalLevels() {

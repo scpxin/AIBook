@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, shallowRef } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import EmotionCurveChart from '../components/EmotionCurveChart.vue'
 import { saveModuleData, getAllModuleData, getModuleData } from '../api/v2'
 import { useGeneration } from '../composables/useGeneration'
@@ -166,7 +166,7 @@ const formDefaults: Record<string, any> = {
   chapter_outline: { detailLevel: 'medium', focusChapters: '', totalChapters: 10 },
 }
 
-const form = shallowRef({ ...(formDefaults[props.currentModule] || formDefaults.volumes) })
+const form = ref({ ...(formDefaults[props.currentModule] || formDefaults.volumes) })
 
 watch(moduleKey, (key) => {
   form.value = { ...formDefaults[key] }

@@ -60,6 +60,7 @@
           <div class="faction-header">
             <span class="faction-badge" :style="{ background: f.color || colors[idx] }">{{ f.short_name || f.shortName || (f.name || '').slice(0, 1) }}</span>
             <span class="faction-name">{{ f.name }}</span>
+            <button @click="editFaction(idx)" class="btn-edit-sm" title="编辑">✎</button>
             <button @click="deleteFaction(idx)" class="btn-delete-sm" title="删除">×</button>
           </div>
           <div class="faction-info">
@@ -71,7 +72,45 @@
           <div class="faction-relation" v-if="f.relation || f.core_relation"><strong>核心关系：</strong>{{ f.relation || f.core_relation }}</div>
         </div>
       </div>
-      <button @click="proceed" class="btn btn-primary btn-complete">确认并通过</button>
+      <button @click="confirm" class="btn btn-primary btn-complete">确认并通过</button>
+    </div>
+
+    <div v-if="editingFaction" class="edit-overlay" @click.self="cancelEdit">
+      <div class="edit-panel">
+        <h3>编辑势力</h3>
+        <div class="form-group">
+          <label>名称</label>
+          <input v-model="editingFaction.name" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label>简称</label>
+          <input v-model="editingFaction.short_name" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label>首领</label>
+          <input v-model="editingFaction.leader" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label>领地</label>
+          <input v-model="editingFaction.territory" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label>实力</label>
+          <input v-model="editingFaction.strength" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label>描述</label>
+          <textarea v-model="editingFaction.description" rows="3" class="form-textarea"></textarea>
+        </div>
+        <div class="form-group">
+          <label>核心关系</label>
+          <textarea v-model="editingFaction.relation" rows="2" class="form-textarea"></textarea>
+        </div>
+        <div class="action-row">
+          <button @click="saveEdit" class="btn btn-primary">保存</button>
+          <button @click="cancelEdit" class="btn btn-ghost">取消</button>
+        </div>
+      </div>
     </div>
     </div>
   </div>
@@ -89,7 +128,7 @@ import { useAutoSave } from '../composables/useAutoSave'
 const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: any]; skip: [data: any] }>()
 const gen = useGeneration('factions', '势力体系')
-const confirm = setupConfirm()
+const confirmDialog = setupConfirm()
 const errorBar = setupErrorBar()
 const pageLoading = ref(true)
 
@@ -101,6 +140,8 @@ const error = ref('')
 const factions = ref<any[]>([])
 const upstreamData = ref('')
 const isOffline = ref(false)
+const editingFaction = ref<any>(null)
+const editingFactionIdx = ref(-1)
 
 const resultData = computed(() => ({
   pattern: form.pattern,
@@ -201,13 +242,41 @@ function useOfflineMode() {
 }
 
 async function deleteFaction(idx: number) {
-  const ok = await confirm.confirm({
+  const ok = await confirmDialog.confirm({
     message: '确定删除该势力？',
     detail: '删除后不可恢复',
     type: 'danger',
   })
   if (!ok) return
   factions.value.splice(idx, 1)
+}
+
+async function confirm() {
+  const ok = await confirmDialog.confirm({
+    message: '确定进入下一步？',
+    detail: '确认后将保存当前势力体系数据并进入下一模块',
+    type: 'info',
+  })
+  if (!ok) return
+  try { await v2Api.saveModuleData(props.projectId, 'factions', factionsData()) } catch (_e) { /* ignore */ }
+  emit('complete', resultData.value)
+}
+
+function editFaction(idx: number) {
+  editingFactionIdx.value = idx
+  editingFaction.value = { ...factions.value[idx] }
+}
+
+function saveEdit() {
+  if (editingFactionIdx.value >= 0 && editingFaction.value) {
+    factions.value[editingFactionIdx.value] = { ...editingFaction.value }
+  }
+  cancelEdit()
+}
+
+function cancelEdit() {
+  editingFaction.value = null
+  editingFactionIdx.value = -1
 }
 
 function getNames(pattern: string, count: number): any[] {
@@ -282,6 +351,11 @@ function getRelation(idx: number, count: number, pattern: string): string {
 .faction-relation { font-size: 14px; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
 .btn-delete-sm { background: none; border: none; color: #c62828; font-size: 18px; cursor: pointer; margin-left: auto; }
 .btn-delete-sm:hover { color: #ff0000; }
+.btn-edit-sm { background: none; border: none; color: #4a90d9; font-size: 16px; cursor: pointer; }
+.btn-edit-sm:hover { color: #2176c9; }
+.edit-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.edit-panel { background: #fff; border-radius: 16px; padding: 28px; width: 480px; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.24); }
+.edit-panel h3 { font-size: 20px; margin-bottom: 16px; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
