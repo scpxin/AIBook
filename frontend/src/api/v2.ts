@@ -74,6 +74,12 @@ export function checkProjectCompatibility(projectId: string, idea: string, platf
   })
 }
 
+export function deriveProjectFields(projectId: string, idea: string) {
+  return apiPost<any>('/api/v2/projects/derive-fields', {
+    project_id: projectId, idea,
+  })
+}
+
 // ========== M3: 世界观 ==========
 
 export function generateWorldOrigin(projectId: string, idea: string, genre?: string) {

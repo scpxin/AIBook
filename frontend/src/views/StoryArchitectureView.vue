@@ -28,6 +28,11 @@
 
     <div v-if="story.volumes?.length" class="section">
       <h3>卷纲预览</h3>
+      <div class="action-row" style="margin-bottom:12px">
+        <button @click="generateVolumes" :disabled="generating" class="btn btn-secondary">
+          <span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : '生成详细卷纲' }}
+        </button>
+      </div>
       <div class="volume-grid">
         <div v-for="(v, idx) in story.volumes" :key="idx" class="volume-card" tabindex="0">
           <div class="volume-header">
@@ -94,7 +99,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from 'vue'
-import { generateStoryMaster, generateMasterOutline, generatePlotNodes as genPlotNodes, getModuleData, getAllModuleData, saveModuleData } from '../api/v2'
+import { generateStoryMaster, generateMasterOutline, getModuleData, getAllModuleData, saveModuleData, generateVolumes as genStoryVolumes } from '../api/v2'
 import { useGeneration } from '../composables/useGeneration'
 import { setupConfirm } from '../composables/useConfirm'
 import { setupErrorBar } from '../composables/useErrorBar'
@@ -180,7 +185,17 @@ async function generatePlotNodes() {
   finally { generating.value = false }
 }
 
-
+async function generateVolumes() {
+  generating.value = true; error.value = ''; gen.begin()
+  try {
+    const result = await genStoryVolumes(props.projectId, story, 3) as any
+    if (result?.volumes) {
+      story.volumes = result.volumes
+    }
+    gen.end()
+  } catch (e: any) { errorBar.showError(e, () => generateVolumes()); gen.fail(e?.message || '卷纲生成失败') }
+  finally { generating.value = false }
+}
 
 async function confirm() {
   if (confirming.value) return

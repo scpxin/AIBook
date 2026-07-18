@@ -163,6 +163,19 @@ def project_check_compatibility(payload: ProjectCheckCompatibilityRequest):
     return {"ok": True, "data": result}
 
 
+@router.post("/projects/derive-fields")
+def project_derive_fields(payload: ProjectAnalyzeRequest):
+    """POST /api/v2/projects/derive-fields — 衍生字段计算(估算章节/字数/标签/系列潜力)"""
+    result, err = ProjectService.derive_fields(
+        payload.project_id,
+        {"title": payload.idea, "project_overview": payload.idea},
+    )
+    if err:
+        msg, status = _categorize_error(err)
+        raise HTTPException(status, msg)
+    return {"ok": True, "data": result}
+
+
 # ========== M3: 世界观 ==========
 
 @router.post("/world/origin")

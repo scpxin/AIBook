@@ -109,6 +109,36 @@
       </div>
       <button @click="confirm" class="btn-confirm">确认定位,下一步</button>
     </div>
+
+    <div v-if="derivedFields" class="section">
+      <h3>衍生分析</h3>
+      <div class="derived-grid">
+        <div class="derived-item">
+          <span class="derived-label">估算章节数</span>
+          <span class="derived-value">{{ derivedFields.estimatedChapters }} 章</span>
+        </div>
+        <div class="derived-item">
+          <span class="derived-label">估算总字数</span>
+          <span class="derived-value">{{ formatWordCount(derivedFields.estimatedWords) }}</span>
+        </div>
+        <div class="derived-item">
+          <span class="derived-label">系列潜力</span>
+          <span class="derived-value">{{ derivedFields.seriesPotential }}</span>
+        </div>
+        <div class="derived-item" v-if="derivedFields.titleKeywords?.length">
+          <span class="derived-label">关键词</span>
+          <span class="derived-value derived-tags">
+            <span v-for="kw in derivedFields.titleKeywords" :key="kw" class="derived-tag">{{ kw }}</span>
+          </span>
+        </div>
+        <div class="derived-item full-width" v-if="derivedFields.contentTags?.length">
+          <span class="derived-label">内容标签</span>
+          <span class="derived-value derived-tags">
+            <span v-for="t in derivedFields.contentTags" :key="t" class="derived-tag">{{ t }}</span>
+          </span>
+        </div>
+      </div>
+    </div>
     </div>
   </div>
 </template>
@@ -116,6 +146,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import * as v2Api from '../api/v2'
+import { deriveProjectFields } from '../api/v2'
 import { setupConfirm } from '../composables/useConfirm'
 import { setupErrorBar } from '../composables/useErrorBar'
 import { useGeneration } from '../composables/useGeneration'
@@ -161,6 +192,7 @@ const errorMessage = ref('')
 const lastAnalyzed = ref('')
 const hasIdea = ref(false)
 const confirming = ref(false)
+const derivedFields = ref<any>(null)
 
 watch(selectedPlatform, () => {
   if (dimensions.value.length) saveDimension()
@@ -209,6 +241,7 @@ onMounted(async () => {
       if (saved.data.compatResults) compatResults.value = saved.data.compatResults
       hasIdea.value = true
       loading.value = false
+      await loadDerivedFields()
       return
     }
 
@@ -241,6 +274,7 @@ onMounted(async () => {
         }
         if (allDims.length > 0) {
           await saveDimension()
+          await loadDerivedFields()
         } else {
           throw new Error('所有批次分析均失败')
         }
@@ -301,6 +335,22 @@ function extractIdeaText(idea: any): string {
   if (!idea) return ''
   const sel = idea.selected || (idea.selectedIdx != null && idea.candidates?.[idea.selectedIdx])
   return sel?.title || sel?.concept || sel?.description || idea.prompt || idea.confirmedCandidate?.title || ''
+}
+
+async function loadDerivedFields() {
+  const allData = await v2Api.getAllModuleData(props.projectId)
+  const ideaText = extractIdeaText(allData?.modules?.['idea'])
+  if (!ideaText) return
+  try {
+    const result = await deriveProjectFields(props.projectId, ideaText)
+    if (result) derivedFields.value = result
+  } catch (_e) { /* non-critical */ }
+}
+
+function formatWordCount(words: number): string {
+  if (!words) return ''
+  if (words >= 10000) return `${(words / 10000).toFixed(0)} 万字`
+  return `${words} 字`
 }
 
 function mapResultToDimensions(result: any): any[] {
@@ -398,6 +448,7 @@ async function reanalyze() {
     }
     if (dimensions.value.length > 0) {
       await saveDimension()
+      await loadDerivedFields()
     } else {
       errorMessage.value = '所有维度分析失败，请检查网络后重试'
     }
@@ -494,6 +545,13 @@ async function confirm() {
 .btn-goto { padding: 6px 16px; background: var(--primary); color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
 .error-hint { color: #ff4d4f; background: #fff1f0; border-radius: 8px; margin-bottom: 10px; padding: 12px; font-size: 14px; }
 .btn-confirm { width: 100%; padding: 13px; background: #52c41a; color: #fff; border: none; border-radius: 8px; font-size: 20px; cursor: pointer; }
+.derived-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+.derived-item { display: flex; flex-direction: column; gap: 4px; }
+.derived-item.full-width { grid-column: 1 / -1; }
+.derived-label { font-size: 13px; color: #888; font-weight: 600; }
+.derived-value { font-size: 16px; color: #333; font-weight: 500; }
+.derived-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.derived-tag { font-size: 13px; padding: 2px 10px; background: #e8f4fd; color: var(--primary); border-radius: 12px; }
 .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 4px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
