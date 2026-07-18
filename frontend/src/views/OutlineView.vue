@@ -243,9 +243,7 @@ async function confirm() {
   if (!ok) return
   try {
     await saveMasterOutline(props.projectId, result)
-    await saveModuleData(props.projectId, 'outline', {
-      module_data: { ...result },
-    })
+    await saveModuleData(props.projectId, 'outline', { result: { ...result } })
   } catch (_e) { /* ignore */ }
   emit('complete', { ...result })
 }
@@ -253,14 +251,29 @@ async function confirm() {
 onMounted(async () => {
   try {
     const saved = await getModuleData(props.projectId, 'outline')
-    if (saved?.data?.outline) {
-      const o = saved.data.outline
-      if (o.title) result.title = o.title
-      if (o.theme) result.theme = o.theme
-      if (o.conflict) result.conflict = o.conflict
-      if (o.growthRoute) result.growthRoute = o.growthRoute
-    } else if (saved?.data?.title) {
-      Object.assign(result, saved.data)
+    const d = saved?.data
+    if (d) {
+      const r = d.result || d
+      if (r.title) result.title = r.title
+      if (r.theme) result.theme = r.theme
+      if (r.conflict) result.conflict = r.conflict
+      if (r.growthRoute || r.growth_route) result.growthRoute = r.growthRoute || r.growth_route
+      if (r.wordCount) result.wordCount = String(r.wordCount)
+      if (r.volumes) result.volumes = r.volumes
+      if (r.opening) result.opening = r.opening
+      if (r.rising_actions) result.rising_actions = r.rising_actions
+      if (r.subplots) result.subplots = r.subplots
+      if (r.midpoint_turn) result.midpoint_turn = r.midpoint_turn
+      if (r.climax_buildup) result.climax_buildup = r.climax_buildup
+      if (r.final_climax) result.final_climax = r.final_climax
+      if (r.ending_type) result.ending_type = r.ending_type
+      if (r.rewatch_hooks) result.rewatch_hooks = r.rewatch_hooks
+      if (r.volume_structure) result.volume_structure = r.volume_structure
+      const f = d.form || {}
+      if (f.title) form.title = f.title
+      if (f.conflict) form.conflict = f.conflict
+      if (f.wordCount) form.wordCount = f.wordCount
+      if (f.growthRoute) form.growthRoute = f.growthRoute
     }
   } catch (_e) { /* ignore */ }
   finally { pageLoading.value = false }

@@ -137,7 +137,7 @@ onMounted(async () => {
 })
 
 const toast = useToastStore()
-const powerData = () => ({ ...form })
+const powerData = () => ({ ...form, upstreamData: upstreamData.value, levelDetails: resultLevels.value })
 const { saveState, scheduleSave } = useAutoSave({
   dataRef: powerData,
   saveFn: async (data) => {
