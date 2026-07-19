@@ -1,14 +1,15 @@
 """AI 客户端 - 支持 OpenAI 兼容 API"""
 import json
+import os
 import re
 import ssl
 import urllib.request
 import urllib.error
 
-# SSL 上下文（允许自签名证书）
 _ssl_context = ssl.create_default_context()
-_ssl_context.check_hostname = False
-_ssl_context.verify_mode = ssl.CERT_NONE
+if os.getenv("AI_VERIFY_SSL", "true").lower() == "false":
+    _ssl_context.check_hostname = False
+    _ssl_context.verify_mode = ssl.CERT_NONE
 
 
 class AIClient:

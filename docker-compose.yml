@@ -7,7 +7,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./dist:/usr/share/nginx/html
+      - ./frontend/dist:/usr/share/nginx/html
       - ./frontend-nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - backend
@@ -20,11 +20,12 @@ services:
     container_name: fanqie-v2-backend
     working_dir: /app
     command: >
-      sh -c "pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r app/requirements.txt &&
+      sh -c "pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
     volumes:
       - ./app:/app/app
       - ./novel_creator:/app/novel_creator
+      - ./requirements.txt:/app/requirements.txt:ro
       - db-data:/app/data
     ports:
       - "8000:8000"
@@ -34,12 +35,13 @@ services:
       - DOWNLOAD_DIR=/app/data/downloads
       - PROJECTS_DIR=/app/data/projects
       - LOG_DIR=/app/data/logs
-      - CONTENT_API=http://101.35.133.34:5000/api/content?tab=%E5%B0%8F%E8%AF%B4&item_id={}
-      - SEARCH_API=https://novel.snssdk.com/api/novel/channel/homepage/search/search/v1/?aid=1967&q={}&offset=0
+      - CONTENT_API=${CONTENT_API:-http://localhost:5000/api/content?tab=%E5%B0%8F%E8%AF%B4&item_id={}}
+      - SEARCH_API=${SEARCH_API:-https://novel.snssdk.com/api/novel/channel/homepage/search/search/v1/?aid=1967&q={}&offset=0}
       - AI_TIMEOUT=600
       - SESSION_TTL=86400
       - HTTP_TIMEOUT=20
       - MAX_BODY_SIZE=52428800
+      - AI_VERIFY_SSL=${AI_VERIFY_SSL:-true}
     networks:
       - app-net
     restart: unless-stopped
