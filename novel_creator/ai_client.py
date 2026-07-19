@@ -3,13 +3,10 @@ import json
 import os
 import re
 import ssl
-import urllib.error
-import urllib.request
 
-_ssl_context = ssl.create_default_context()
-if os.getenv("AI_VERIFY_SSL", "true").lower() == "false":
-    _ssl_context.check_hostname = False
-    _ssl_context.verify_mode = ssl.CERT_NONE
+import httpx
+
+_ssl_verify = os.getenv("AI_VERIFY_SSL", "true").lower() != "false"
 
 
 class AIClient:
@@ -22,29 +19,26 @@ class AIClient:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.timeout = timeout
+        self._client = httpx.Client(timeout=httpx.Timeout(timeout), verify=_ssl_verify)
 
-    def _build_request(self, body):
-        """构建 HTTP 请求对象
+    def close(self):
+        self._client.close()
 
-        支持两种填写方式：
-        - 完整 URL：https://api.longcat.chat/openai/v1/chat/completions
-        - Base URL：https://api.longcat.chat/openai  (自动拼接 /v1/chat/completions)
-        """
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+    def _build_url(self):
         base = self.base_url.rstrip("/")
         if base.endswith("/chat/completions"):
-            url = base
-        elif base.endswith("/v1"):
-            url = f"{base}/chat/completions"
-        else:
-            url = f"{base}/v1/chat/completions"
-        data = json.dumps(body).encode("utf-8")
-        return urllib.request.Request(
-            url, data=data,
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"},
-        )
+            return base
+        if base.endswith("/v1"):
+            return f"{base}/chat/completions"
+        return f"{base}/v1/chat/completions"
 
     def _build_messages(self, prompt, system_prompt):
-        """构建消息列表"""
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
@@ -52,11 +46,9 @@ class AIClient:
         return messages
 
     def _clean_error_body(self, error_body):
-        """清洗错误响应（去除HTML标签）"""
         return re.sub(r'<[^>]+>', '', error_body).strip()[:200]
 
     def generate(self, prompt, system_prompt=None, temperature=None, max_tokens=None):
-        """非流式文本生成"""
         body = {
             "model": self.model,
             "messages": self._build_messages(prompt, system_prompt),
@@ -65,12 +57,16 @@ class AIClient:
         }
 
         try:
-            req = self._build_request(body)
-            with urllib.request.urlopen(req, timeout=self.timeout, context=_ssl_context) as resp:
-                result = json.loads(resp.read())
-        except urllib.error.HTTPError as e:
-            error_body = self._clean_error_body(e.read().decode("utf-8", errors="ignore"))
-            return None, f"API错误 {e.code}: {error_body}"
+            resp = self._client.post(
+                self._build_url(),
+                json=body,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            )
+            resp.raise_for_status()
+            result = resp.json()
+        except httpx.HTTPStatusError as e:
+            error_body = self._clean_error_body(e.response.text)
+            return None, f"API错误 {e.response.status_code}: {error_body}"
         except Exception as e:
             return None, str(e)
 
@@ -85,7 +81,6 @@ class AIClient:
         return content, None
 
     def generate_stream(self, prompt, system_prompt=None, temperature=None, max_tokens=None):
-        """流式文本生成（生成器）- 超时600s"""
         body = {
             "model": self.model,
             "messages": self._build_messages(prompt, system_prompt),
@@ -95,10 +90,15 @@ class AIClient:
         }
 
         try:
-            req = self._build_request(body)
-            with urllib.request.urlopen(req, timeout=self.timeout, context=_ssl_context) as resp:
-                for line in resp:
-                    line = line.decode("utf-8", errors="ignore").strip()
+            with self._client.stream(
+                "POST",
+                self._build_url(),
+                json=body,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            ) as resp:
+                resp.raise_for_status()
+                for line in resp.iter_lines():
+                    line = line.strip()
                     if not line or not line.startswith("data: "):
                         continue
                     chunk = line[6:]
@@ -125,8 +125,8 @@ class AIClient:
                                 return
                     except json.JSONDecodeError:
                         continue
-        except urllib.error.HTTPError as e:
-            error_body = self._clean_error_body(e.read().decode("utf-8", errors="ignore"))
-            yield {"error": f"API错误 {e.code}: {error_body}"}
+        except httpx.HTTPStatusError as e:
+            error_body = self._clean_error_body(e.response.text)
+            yield {"error": f"API错误 {e.response.status_code}: {error_body}"}
         except Exception as e:
             yield {"error": str(e)}

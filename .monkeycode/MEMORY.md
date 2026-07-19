@@ -73,11 +73,11 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
 - Instructions:
   - **所有代码修改必须推送 GitHub** (`https://github.com/scpxin/AIBook.git`, 分支 `master`)
   - **严禁删除或覆盖 GitHub 上的任何内容** (禁止 force push, 禁止删除分支/标签/文件)
-  - 开发流程: 本地 `/workspace/deploy/` 编辑 → git commit → git push GitHub → 服务器 `git pull` 或 rsync 同步 → Docker cp + restart → 测试
+  - 开发流程: 本地 `/workspace/` 编辑 → git commit → git push GitHub → 服务器 `git pull` 或 rsync 同步 → Docker cp + restart → 测试
   - 服务器路径: `/home/ubuntu/fanqie-v2/` (直接 git clone 的仓库)
-  - 本地路径: `/workspace/deploy/` (backend_v2/app/, novel_creator/, frontend/)
+  - 本地路径: `/workspace/` (app/, novel_creator/, frontend/)
   - 模型: `LongCat-2.0`
-  - 启动方式: `cd /workspace/deploy/backend_v2 && PYTHONPATH=/workspace/deploy:$PYTHONPATH AI_ENDPOINT=https://api.longcat.chat/openai AI_API_KEY=<LONGCAT_API_KEY> AI_MODEL=LongCat-2.0 python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1`
+  - 启动方式: `cd /workspace && PYTHONPATH=/workspace:$PYTHONPATH AI_ENDPOINT=https://api.longcat.chat/openai AI_API_KEY=<LONGCAT_API_KEY> AI_MODEL=LongCat-2.0 python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1`
   - 注意: proxy.monkeycode-ai.com的key在当前环境返回403,不可用
 
 ### V2流水线测试项目
