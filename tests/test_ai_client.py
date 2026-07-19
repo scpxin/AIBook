@@ -1,4 +1,3 @@
-import pytest
 from novel_creator.ai_client import AIClient
 
 
