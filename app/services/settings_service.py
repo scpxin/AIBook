@@ -3,7 +3,7 @@ import json
 import os
 import threading
 
-from novel_creator.database_v2 import get_setting, set_setting, get_all_settings
+from novel_creator.database_v2 import get_all_settings, set_setting
 
 _lock = threading.RLock()
 

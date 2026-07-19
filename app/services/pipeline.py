@@ -12,23 +12,25 @@
 - 规划链 (M1-M12): 串行执行,前置模块未完成则后续模块locked
 - 执行闭环 (M13-M19): 迭代循环,不合格则重修
 """
-import json as _json
-import time
-import threading
 import logging
-from typing import Optional, Dict, Any, Callable, List
+import threading
+import time
 from collections import OrderedDict
-from enum import Enum
+from collections.abc import Callable
+from enum import StrEnum
+from typing import Any
 
 logger = logging.getLogger('novel_creator.pipeline')
 
 # 导入数据库层 (避免循环导入)
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from novel_creator.database_v2 import save_pipeline_state, get_pipeline_state
+from novel_creator.database_v2 import get_pipeline_state, save_pipeline_state
 
 
-class ModuleStatus(str, Enum):
+class ModuleStatus(StrEnum):
     LOCKED = "locked"       # 前置模块未完成,不可执行
     PENDING = "pending"     # 等待执行
     GENERATING = "generating"  # 正在执行
@@ -40,7 +42,7 @@ class PipelineModule:
     """单个流水线模块的定义"""
 
     def __init__(self, name: str, display_name: str, layer: str,
-                 dependencies: List[str], is_parallel: bool = False,
+                 dependencies: list[str], is_parallel: bool = False,
                  is_iterative: bool = False):
         self.name = name
         self.display_name = display_name
@@ -52,7 +54,7 @@ class PipelineModule:
 
 # ========== 19 模块定义 ==========
 
-PIPELINE_MODULES: Dict[str, PipelineModule] = {
+PIPELINE_MODULES: dict[str, PipelineModule] = {
     # 设计层 (M1-M5): 串行,完全依赖前序
     "idea": PipelineModule("idea", "灵感", "design", []),
     "project": PipelineModule("project", "项目定位", "design", ["idea"]),
@@ -125,7 +127,7 @@ def _get_project_lock(project_id: str) -> threading.RLock:
         return _state_locks[project_id]
 
 
-def _db_row_to_module_dict(row: Dict) -> Dict[str, Any]:
+def _db_row_to_module_dict(row: dict) -> dict[str, Any]:
     """将数据库行转换为模块状态字典"""
     return {
         "name": row["module_name"],
@@ -139,7 +141,7 @@ def _db_row_to_module_dict(row: Dict) -> Dict[str, Any]:
     }
 
 
-def _build_full_state(project_id: str) -> Dict[str, Any]:
+def _build_full_state(project_id: str) -> dict[str, Any]:
     """从数据库构建完整状态 (内部使用)"""
     db_rows = get_pipeline_state(project_id)
     modules = {}
@@ -195,7 +197,7 @@ def _build_full_state(project_id: str) -> Dict[str, Any]:
 
 def _init_project_state(project_id: str):
     """将项目初始状态写入数据库"""
-    now = time.strftime('%Y-%m-%d %H:%M:%S')
+    time.strftime('%Y-%m-%d %H:%M:%S')
     for name in MODULE_ORDER:
         mod = PIPELINE_MODULES[name]
         status = ModuleStatus.LOCKED if mod.dependencies else ModuleStatus.PENDING
@@ -209,7 +211,7 @@ def _init_project_state(project_id: str):
         })
 
 
-def get_or_create_state(project_id: str) -> Dict[str, Any]:
+def get_or_create_state(project_id: str) -> dict[str, Any]:
     """获取或创建项目流水线状态 (数据库持久化)"""
     lock = _get_project_lock(project_id)
     with lock:
@@ -225,7 +227,7 @@ def get_module_status(project_id: str, module_name: str) -> str:
     return state["modules"].get(module_name, {}).get("status", "unknown")
 
 
-def get_next_pending_module(project_id: str) -> Optional[str]:
+def get_next_pending_module(project_id: str) -> str | None:
     """获取下一个待执行模块(依赖已完成的第一个PENDING)"""
     state = get_or_create_state(project_id)
     for name in MODULE_ORDER:
@@ -324,7 +326,7 @@ def _unlock_dependents_db(project_id: str, completed_module: str):
                     })
 
 
-def get_pipeline_progress(project_id: str) -> Dict[str, Any]:
+def get_pipeline_progress(project_id: str) -> dict[str, Any]:
     """获取流水线整体进度"""
     state = get_or_create_state(project_id)
     total = len(MODULE_ORDER)
@@ -346,7 +348,7 @@ def get_pipeline_progress(project_id: str) -> Dict[str, Any]:
     }
 
 
-def get_executionlayer_state(project_id: str) -> Dict[str, Any]:
+def get_executionlayer_state(project_id: str) -> dict[str, Any]:
     """获取执行层闭环状态(M13-M19)"""
     state = get_or_create_state(project_id)
     execution_modules = {}
@@ -383,7 +385,7 @@ def cleanup_project_state(project_id: str):
         _state_locks.pop(project_id, None)
 
 
-def get_module_info(module_name: str) -> Optional[Dict[str, Any]]:
+def get_module_info(module_name: str) -> dict[str, Any] | None:
     """获取模块元信息"""
     mod = PIPELINE_MODULES.get(module_name)
     if not mod:
@@ -398,14 +400,14 @@ def get_module_info(module_name: str) -> Optional[Dict[str, Any]]:
     }
 
 
-def get_all_modules_info() -> List[Dict[str, Any]]:
+def get_all_modules_info() -> list[dict[str, Any]]:
     """获取所有模块元信息(按执行顺序)"""
     return [get_module_info(name) for name in MODULE_ORDER]
 
 
 # ========== 模块验证回调 ==========
 
-_module_validators: Dict[str, Callable] = {}
+_module_validators: dict[str, Callable] = {}
 
 
 def register_validator(module_name: str, validator: Callable):

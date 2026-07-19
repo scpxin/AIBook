@@ -5,17 +5,26 @@ import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from app.services.execution_service import (
-    SceneService, DraftService, PolishService,
-    ContentParserService, KnowledgeService, ConsistencyService,
-)
-from app.utils.errors import safe_error as _safe_error, categorize_error as _categorize_error
 from app.models.v2_schemas import (
-    ScenesDesignRequest, ScenesSaveRequest,
-    DraftGenerateRequest, DraftSaveRequest,
-    PolishRequest, ContentParseRequest,
-    KnowledgeUpdateRequest, ConsistencyCheckRequest,
+    ConsistencyCheckRequest,
+    ContentParseRequest,
+    DraftGenerateRequest,
+    DraftSaveRequest,
+    KnowledgeUpdateRequest,
+    PolishRequest,
+    ScenesDesignRequest,
+    ScenesSaveRequest,
 )
+from app.services.execution_service import (
+    ConsistencyService,
+    ContentParserService,
+    DraftService,
+    KnowledgeService,
+    PolishService,
+    SceneService,
+)
+from app.utils.errors import categorize_error as _categorize_error
+from app.utils.errors import safe_error as _safe_error
 
 logger = logging.getLogger('novel_creator.api.v2.execution')
 

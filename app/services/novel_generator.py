@@ -1,16 +1,14 @@
-import sys
-import os
 import json
-import re
 import logging
-from typing import Optional, Dict, Any
+import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from novel_creator import NovelGenerator
 
 logger = logging.getLogger('novel_creator.server')
 
-_generator_cache: Dict[str, NovelGenerator] = {}
+_generator_cache: dict[str, NovelGenerator] = {}
 
 
 def _make_generator_key(endpoint: str, api_key: str, model: str) -> str:
@@ -30,7 +28,7 @@ def get_generator(endpoint: str, api_key: str, model: str, temperature: float = 
     return _generator_cache[key]
 
 
-def parse_style_profile(style_profile_str) -> Optional[Dict]:
+def parse_style_profile(style_profile_str) -> dict | None:
     if not style_profile_str:
         return None
     if isinstance(style_profile_str, dict):

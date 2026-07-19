@@ -1,9 +1,8 @@
 import os
-import json
-import tempfile
-import pytest
-import threading
 import sqlite3
+import tempfile
+
+import pytest
 
 
 @pytest.fixture
@@ -22,7 +21,7 @@ def temp_db():
 
 class TestDatabaseV2Init:
     def test_init_db_v2_creates_all_tables(self, temp_db):
-        from novel_creator.database_v2 import init_db_v2, _v2_db
+        from novel_creator.database_v2 import _v2_db, init_db_v2
         init_db_v2()
 
         conn = _v2_db()
@@ -58,7 +57,7 @@ class TestDatabaseV2Init:
 
 class TestDatabaseV2CRUD:
     def test_settings_set_and_get(self, temp_db):
-        from novel_creator.database_v2 import init_db_v2, _v2_db, _v2_lock, _v2_now
+        from novel_creator.database_v2 import _v2_db, _v2_lock, init_db_v2
         init_db_v2()
 
         with _v2_lock:
@@ -77,7 +76,7 @@ class TestDatabaseV2CRUD:
         assert row["value"] == "test_value"
 
     def test_v2_idea_insert_and_query(self, temp_db):
-        from novel_creator.database_v2 import init_db_v2, _v2_db, _v2_lock
+        from novel_creator.database_v2 import _v2_db, _v2_lock, init_db_v2
         init_db_v2()
 
         with _v2_lock:
@@ -99,7 +98,7 @@ class TestDatabaseV2CRUD:
         assert row["status"] == "draft"
 
     def test_project_unique_constraint(self, temp_db):
-        from novel_creator.database_v2 import init_db_v2, _v2_db, _v2_lock
+        from novel_creator.database_v2 import _v2_db, _v2_lock, init_db_v2
         init_db_v2()
 
         with _v2_lock:
@@ -118,7 +117,7 @@ class TestDatabaseV2CRUD:
             conn.close()
 
     def test_character_insert_and_relation(self, temp_db):
-        from novel_creator.database_v2 import init_db_v2, _v2_db, _v2_lock
+        from novel_creator.database_v2 import _v2_db, _v2_lock, init_db_v2
         init_db_v2()
 
         with _v2_lock:

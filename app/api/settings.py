@@ -1,12 +1,12 @@
 """设置API — 模型配置的持久化读写"""
 import json
-import re
-import urllib.request
 import urllib.error
-from fastapi import APIRouter, HTTPException, Body
+import urllib.request
 
-from app.services.settings_service import get_settings, save_models
+from fastapi import APIRouter, Body
+
 from app.models.v2_schemas import SettingsSaveModelsRequest
+from app.services.settings_service import get_settings, save_models
 
 router = APIRouter(prefix="/api/v2/settings", tags=["设置"])
 

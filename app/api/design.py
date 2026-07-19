@@ -1,36 +1,49 @@
 """V2 设计层 API — M1-M5 五个设计模块的REST端点"""
-import json
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
+from app.models.v2_schemas import (
+    CharacterAntagonistsRequest,
+    CharacterCheckConsistencyRequest,
+    CharacterProtagonistRequest,
+    CharacterRelationsRequest,
+    CharacterSupportingRequest,
+    IdeaAnalyzeRisksRequest,
+    IdeaGenerateRequest,
+    IdeaScoreRequest,
+    IdeaUpgradeRequest,
+    ProjectAnalyzeRequest,
+    ProjectCheckCompatibilityRequest,
+    StoryCheckConsistencyRequest,
+    StoryVolumesRequest,
+    WorldCheckConsistencyRequest,
+    WorldCivilizationRequest,
+    WorldHistoryRequest,
+    WorldOriginRequest,
+    WorldRulesRequest,
+    WorldSaveRequest,
+    WorldStructureRequest,
+)
+from app.models.v2_schemas import (
+    StoryMasterRequest as StoryMasterServiceRequest,
+)
 from app.services.design_service import (
-    IdeaService, ProjectService, WorldService,
-    CharacterService, StoryService,
+    CharacterService,
+    IdeaService,
+    ProjectService,
+    StoryService,
+    WorldService,
 )
 from app.services.novel_generator import parse_style_profile
 from app.utils.errors import categorize_error as _categorize_error
-from app.models.v2_schemas import (
-    IdeaGenerateRequest, IdeaScoreRequest, IdeaUpgradeRequest,
-    IdeaAnalyzeRisksRequest, ProjectAnalyzeRequest,
-    ProjectCheckCompatibilityRequest,
-    WorldOriginRequest, WorldRulesRequest, WorldStructureRequest,
-    WorldCivilizationRequest, WorldHistoryRequest,
-    WorldCheckConsistencyRequest, WorldSaveRequest,
-    CharacterProtagonistRequest, CharacterSupportingRequest,
-    CharacterAntagonistsRequest, CharacterRelationsRequest,
-    CharacterCheckConsistencyRequest,
-    StoryMasterRequest as StoryMasterServiceRequest, StoryVolumesRequest,
-    StoryCheckConsistencyRequest,
-)
 
 logger = logging.getLogger('novel_creator.api.v2.design')
 
 router = APIRouter(prefix="/api/v2", tags=["V2设计层"])
 
 
-def _get_style(style_profile) -> Optional[dict]:
+def _get_style(style_profile) -> dict | None:
     """解析风格参数"""
     if style_profile is None:
         return None

@@ -1,18 +1,15 @@
-import uuid
-import time
 import json
 import os
 import shutil
 import threading
-import urllib.request
+import time
 import urllib.parse
-from typing import Dict, Optional
+import urllib.request
+import uuid
 
-from app.config import (
-    DOWNLOAD_DIR, CONTENT_API, DIR_API, UA, HTTP_TIMEOUT, SESSION_TTL
-)
+from app.config import CONTENT_API, DIR_API, DOWNLOAD_DIR, HTTP_TIMEOUT, SESSION_TTL, UA
 
-sessions: Dict[str, dict] = {}
+sessions: dict[str, dict] = {}
 sessions_lock = threading.Lock()
 
 
@@ -94,7 +91,7 @@ def _download_worker(sid: str):
                         f.write(full_text)
                     with open(os.path.join(book_dir, 'meta.json'), 'w', encoding='utf-8') as f:
                         json.dump({'book_id': book_id, 'title': s.get('title', ''), 'total': s['total'], 'dir': book_dir}, f, ensure_ascii=False)
-                except (IOError, OSError):
+                except OSError:
                     pass
                 return
 
@@ -117,7 +114,7 @@ def create_download(book_id: str, title: str) -> str:
     return sid
 
 
-def get_status(session_id: str) -> Optional[dict]:
+def get_status(session_id: str) -> dict | None:
     with sessions_lock:
         s = sessions.get(session_id)
         if not s:
@@ -139,7 +136,7 @@ def pause_download(session_id: str) -> bool:
         return True
 
 
-def resume_download(session_id: str) -> Optional[str]:
+def resume_download(session_id: str) -> str | None:
     with sessions_lock:
         s = sessions.get(session_id)
         if not s:
@@ -154,7 +151,7 @@ def resume_download(session_id: str) -> Optional[str]:
     return 'ok'
 
 
-def get_file(session_id: str) -> Optional[tuple]:
+def get_file(session_id: str) -> tuple | None:
     with sessions_lock:
         s = sessions.get(session_id)
         if not s:
@@ -179,11 +176,11 @@ def get_file(session_id: str) -> Optional[tuple]:
     return (content_text, book_id)
 
 
-def get_saved_file(book_id: str) -> Optional[str]:
+def get_saved_file(book_id: str) -> str | None:
     book_dir = os.path.join(DOWNLOAD_DIR, book_id)
     content_file = os.path.join(book_dir, 'content.txt')
     if os.path.exists(content_file):
-        with open(content_file, 'r', encoding='utf-8') as f:
+        with open(content_file, encoding='utf-8') as f:
             return f.read()
     return None
 
@@ -197,7 +194,7 @@ def list_downloads() -> list:
             content_file = os.path.join(book_dir, 'content.txt')
             if os.path.isfile(meta_file):
                 try:
-                    with open(meta_file, 'r', encoding='utf-8') as f:
+                    with open(meta_file, encoding='utf-8') as f:
                         meta = json.load(f)
                     size = os.path.getsize(content_file) if os.path.isfile(content_file) else 0
                     books.append({
@@ -207,7 +204,7 @@ def list_downloads() -> list:
                         'size': size,
                         'dir': book_dir,
                     })
-                except (IOError, OSError, json.JSONDecodeError):
+                except (OSError, json.JSONDecodeError):
                     pass
             elif os.path.isfile(content_file):
                 size = os.path.getsize(content_file)
@@ -221,10 +218,10 @@ def list_downloads() -> list:
     return books
 
 
-def get_downloaded_content(book_id: str) -> Optional[str]:
+def get_downloaded_content(book_id: str) -> str | None:
     book_dir = os.path.join(DOWNLOAD_DIR, book_id)
     content_file = os.path.join(book_dir, 'content.txt')
     if not os.path.exists(content_file):
         return None
-    with open(content_file, 'r', encoding='utf-8') as f:
+    with open(content_file, encoding='utf-8') as f:
         return f.read()

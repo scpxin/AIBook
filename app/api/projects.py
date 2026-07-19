@@ -1,12 +1,13 @@
-import os
+import json
+import logging
 import re
 import time
 import uuid
-import json
-import logging
-from fastapi import APIRouter, HTTPException, Body
+
+from fastapi import APIRouter, HTTPException
+
+from app.config import PROJECT_ID_PATTERN
 from app.database import novel_db
-from app.config import PROJECT_ID_PATTERN, PROJECTS_DIR
 
 router = APIRouter()
 logger = logging.getLogger('novel_creator.api.projects')
@@ -337,8 +338,11 @@ async def list_v2_projects():
 def derive_project_fields(body: dict):
     """从项目数据推导结构化字段: 预估章节/字数/关键词/标签/系列潜力"""
     from app.services.design_service import (
-        _estimate_chapters, _estimate_words, _extract_keywords,
-        _generate_tags, _assess_series_potential,
+        _assess_series_potential,
+        _estimate_chapters,
+        _estimate_words,
+        _extract_keywords,
+        _generate_tags,
     )
     from novel_creator import database_v2
 

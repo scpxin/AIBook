@@ -9,10 +9,10 @@
     0 — 成功 / 已是最新
     1 — 迁移失败
 """
-import sqlite3
-import os
-import sys
 import argparse
+import os
+import sqlite3
+import sys
 
 DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'fanqie.db'))
 V2_TABLE_PREFIX = 'v2_'

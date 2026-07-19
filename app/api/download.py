@@ -1,16 +1,23 @@
-import os
-import urllib.request
-import urllib.parse
 import json
 import re
 import time
+import urllib.parse
+import urllib.request
+
 from fastapi import APIRouter
-from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
+
+from app.config import ALLOWED_PROXY_DOMAINS, CONTENT_API, DIR_API, HTTP_TIMEOUT, SEARCH_API, UA
 from app.services.download_service import (
-    create_download, get_status, pause_download, resume_download,
-    get_file, get_saved_file, list_downloads, get_downloaded_content
+    create_download,
+    get_downloaded_content,
+    get_file,
+    get_saved_file,
+    get_status,
+    list_downloads,
+    pause_download,
+    resume_download,
 )
-from app.config import SEARCH_API, CONTENT_API, DIR_API, UA, HTTP_TIMEOUT, ALLOWED_PROXY_DOMAINS
 
 router = APIRouter()
 

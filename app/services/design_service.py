@@ -6,17 +6,15 @@ M3: world       — 世界观(本源/规则/结构/文明/历史)
 M4: characters  — 角色系统(主角/配角/反派/关系)
 M5: story       — 故事体系(总纲/卷纲/一致性)
 """
-import sys
-import os
 import json
 import logging
-from typing import Optional, Dict, Any, List
+import os
+import sys
 
 _current = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_current, '..', '..', '..'))
+from app.services.service_utils import build_style_str, get_default_generator
 from novel_creator import database_v2
-from app.services.novel_generator import get_generator, parse_style_profile
-from app.services.service_utils import get_default_generator, build_style_str
 
 logger = logging.getLogger('novel_creator.design')
 
@@ -358,7 +356,6 @@ class ProjectService:
     @staticmethod
     def derive_fields(project_id: str, project_data: dict) -> tuple:
         """衍生字段计算(基于项目定位自动计算其他字段)"""
-        import re
 
         title = project_data.get('title', '')
         overview = project_data.get('project_overview', '')
@@ -399,7 +396,7 @@ def _estimate_words(overview: str) -> int:
 
 def _extract_keywords(text: str) -> list:
     """提取关键词"""
-    return list(set([w for w in text.split() if len(w) >= 2]))[:10]
+    return list({w for w in text.split() if len(w) >= 2})[:10]
 
 
 def _generate_tags(overview: str) -> list:
@@ -541,15 +538,15 @@ key必须与上述完全一致。只返回JSON,不要markdown代码块。"""
         if not gen:
             return None, "AI生成器未配置"
 
-        prompt = f"""设计世界的【历史时间线】(World History)。
+        prompt = """设计世界的【历史时间线】(World History)。
 
 返回JSON(必须包含history数组):
-{{"history": [
-  {{"era": "太古", "description": "世界诞生,混沌初开(50字以内)"}},
-  {{"era": "上古", "description": "神魔大战,天地分裂(50字以内)"}},
-  {{"era": "中古", "description": "灵气衰退,修仙式微(50字以内)"}},
-  {{"era": "近代", "description": "王朝更迭,群雄并起(50字以内)"}}
-]}}
+{"history": [
+  {"era": "太古", "description": "世界诞生,混沌初开(50字以内)"},
+  {"era": "上古", "description": "神魔大战,天地分裂(50字以内)"},
+  {"era": "中古", "description": "灵气衰退,修仙式微(50字以内)"},
+  {"era": "近代", "description": "王朝更迭,群雄并起(50字以内)"}
+]}
 
 4-8个历史事件,每个事件包含"era"(时代名)和"description"(事件描述)。只返回JSON,不要markdown代码块。"""
 

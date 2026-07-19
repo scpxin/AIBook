@@ -1,25 +1,22 @@
 """生成模板API — 全模块模板CRUD、匹配、复用"""
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from novel_creator.database_v2 import (
-    save_generation_template,
-    get_generation_template,
-    list_generation_templates,
-    update_generation_template,
-    delete_generation_template,
-    increment_template_usage,
-    get_compatibility_group_templates,
-    get_project_templates,
-)
 from app.services.template_service import (
-    match_templates_strict,
     apply_template_to_project,
     auto_save_template,
     compute_input_fingerprint,
-    _extract_entities,
+    match_templates_strict,
+)
+from novel_creator.database_v2 import (
+    delete_generation_template,
+    get_compatibility_group_templates,
+    get_generation_template,
+    get_project_templates,
+    list_generation_templates,
+    save_generation_template,
+    update_generation_template,
 )
 
 logger = logging.getLogger('novel_creator.api.v2.generation_template')
@@ -31,10 +28,10 @@ router = APIRouter(prefix="/api/v2/generation-templates", tags=["生成模板"])
 
 @router.get("/")
 def list_templates(
-    module_key: Optional[str] = None,
-    genre: Optional[str] = None,
-    world_type: Optional[str] = None,
-    compatibility_group: Optional[str] = None,
+    module_key: str | None = None,
+    genre: str | None = None,
+    world_type: str | None = None,
+    compatibility_group: str | None = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):

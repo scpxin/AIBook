@@ -3,12 +3,12 @@ import hashlib
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger('novel_creator.service.template')
 
 
-def _extract_entities(module_key: str, data: Any) -> Dict[str, Any]:
+def _extract_entities(module_key: str, data: Any) -> dict[str, Any]:
     """从AI生成结果中提取关键实体引用"""
     if not data:
         return {}
@@ -94,7 +94,7 @@ def _extract_entities(module_key: str, data: Any) -> Dict[str, Any]:
     return entities
 
 
-def compute_input_fingerprint(input_context: Dict) -> str:
+def compute_input_fingerprint(input_context: dict) -> str:
     """计算输入上下文指纹（用于判断模板是否适用于当前输入）"""
     key_fields = ['genre', 'world_type', 'sub_genre', 'tone', 'target_audience']
     sig = {k: input_context.get(k, '') for k in key_fields}
@@ -105,9 +105,9 @@ def auto_save_template(
     project_id: str,
     module_key: str,
     module_data: Any,
-    input_context: Dict = None,
+    input_context: dict = None,
     existing_compat_group: str = '',
-) -> Optional[Dict]:
+) -> dict | None:
     """AI生成成功后自动保存为模板（非阻塞异常处理）"""
     try:
         from novel_creator.database_v2 import (
@@ -151,7 +151,7 @@ def auto_save_template(
         return None
 
 
-def _auto_generate_name(module_key: str, ctx: Dict, entities: Dict) -> str:
+def _auto_generate_name(module_key: str, ctx: dict, entities: dict) -> str:
     """自动生成模板名称"""
     genre = ctx.get('genre', '通用')
     module_names = {
@@ -182,13 +182,12 @@ def _auto_generate_name(module_key: str, ctx: Dict, entities: Dict) -> str:
 
 
 def match_templates_strict(
-    candidate_template: Dict,
-    project_context: Dict,
-    selected_templates: Dict[str, str],
-    all_templates: List[Dict],
-) -> Dict:
+    candidate_template: dict,
+    project_context: dict,
+    selected_templates: dict[str, str],
+    all_templates: list[dict],
+) -> dict:
     """严格模式模板匹配"""
-    reasons = []
     score = 0
 
     # 1. 世界类型冲突检查
@@ -293,7 +292,7 @@ def _jd_safe(val):
         return {}
 
 
-def _has_entity_conflict(module_a: str, entities_a: Dict, module_b: str, entities_b: Dict) -> bool:
+def _has_entity_conflict(module_a: str, entities_a: dict, module_b: str, entities_b: dict) -> bool:
     """检查两个模块的实体引用是否冲突"""
     type_dependent_pairs = {
         ('characters', 'world'): [('characters', 'world_type')],
@@ -319,14 +318,19 @@ def _has_entity_conflict(module_a: str, entities_a: Dict, module_b: str, entitie
     return False
 
 
-def apply_template_to_project(template_id: int, project_id: str) -> Dict[str, Any]:
+def apply_template_to_project(template_id: int, project_id: str) -> dict[str, Any]:
     """将模板数据应用到项目（不触发自动保存，直接写入数据库）"""
-    from novel_creator.database_v2 import (
-        get_generation_template, increment_template_usage,
-        _v2_db, _v2_lock, _v2_now,
-    )
     from app.services.pipeline import (
-        ModuleStatus, get_pipeline_state, _get_project_lock,
+        ModuleStatus,
+        _get_project_lock,
+        get_pipeline_state,
+    )
+    from novel_creator.database_v2 import (
+        _v2_db,
+        _v2_lock,
+        _v2_now,
+        get_generation_template,
+        increment_template_usage,
     )
 
     tpl = get_generation_template(template_id)

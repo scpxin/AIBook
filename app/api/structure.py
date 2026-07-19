@@ -3,22 +3,37 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from app.utils.errors import safe_error as _safe_error, categorize_error as _categorize_error
 from app.models.v2_schemas import (
-    PowerSystemGenerateRequest, PowerSystemSaveRequest,
-    FactionsGenerateRequest, FactionsSaveRequest,
-    TimelineBuildRequest, TimelineSaveRequest,
-    OutlineMasterRequest, OutlineSaveRequest,
-    VolumeGenerateRequest, VolumeGenerateBatchRequest, VolumeSaveRequest,
-    PlotNodesGenerateRequest, PlotNodesSaveRequest,
-    ChaptersPlanRequest, ChaptersPlanSaveRequest,
-    ChaptersOutlineRequest, ChaptersOutlineBatchRequest, ChaptersOutlineSaveRequest,
+    ChaptersOutlineBatchRequest,
+    ChaptersOutlineRequest,
+    ChaptersOutlineSaveRequest,
+    ChaptersPlanRequest,
+    ChaptersPlanSaveRequest,
+    FactionsGenerateRequest,
+    FactionsSaveRequest,
+    OutlineMasterRequest,
+    OutlineSaveRequest,
+    PlotNodesGenerateRequest,
+    PlotNodesSaveRequest,
+    PowerSystemGenerateRequest,
+    PowerSystemSaveRequest,
+    TimelineBuildRequest,
+    TimelineSaveRequest,
+    VolumeGenerateBatchRequest,
+    VolumeGenerateRequest,
+    VolumeSaveRequest,
 )
 from app.services.structure_service import (
-    PowerSystemService, FactionService, TimelineService,
-    MasterOutlineService, VolumeService, PlotNodeService,
-    ChapterPlanService, ChapterOutlineService,
+    ChapterOutlineService,
+    ChapterPlanService,
+    FactionService,
+    MasterOutlineService,
+    PlotNodeService,
+    PowerSystemService,
+    TimelineService,
+    VolumeService,
 )
+from app.utils.errors import categorize_error as _categorize_error
 
 logger = logging.getLogger('novel_creator.api.v2.structure')
 

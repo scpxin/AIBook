@@ -3,11 +3,11 @@
 包含13张新表,覆盖从灵感到完整小说创作的全流程。
 独立于 database.py,通过 init_db_v2() 在启动时创建。
 """
-import sqlite3
-import os
-import time
 import json
+import os
+import sqlite3
 import threading
+import time
 
 DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'fanqie.db'))
 V2_SCHEMA_VERSION = 1
@@ -685,7 +685,7 @@ def save_relation_map(project_id, data):
     """保存关系网络"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
+        _v2_now()
         conn.execute("""
             INSERT INTO v2_relation_maps (project_id, nodes, edges, role_groups)
             VALUES (?,?,?,?)

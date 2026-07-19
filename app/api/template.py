@@ -1,11 +1,14 @@
 """灵感模板API — 模板CRUD管理"""
 import sqlite3
+
 from fastapi import APIRouter, HTTPException
 
 from app.models.v2_schemas import TemplateCreateRequest, TemplateUpdateRequest
 from novel_creator.database_v2 import (
-    create_idea_template, get_idea_templates,
-    get_idea_template, update_idea_template, delete_idea_template,
+    create_idea_template,
+    delete_idea_template,
+    get_idea_templates,
+    update_idea_template,
 )
 
 router = APIRouter(prefix="/api/v2/templates", tags=["灵感模板"])

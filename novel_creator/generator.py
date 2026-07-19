@@ -1,43 +1,57 @@
 """小说创作生成器 - 完整的创作流程"""
 import json
-import re
 import logging
-import os
+import re
 
-# 配置日志
-_log_dir = os.environ.get('LOG_DIR', '/app/data')
-os.makedirs(_log_dir, exist_ok=True)
-logging.basicConfig(
-    filename=os.path.join(_log_dir, 'generate.log'),
-    level=logging.DEBUG,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    encoding='utf-8'
-)
 logger = logging.getLogger('novel_creator.generator')
-from .prompts import (
-    WORLD_BUILDING, WORLD_BUILDING_STYLE,
-    CHARACTERS_BATCH_GENERATION, CHARACTERS_BATCH_GENERATION_STYLE,
-    OUTLINE_CREATE, OUTLINE_CREATE_STYLE,
-    BOOK_OVERVIEW_CREATE, BOOK_OVERVIEW_CREATE_STYLE,
-    CHAPTER_OUTLINE_DETAIL, CHAPTER_OUTLINE_DETAIL_STYLE,
-    CHAPTER_GENERATION_NEXT, CHAPTER_GENERATION_NEXT_STYLE,
-    CHAPTER_CONTINUATION, CHAPTER_CONTINUATION_STYLE,
-    PLOT_ANALYSIS,
-    INSPIRATION_TITLE, INSPIRATION_TITLE_STYLE,
-    INSPIRATION_DESCRIPTION, INSPIRATION_DESCRIPTION_STYLE,
-    INSPIRATION_THEME, INSPIRATION_THEME_STYLE,
-    INSPIRATION_GENRE, INSPIRATION_GENRE_STYLE,
-    STYLE_ANALYSIS, format_prompt, parse_json_response, _fix_truncated_json
-)
-from .craft_prompts import (
-    DETECT_AI_FLAVOR, FIX_AI_FLAVOR,
-    ANALYZE_GOLDEN_THREE, ANALYZE_HOOKS, ANALYZE_SATISFACTION_RHYTHM,
-    QUALITY_SCORE, CHAPTER_GENERATION_CRAFT, CHAPTER_GENERATION_CRAFT_STYLE,
-    CHAPTER_CONTINUATION_CRAFT, CHAPTER_CONTINUATION_CRAFT_STYLE,
-    INSPIRATION_TITLE_CRAFT, INSPIRATION_DESCRIPTION_CRAFT,
-    ANALYSIS_REPORT, CHAPTER_OUTLINE_CRAFT, CHAPTER_OUTLINE_CRAFT_STYLE
-)
 from .ai_client import AIClient
+from .craft_prompts import (
+    ANALYSIS_REPORT,
+    ANALYZE_GOLDEN_THREE,
+    ANALYZE_HOOKS,
+    ANALYZE_SATISFACTION_RHYTHM,
+    CHAPTER_CONTINUATION_CRAFT,
+    CHAPTER_CONTINUATION_CRAFT_STYLE,
+    CHAPTER_GENERATION_CRAFT,
+    CHAPTER_GENERATION_CRAFT_STYLE,
+    CHAPTER_OUTLINE_CRAFT,
+    CHAPTER_OUTLINE_CRAFT_STYLE,
+    DETECT_AI_FLAVOR,
+    FIX_AI_FLAVOR,
+    INSPIRATION_DESCRIPTION_CRAFT,
+    INSPIRATION_TITLE_CRAFT,
+    QUALITY_SCORE,
+)
+from .prompts import (
+    BOOK_OVERVIEW_CREATE,
+    BOOK_OVERVIEW_CREATE_STYLE,
+    CHAPTER_CONTINUATION,
+    CHAPTER_CONTINUATION_STYLE,
+    CHAPTER_GENERATION_NEXT,
+    CHAPTER_GENERATION_NEXT_STYLE,
+    CHAPTER_OUTLINE_DETAIL,
+    CHAPTER_OUTLINE_DETAIL_STYLE,
+    CHAPTER_POLISH,
+    CHARACTERS_BATCH_GENERATION,
+    CHARACTERS_BATCH_GENERATION_STYLE,
+    INSPIRATION_DESCRIPTION,
+    INSPIRATION_DESCRIPTION_STYLE,
+    INSPIRATION_GENRE,
+    INSPIRATION_GENRE_STYLE,
+    INSPIRATION_THEME,
+    INSPIRATION_THEME_STYLE,
+    INSPIRATION_TITLE,
+    INSPIRATION_TITLE_STYLE,
+    OUTLINE_CREATE,
+    OUTLINE_CREATE_STYLE,
+    PLOT_ANALYSIS,
+    STYLE_ANALYSIS,
+    WORLD_BUILDING,
+    WORLD_BUILDING_STYLE,
+    _fix_truncated_json,
+    format_prompt,
+    parse_json_response,
+)
 
 
 class NovelGenerator:
@@ -56,7 +70,7 @@ class NovelGenerator:
                     continue
                 return None, err
             if text and text.strip().startswith("<"):
-                return None, f"API返回错误页面(可能是认证失败或模型不存在)"
+                return None, "API返回错误页面(可能是认证失败或模型不存在)"
             result = parse_json_response(text)
             if result is not None:
                 if module_name:
@@ -400,7 +414,6 @@ class NovelGenerator:
 
     def _extract_items(self, text, keywords):
         """从文本中抽取包含关键词的片段"""
-        import re
         items = []
         for kw in keywords:
             pattern = kw + r'[：:]([^，。；\n]{2,30})'
@@ -719,24 +732,24 @@ class NovelGenerator:
         # 构建prompt参数
         overview_json_str = book_overview_json if isinstance(book_overview_json, str) else json.dumps(book_overview_json, ensure_ascii=False, indent=2)
 
-        prompt_kwargs = dict(
-            project_title=project_title, genre=genre,
-            book_overview_json=overview_json_str,
-            chapter_number=chapter_number,
-            total_chapters=total_chapters, characters_info=chars_text,
-            narrative_perspective=narrative_perspective,
-            my_position=position,
-            act_context=act_context,
-            character_milestones=character_milestones,
-            active_subplots=active_subplots,
-            foreshadow_to_plant=foreshadow_to_plant,
-            foreshadow_to_payoff=foreshadow_to_payoff,
-            pacing_requirement=pacing_requirement,
-            world_summary=world_ctx,
-            prev_chapter_title=prev_title,
-            prev_chapter_tail=prev_tail,
-            degradation_warning=degradation_warning,
-        )
+        prompt_kwargs = {
+            'project_title': project_title, 'genre': genre,
+            'book_overview_json': overview_json_str,
+            'chapter_number': chapter_number,
+            'total_chapters': total_chapters, 'characters_info': chars_text,
+            'narrative_perspective': narrative_perspective,
+            'my_position': position,
+            'act_context': act_context,
+            'character_milestones': character_milestones,
+            'active_subplots': active_subplots,
+            'foreshadow_to_plant': foreshadow_to_plant,
+            'foreshadow_to_payoff': foreshadow_to_payoff,
+            'pacing_requirement': pacing_requirement,
+            'world_summary': world_ctx,
+            'prev_chapter_title': prev_title,
+            'prev_chapter_tail': prev_tail,
+            'degradation_warning': degradation_warning,
+        }
 
         if use_craft:
             if style_profile:
@@ -747,16 +760,16 @@ class NovelGenerator:
                 prompt = format_prompt(CHAPTER_OUTLINE_CRAFT, **prompt_kwargs)
         elif style_profile:
             fmt = self._build_style_prompt_vars(style_profile)
-            prompt_kwargs.update(dict(
-                story_framework=fmt.get('story_framework', ''),
-                satisfaction_pattern=fmt.get('satisfaction_pattern', ''),
-                hook_design=fmt.get('hook_design', ''),
-                transition_style=fmt.get('transition_style', ''),
-                foreshadowing_style=fmt.get('foreshadowing_style', ''),
-                writing_techniques=fmt.get('writing_techniques', ''),
-                pacing=fmt.get('pacing', ''),
-                emotional_beats=fmt.get('emotional_beats', ''),
-            ))
+            prompt_kwargs.update({
+                'story_framework': fmt.get('story_framework', ''),
+                'satisfaction_pattern': fmt.get('satisfaction_pattern', ''),
+                'hook_design': fmt.get('hook_design', ''),
+                'transition_style': fmt.get('transition_style', ''),
+                'foreshadowing_style': fmt.get('foreshadowing_style', ''),
+                'writing_techniques': fmt.get('writing_techniques', ''),
+                'pacing': fmt.get('pacing', ''),
+                'emotional_beats': fmt.get('emotional_beats', ''),
+            })
             prompt = format_prompt(CHAPTER_OUTLINE_DETAIL_STYLE, **prompt_kwargs)
         else:
             prompt = format_prompt(CHAPTER_OUTLINE_DETAIL, **prompt_kwargs)
@@ -880,24 +893,24 @@ class NovelGenerator:
 
         overview_json_str = book_overview_json if isinstance(book_overview_json, str) else json.dumps(book_overview_json, ensure_ascii=False, indent=2)
 
-        prompt_kwargs = dict(
-            project_title=project_title, genre=genre,
-            book_overview_json=overview_json_str,
-            chapter_number=chapter_number,
-            total_chapters=total_chapters, characters_info=chars_text,
-            narrative_perspective=narrative_perspective,
-            my_position=position,
-            act_context=act_context,
-            character_milestones=character_milestones,
-            active_subplots=active_subplots,
-            foreshadow_to_plant=foreshadow_to_plant,
-            foreshadow_to_payoff=foreshadow_to_payoff,
-            pacing_requirement=pacing_requirement,
-            world_summary=world_ctx,
-            prev_chapter_title=prev_title,
-            prev_chapter_tail=prev_tail,
-            degradation_warning=degradation_warning,
-        )
+        prompt_kwargs = {
+            'project_title': project_title, 'genre': genre,
+            'book_overview_json': overview_json_str,
+            'chapter_number': chapter_number,
+            'total_chapters': total_chapters, 'characters_info': chars_text,
+            'narrative_perspective': narrative_perspective,
+            'my_position': position,
+            'act_context': act_context,
+            'character_milestones': character_milestones,
+            'active_subplots': active_subplots,
+            'foreshadow_to_plant': foreshadow_to_plant,
+            'foreshadow_to_payoff': foreshadow_to_payoff,
+            'pacing_requirement': pacing_requirement,
+            'world_summary': world_ctx,
+            'prev_chapter_title': prev_title,
+            'prev_chapter_tail': prev_tail,
+            'degradation_warning': degradation_warning,
+        }
 
         if use_craft:
             if style_profile:
@@ -908,16 +921,16 @@ class NovelGenerator:
                 prompt = format_prompt(CHAPTER_OUTLINE_CRAFT, **prompt_kwargs)
         elif style_profile:
             fmt = self._build_style_prompt_vars(style_profile)
-            prompt_kwargs.update(dict(
-                story_framework=fmt.get('story_framework', ''),
-                satisfaction_pattern=fmt.get('satisfaction_pattern', ''),
-                hook_design=fmt.get('hook_design', ''),
-                transition_style=fmt.get('transition_style', ''),
-                foreshadowing_style=fmt.get('foreshadowing_style', ''),
-                writing_techniques=fmt.get('writing_techniques', ''),
-                pacing=fmt.get('pacing', ''),
-                emotional_beats=fmt.get('emotional_beats', ''),
-            ))
+            prompt_kwargs.update({
+                'story_framework': fmt.get('story_framework', ''),
+                'satisfaction_pattern': fmt.get('satisfaction_pattern', ''),
+                'hook_design': fmt.get('hook_design', ''),
+                'transition_style': fmt.get('transition_style', ''),
+                'foreshadowing_style': fmt.get('foreshadowing_style', ''),
+                'writing_techniques': fmt.get('writing_techniques', ''),
+                'pacing': fmt.get('pacing', ''),
+                'emotional_beats': fmt.get('emotional_beats', ''),
+            })
             prompt = format_prompt(CHAPTER_OUTLINE_DETAIL_STYLE, **prompt_kwargs)
         else:
             prompt = format_prompt(CHAPTER_OUTLINE_DETAIL, **prompt_kwargs)
@@ -940,7 +953,7 @@ class NovelGenerator:
         logger.info(f"chapter-outline raw response: {len(full_text)} chars")
         result = parse_json_response(full_text)
         if result is not None:
-            logger.info(f"chapter-outline JSON parsed OK")
+            logger.info("chapter-outline JSON parsed OK")
             yield {'done': True, 'result': result}
         else:
             logger.error(f"chapter-outline JSON parse failed: {full_text[:500]!r}")

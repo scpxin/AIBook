@@ -1,6 +1,6 @@
-import os
-import logging
 import asyncio
+import logging
+import os
 import time
 from collections import defaultdict
 from threading import Lock
@@ -10,15 +10,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.config import PORT, DOWNLOAD_DIR, PROJECTS_DIR
-from app.database import novel_db
-from app.api import projects, download, settings
-from app.api.template import router as template_router
+from app.api import download, projects, settings
+from app.api.design import router as design_router
+from app.api.execution import router as execution_router
 from app.api.generation_template import router as generation_template_router
 from app.api.pipeline import router as pipeline_router
-from app.api.design import router as design_router
 from app.api.structure import router as structure_router
-from app.api.execution import router as execution_router
+from app.api.template import router as template_router
+from app.config import DOWNLOAD_DIR, PORT, PROJECTS_DIR
+from app.database import novel_db
 
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(PROJECTS_DIR, exist_ok=True)
@@ -34,7 +34,7 @@ logging.basicConfig(
 
 app = FastAPI(title="Fanqie Novel API", redirect_slashes=False)
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://140.143.210.177,http://140.143.210.177:80").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://127.0.0.1:80").split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -73,7 +73,7 @@ async def timeout_middleware(request: Request, call_next):
     try:
         response = await asyncio.wait_for(call_next(request), timeout=580)
         return response
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return JSONResponse({"detail": "请求处理超时"}, status=504)
 
 

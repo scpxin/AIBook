@@ -1,6 +1,3 @@
-import os
-import tempfile
-import pytest
 from app.config import PROJECT_ID_PATTERN
 
 
@@ -31,6 +28,7 @@ class TestConfig:
     def test_default_port(self, monkeypatch):
         monkeypatch.delenv("PORT", raising=False)
         import importlib
+
         import app.config as cfg
         importlib.reload(cfg)
         assert cfg.PORT == 8000
@@ -38,6 +36,7 @@ class TestConfig:
     def test_custom_port(self, monkeypatch):
         monkeypatch.setenv("PORT", "9000")
         import importlib
+
         import app.config as cfg
         importlib.reload(cfg)
         assert cfg.PORT == 9000
@@ -47,6 +46,7 @@ class TestConfig:
     def test_allowed_proxy_domains(self, monkeypatch):
         monkeypatch.setenv("ALLOWED_PROXY_DOMAINS", "api.example.com,api2.example.org")
         import importlib
+
         import app.config as cfg
         importlib.reload(cfg)
         assert "api.example.com" in cfg.ALLOWED_PROXY_DOMAINS
@@ -57,6 +57,7 @@ class TestConfig:
     def test_allowed_proxy_domains_empty(self, monkeypatch):
         monkeypatch.delenv("ALLOWED_PROXY_DOMAINS", raising=False)
         import importlib
+
         import app.config as cfg
         importlib.reload(cfg)
         assert cfg.ALLOWED_PROXY_DOMAINS == []

@@ -3,8 +3,8 @@ import json
 import os
 import re
 import ssl
-import urllib.request
 import urllib.error
+import urllib.request
 
 _ssl_context = ssl.create_default_context()
 if os.getenv("AI_VERIFY_SSL", "true").lower() == "false":

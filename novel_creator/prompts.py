@@ -1,18 +1,8 @@
 """小说创作 Prompt 模板 - 提取自 MuMuAINovel 项目"""
 import json
-import string
 import logging
-import os
+import string
 
-# 配置日志
-_log_dir = os.environ.get('LOG_DIR', '/app/data')
-os.makedirs(_log_dir, exist_ok=True)
-logging.basicConfig(
-    filename=os.path.join(_log_dir, 'generate.log'),
-    level=logging.DEBUG,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    encoding='utf-8'
-)
 logger = logging.getLogger('novel_creator.prompts')
 
 
@@ -29,7 +19,7 @@ _safe_formatter = SafeFormatter()
 
 def format_prompt(template, **kwargs):
     """安全格式化 prompt 模板。
-    
+
     自动转义用户值中的大括号（防止被误认为是 placeholder），
     且模板中未传入的 placeholder 会被替换为空字符串，不会抛 KeyError。
     """
@@ -881,7 +871,7 @@ def parse_json_response(text):
         stripped = block.strip()
         try:
             result = json.loads(stripped)
-            logger.debug(f"parse_json_response: block direct parse OK")
+            logger.debug("parse_json_response: block direct parse OK")
             return result
         except json.JSONDecodeError:
             pass
@@ -889,7 +879,7 @@ def parse_json_response(text):
         for match in re.finditer(r'[\{\[]', stripped):
             try:
                 result = json.loads(stripped[match.start():])
-                logger.debug(f"parse_json_response: block inner JSON parse OK")
+                logger.debug("parse_json_response: block inner JSON parse OK")
                 return result
             except json.JSONDecodeError:
                 continue
@@ -900,7 +890,7 @@ def parse_json_response(text):
     # 尝试直接解析清理后的文本
     try:
         result = json.loads(cleaned)
-        logger.debug(f"parse_json_response: cleaned direct parse OK")
+        logger.debug("parse_json_response: cleaned direct parse OK")
         return result
     except json.JSONDecodeError:
         pass
@@ -930,7 +920,7 @@ def _fix_truncated_json(text):
     stack = []
     in_string = False
     escape = False
-    
+
     for ch in text:
         if escape:
             escape = False
@@ -952,21 +942,21 @@ def _fix_truncated_json(text):
                     stack.pop()
                 else:
                     return None
-    
+
     # 移除末尾不完整的 token（如未完成的属性值）
     text = text.rstrip()
     # 如果末尾是逗号，移除
     if text.endswith(','):
         text = text[:-1]
-    
+
     # 未闭合的字符串 - 关闭它
     if in_string:
         text = text + '"'
-    
+
     # 关闭所有未闭合的括号
     for ch in reversed(stack):
         text = text + ('}' if ch == '{' else ']')
-    
+
     try:
         return _json.loads(text)
     except _json.JSONDecodeError:

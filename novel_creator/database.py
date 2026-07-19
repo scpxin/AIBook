@@ -1,9 +1,9 @@
 """SQLite 数据库模块 - 章节存储、大纲管理、步骤摘要、项目管理、生成状态管理"""
-import sqlite3
-import os
-import time
 import json
+import os
+import sqlite3
 import threading
+import time
 
 DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'fanqie.db'))
 SCHEMA_VERSION = 2  # 当前 schema 版本号，用于迁移
@@ -767,5 +767,5 @@ def get_pending_chapters(project_id, total_chapters):
             (project_id,)
         ).fetchall()
         conn.close()
-    done = set(r['chapter_number'] for r in rows)
+    done = {r['chapter_number'] for r in rows}
     return [i for i in range(1, total_chapters + 1) if i not in done]

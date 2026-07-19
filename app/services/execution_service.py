@@ -7,18 +7,16 @@ M17: content_parse — 内容解析(场景/对白/动作切分)
 M18: knowledge     — 知识库(增量更新 + 快照 + 伏笔列表)
 M19: consistency   — 一致性检查(9项自动校验)
 """
-import sys
-import os
 import json
 import logging
-import re
-from typing import Optional, Dict, Any, List
+import os
+import sys
 
 _current = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_current, '..', '..', '..'))
+from app.services.service_utils import build_style_str
+from app.services.service_utils import get_default_generator as _get_default_generator
 from novel_creator import database_v2
-from app.services.novel_generator import get_generator
-from app.services.service_utils import get_default_generator as _get_default_generator, build_style_str
 
 logger = logging.getLogger('novel_creator.execution')
 
@@ -378,9 +376,9 @@ class ConsistencyService:
             result, err = gen._generate_json(prompt, max_tokens=2000, module_name="world_consistency_check")
             if err:
                 return {
-                    "passed": False, 
-                    "message": f"AI检查不可用: {err}", 
-                    "score": 0, 
+                    "passed": False,
+                    "message": f"AI检查不可用: {err}",
+                    "score": 0,
                     "issues": [],
                     "status": "unavailable"
                 }, None
@@ -430,9 +428,9 @@ class ConsistencyService:
             result, err = gen._generate_json(prompt, max_tokens=2000, module_name="character_consistency_check")
             if err:
                 return {
-                    "passed": False, 
-                    "message": f"AI检查不可用: {err}", 
-                    "score": 0, 
+                    "passed": False,
+                    "message": f"AI检查不可用: {err}",
+                    "score": 0,
                     "issues": [],
                     "status": "unavailable"
                 }, None

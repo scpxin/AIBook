@@ -9,17 +9,15 @@ M11: plot_nodes — 剧情节点(事件具体化)
 M12: chapter_plan — 章节规划(事件→章)
 M13: chapter_outline — 章节细纲(逐章展开)
 """
-import sys
-import os
 import json
 import logging
-from typing import Optional, Dict, Any, List
+import os
+import sys
 
 _current = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_current, '..', '..', '..'))
+from app.services.service_utils import build_style_str, get_default_generator
 from novel_creator import database_v2
-from app.services.novel_generator import get_generator
-from app.services.service_utils import get_default_generator, build_style_str
 
 logger = logging.getLogger('novel_creator.structure')
 
@@ -458,9 +456,9 @@ class ChapterOutlineService:
         if not gen:
             return None, "AI生成器未配置"
 
-        prompt = """为第{chapter_no}章撰写详细章节细纲。
+        prompt = f"""为第{chapter_no}章撰写详细章节细纲。
 
-章节规划: {chapter_plan}
+章节规划: {json.dumps(chapter_plan, ensure_ascii=False)[:1500]}
 
 细纲内容:
 1. scenes — 场景设计(每个:scene_no+location+characters+goal+conflict+outcome+sensory_details)
@@ -472,10 +470,7 @@ class ChapterOutlineService:
 7. action_beats — 关键动作(action_type+characters+consequence+tension_level)
 8. transition — 章末过渡(方式+效果+下章伏笔)
 
-返回JSON格式""".format(
-            chapter_no=chapter_no,
-            chapter_plan=json.dumps(chapter_plan, ensure_ascii=False)[:1500],
-        )
+返回JSON格式"""
 
         result, err = gen._generate_json(prompt, max_tokens=8000, module_name="chapter_outline")
         if err:

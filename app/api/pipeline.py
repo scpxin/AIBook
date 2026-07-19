@@ -2,30 +2,30 @@
 
 提供19模块流水线的状态查询、进度跟踪和模块推进功能。
 """
-import sys
-import os
 import logging
-from typing import Optional
-
-from fastapi import APIRouter, HTTPException, Body
+import os
+import sys
 from typing import Any
+
+from fastapi import APIRouter, Body, HTTPException
 
 _current = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_current, '..', '..', '..'))
-from novel_creator import database_v2
+from app.models.v2_schemas import (
+    IdeaConfirmRequest,
+    ModuleStatusUpdateRequest,
+)
 from app.services.pipeline import (
-    get_pipeline_progress,
+    MODULE_ORDER,
+    ModuleStatus,
+    cleanup_project_state,
     get_all_modules_info,
     get_module_info,
-    set_module_status,
     get_next_pending_module,
-    cleanup_project_state,
-    ModuleStatus,
-    MODULE_ORDER,
+    get_pipeline_progress,
+    set_module_status,
 )
-from app.models.v2_schemas import (
-    IdeaConfirmRequest, ModuleStatusUpdateRequest,
-)
+from novel_creator import database_v2
 
 logger = logging.getLogger('novel_creator.api.v2.pipeline')
 
@@ -153,6 +153,7 @@ def _ensure_v2_project_exists(project_id, name=""):
 
 def _get_db_local():
     import sqlite3
+
     from novel_creator.database_v2 import DB_PATH as V2_DB_PATH
     return sqlite3.connect(V2_DB_PATH)
 
@@ -436,7 +437,7 @@ def compatibility_check(project_id: str, body: dict):
     if not detail:
         return {"success": True, "results": [], "message": "项目数据为空，无法执行兼容性检查"}
 
-    overview = detail.get("project_overview", "")
+    detail.get("project_overview", "")
     wordcount_plan = detail.get("wordcount_plan", {})
 
     # 1. 字数检查

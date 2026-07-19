@@ -1,7 +1,3 @@
-import os
-import json
-import tempfile
-import pytest
 from novel_creator.ai_client import AIClient
 
 
@@ -79,6 +75,7 @@ class TestAIClient:
     def test_ssl_verify_flag_defaults_to_true(self, monkeypatch):
         monkeypatch.delenv("AI_VERIFY_SSL", raising=False)
         import importlib
+
         import novel_creator.ai_client as ac
         importlib.reload(ac)
         assert ac._ssl_context.check_hostname is True
@@ -86,6 +83,7 @@ class TestAIClient:
     def test_ssl_verify_flag_false(self, monkeypatch):
         monkeypatch.setenv("AI_VERIFY_SSL", "false")
         import importlib
+
         import novel_creator.ai_client as ac
         importlib.reload(ac)
         assert ac._ssl_context.check_hostname is False
