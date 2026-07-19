@@ -146,12 +146,15 @@ const editingFactionIdx = ref(-1)
 const resultData = computed(() => ({
   pattern: form.pattern,
   factions: factions.value,
+  conflict: form.conflict,
 }))
 
 const factionsData = () => ({
   pattern: form.pattern,
   factions: factions.value,
   conflict: form.conflict,
+  count: form.count,
+  upstreamData: upstreamData.value,
 })
 const { scheduleSave } = useAutoSave({
   dataRef: factionsData,
@@ -219,7 +222,7 @@ async function proceed() {
     if (!factions.value.length) {
       useOfflineMode()
     }
-    try { await v2Api.saveModuleData(props.projectId, 'factions', { factions: factions.value, meta_analysis: result.metaAnalysis || '' }) } catch (_e) { /* ignore */ }
+    try { await v2Api.saveModuleData(props.projectId, 'factions', factionsData()) } catch (_e) { /* ignore */ }
   } catch (e: any) {
      errorBar.showError(e, () => proceed())
     useOfflineMode()

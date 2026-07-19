@@ -53,7 +53,7 @@
         </button>
         <button @click="addScene" class="btn btn-ghost">+ 手动添加场景</button>
         <button @click="save" :disabled="loading" class="btn btn-ghost">保存场景设计</button>
-        <button @click="$emit('complete', { scenes })" class="btn btn-ghost">完成</button>
+        <button @click="save" :disabled="loading" class="btn btn-ghost">完成</button>
       </div>
 
       <div v-if="error" class="error">{{ error }}</div>

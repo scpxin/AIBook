@@ -139,6 +139,7 @@ import { getTemplates } from '../api/v2'
 import { useGeneration } from '../composables/useGeneration'
 import { setupConfirm } from '../composables/useConfirm'
 import { setupErrorBar } from '../composables/useErrorBar'
+import { useAutoSave } from '../composables/useAutoSave'
 import { useToastStore } from '../stores/toast'
 import TemplateDialog from '../components/TemplateDialog.vue'
 import TemplateManagePanel from '../components/TemplateManagePanel.vue'
@@ -181,6 +182,32 @@ const filteredTemplates = computed(() => {
   return templates.value.filter((t: IdeaTemplate) => t.genre === genreFilter.value)
 })
 
+const fullState = () => ({
+  prompt: form.prompt,
+  genre: form.genre,
+  reference: form.reference,
+  candidates: candidates.value,
+  selectedIdx: selectedIdx.value,
+  upgrades: upgrades.value,
+  riskAnalysis: riskAnalysis.value,
+  confirmedCandidate: selectedIdx.value != null ? candidates.value[selectedIdx.value] : null,
+})
+
+const { scheduleSave } = useAutoSave({
+  dataRef: fullState,
+  saveFn: async (data) => {
+    await v2Api.saveModuleData(props.projectId, 'idea', data)
+  },
+  debounce: 2000,
+  storageKey: `idea_${props.projectId}`,
+  onSaveError: () => toast.error('灵感自动保存失败，已存至本地备份'),
+  projectId: props.projectId,
+  moduleName: 'idea',
+})
+watch([form, candidates, selectedIdx, upgrades, riskAnalysis], () => {
+  scheduleSave()
+}, { deep: true })
+
 async function manualConfirm() {
   if (!form.prompt.trim()) return
   if (form.prompt.trim().length < 5) {
@@ -202,20 +229,14 @@ async function manualConfirm() {
     isManual: true,
   }
   await v2Api.confirmIdea(props.projectId, 'manual', 1)
-  const fullState = {
-    prompt: form.prompt,
-    genre: form.genre,
-    reference: form.reference,
-    candidates: [manualIdea],
-    selectedIdx: 0,
-    upgrades: [],
-    riskAnalysis: null,
-    confirmedCandidate: manualIdea,
-  }
-  try { await v2Api.saveModuleData(props.projectId, 'idea', fullState) } catch (_e) {
+  const state = fullState()
+  state.candidates = [manualIdea]
+  state.selectedIdx = 0
+  state.confirmedCandidate = manualIdea
+  try { await v2Api.saveModuleData(props.projectId, 'idea', state) } catch (_e) {
     toast.error('保存灵感数据失败，请手动备份')
   }
-  emit('complete', fullState)
+  emit('complete', state)
 }
 
 async function generate() {
@@ -275,18 +296,9 @@ async function confirmAndStay() {
   confirming.value = true
   try {
     await v2Api.confirmIdea(props.projectId, candidate.id, candidate.version)
-    const fullState = {
-      prompt: form.prompt,
-      genre: form.genre,
-      reference: form.reference,
-      candidates: candidates.value,
-      selectedIdx: selectedIdx.value,
-      upgrades: upgrades.value,
-      riskAnalysis: riskAnalysis.value,
-      confirmedCandidate: candidate,
-    }
+    const state = fullState()
     try {
-      await v2Api.saveModuleData(props.projectId, 'idea', fullState)
+      await v2Api.saveModuleData(props.projectId, 'idea', state)
       toast.success('创意已确认并保存')
     } catch (_e) {
       toast.error('保存灵感数据失败，请重试')
@@ -310,23 +322,14 @@ async function confirm() {
   confirming.value = true
   try {
     await v2Api.confirmIdea(props.projectId, candidate.id, candidate.version)
-    const fullState = {
-      prompt: form.prompt,
-      genre: form.genre,
-      reference: form.reference,
-      candidates: candidates.value,
-      selectedIdx: selectedIdx.value,
-      upgrades: upgrades.value,
-      riskAnalysis: riskAnalysis.value,
-      confirmedCandidate: candidate,
-    }
+    const state = fullState()
     try {
-      await v2Api.saveModuleData(props.projectId, 'idea', fullState)
+      await v2Api.saveModuleData(props.projectId, 'idea', state)
     } catch (_e) {
       toast.error('保存灵感数据失败，请重试')
       return
     }
-    emit('complete', fullState)
+    emit('complete', state)
   } catch (e: any) {
     errorBar.showError(e, () => confirm())
   } finally {
@@ -355,29 +358,24 @@ async function useTemplate(tpl: IdeaTemplate) {
    form.reference = tpl.reference || ''
    await nextTick()
    // 模板直接应用，不触发AI生成
-   const templateIdea = {
-     title: tpl.prompt.slice(0, 30),
-     description: tpl.prompt,
-     genre: tpl.genre || '自定义',
-     score: 85,
-     tags: [tpl.genre || '自定义'],
-     isTemplate: true,
-     templateId: tpl.id,
-   }
-   const fullState = {
-     prompt: form.prompt,
-     genre: form.genre,
-     reference: form.reference,
-     candidates: [templateIdea],
-     selectedIdx: 0,
-     upgrades: [],
-     riskAnalysis: null,
-     confirmedCandidate: templateIdea,
-   }
-   try { await v2Api.saveModuleData(props.projectId, 'idea', fullState) } catch (_e) {
-     toast.error('保存灵感数据失败，请手动备份')
-   }
-   emit('complete', fullState)
+    const templateIdea = {
+      title: tpl.name,
+      concept: tpl.prompt || tpl.name || '',
+      description: tpl.prompt || '',
+      genre: tpl.genre || '自定义',
+      score: 85,
+      tags: [tpl.genre || '自定义'],
+      isTemplate: true,
+      templateId: tpl.id,
+    }
+    const state = fullState()
+    state.candidates = [templateIdea]
+    state.selectedIdx = 0
+    state.confirmedCandidate = templateIdea
+    try { await v2Api.saveModuleData(props.projectId, 'idea', state) } catch (_e) {
+      toast.error('保存灵感数据失败，请手动备份')
+    }
+    emit('complete', state)
  }
 
 const skipWatch = ref(false)

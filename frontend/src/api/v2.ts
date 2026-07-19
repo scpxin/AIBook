@@ -463,7 +463,7 @@ export function getAllModuleData(projectId: string) {
 }
 
 export async function confirmIdea(projectId: string, ideaId: string, version: number = 1) {
-  return apiPost<{ success: boolean }>(`/api/v2/pipeline/${projectId}/confirm-idea`, { ideaId, version })
+  return apiPost<{ success: boolean }>(`/api/v2/pipeline/${projectId}/confirm-idea`, { idea_id: ideaId, version })
 }
 
 export async function worldConsistencyCheck(projectId: string) {

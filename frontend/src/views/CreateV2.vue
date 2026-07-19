@@ -720,8 +720,9 @@ function startNewProject() {
      tplStore.activateProject(projectId.value)
      modules.value = pipeline.modules
      restoreNotice.value = ''
-     selectedTemplateModules.value = {}
-     currentProjectGenre.value = ''
+      selectedTemplateModules.value = {}
+      moduleSavedMap.value = {}
+      currentProjectGenre.value = ''
      currentProjectSubGenre.value = ''
      currentProjectTone.value = ''
      currentProjectAudience.value = ''
@@ -918,7 +919,10 @@ watch(projectId, async (newPid) => {
     try {
       const v2Data = await loadV2Project(newPid)
       if (requestId === _loadRequestId) {
-        allModulesData.value = v2Data?.modules || {}
+       allModulesData.value = v2Data?.modules || {}
+       for (const k of Object.keys(allModulesData.value)) {
+         moduleSavedMap.value[k] = true
+       }
         if (v2Data?.name) projectName.value = v2Data.name
       }
     } catch (_e) {

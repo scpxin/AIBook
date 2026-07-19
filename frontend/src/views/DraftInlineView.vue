@@ -57,13 +57,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { saveDraft, getDrafts, getAllModuleData } from '../api/v2'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { saveDraft, getDrafts, getAllModuleData, saveModuleData } from '../api/v2'
 import { useExecutionStore } from '../stores/execution'
 import { useGeneration } from '../composables/useGeneration'
 import { setupConfirm } from '../composables/useConfirm'
 import { setupErrorBar } from '../composables/useErrorBar'
 import { useChapters } from '../composables/useChapters'
+import { useAutoSave } from '../composables/useAutoSave'
 import { useToastStore } from '../stores/toast'
 
 const props = defineProps<{ projectId: string }>()
@@ -122,7 +123,6 @@ async function generate() {
     )
     content.value = executionStore.draftContent
     streamingContent.value = executionStore.draftContent
-    hasUnsavedChanges = true
   } catch (e: any) {
     errorBar.showError(e, () => generate())
     if (previousContent) {
@@ -143,7 +143,6 @@ function useOfflineMode() {
   setTimeout(() => {
     content.value = generateMockContent(form.chapterNo, form.skeleton, form.styleNote)
     streamingContent.value = content.value
-    hasUnsavedChanges = true
     loading.value = false
   }, 500)
 }
@@ -168,10 +167,8 @@ ${skeleton || '（暂无场景骨架，请先完成场景设计模块）'}
 async function save() {
   if (!content.value) return
   try {
+    await saveModuleData(props.projectId, 'draft_generation', resultData.value)
     await saveDraft(props.projectId, String(form.chapterNo), content.value)
-    lastSavedContent = content.value
-    hasUnsavedChanges = false
-    clearLocalStorageBackup()
     toast.success('草稿已保存')
   } catch (e: any) {
     toast.error('保存失败: ' + e.message)
@@ -186,8 +183,9 @@ async function handleComplete() {
     type: 'info',
   })
   if (!ok) return
-  hasUnsavedChanges = false
-  clearLocalStorageBackup()
+  try {
+    await saveModuleData(props.projectId, 'draft_generation', resultData.value)
+  } catch (_e) { /* ignore */ }
   emit('complete', resultData.value)
 }
 
@@ -199,35 +197,19 @@ function regenerate() {
   }
 }
 
-let autoSaveTimer: ReturnType<typeof setInterval> | null = null
-let hasUnsavedChanges = false
-let lastSavedContent = ''
-
-function backupToLocalStorage() {
-  if (content.value && hasUnsavedChanges) {
-    try {
-      localStorage.setItem(`draft_backup_${props.projectId}_${form.chapterNo}`, content.value)
-    } catch (e: any) {
-      if (e?.name === 'QuotaExceededError') {
-        toast.info('本地备份空间不足，请手动保存到服务器')
-      }
-    }
-  }
-}
-
-function clearLocalStorageBackup() {
-  try {
-    localStorage.removeItem(`draft_backup_${props.projectId}_${form.chapterNo}`)
-  } catch (_e) { /* ignore */ }
-}
-
-const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
-  if (hasUnsavedChanges && content.value) {
-    backupToLocalStorage()
-    e.preventDefault()
-    e.returnValue = ''
-  }
-}
+const draftData = () => resultData.value
+const { scheduleSave } = useAutoSave({
+  dataRef: draftData,
+  saveFn: async (data) => {
+    await saveModuleData(props.projectId, 'draft_generation', data)
+    await saveDraft(props.projectId, String(form.chapterNo), data.content)
+  },
+  debounce: 5000,
+  storageKey: `draft_${props.projectId}`,
+  projectId: props.projectId,
+  moduleName: 'draft_generation',
+})
+watch([content, form], () => { scheduleSave() }, { deep: true })
 
 onMounted(async () => {
   try {
@@ -248,7 +230,6 @@ onMounted(async () => {
         const backup = localStorage.getItem(`draft_backup_${props.projectId}_${form.chapterNo}`)
         if (backup) {
           content.value = backup
-          hasUnsavedChanges = true
         }
       }
     } catch (e) {
@@ -270,33 +251,12 @@ onMounted(async () => {
     pageLoading.value = false
   }
 
-  hasUnsavedChanges = false
-  autoSaveTimer = setInterval(async () => {
-    if (content.value === lastSavedContent) return
-    if (content.value && hasUnsavedChanges) {
-      try {
-        await saveDraft(props.projectId, String(form.chapterNo), content.value)
-        lastSavedContent = content.value
-        hasUnsavedChanges = false
-        clearLocalStorageBackup()
-      } catch (_e) { /* ignore */ }
-    }
-  }, 15000)
-
-  window.addEventListener('beforeunload', beforeUnloadHandler)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('beforeunload', beforeUnloadHandler)
-  if (autoSaveTimer) clearInterval(autoSaveTimer)
-  // Use sendBeacon for reliable unload save
-  if (content.value && hasUnsavedChanges) {
-    const blob = new Blob([content.value], { type: 'text/plain' })
-    const apiPrefix = import.meta.env.VITE_API_PREFIX || ''
-    const success = navigator.sendBeacon(`${apiPrefix}/api/v2/projects/${props.projectId}/drafts/${form.chapterNo}/backup`, blob)
-    if (!success) backupToLocalStorage()
+  const loadedDraft = localStorage.getItem(`draft_backup_${props.projectId}_${form.chapterNo}`)
+  if (loadedDraft && !content.value) {
+    content.value = loadedDraft
   }
 })
+
 </script>
 
 <style scoped>
