@@ -281,14 +281,15 @@ def save_relation_map(project_id, data):
     """保存关系网络"""
     with _v2_lock:
         conn = _v2_db()
-        _v2_now()
+        now = _v2_now()
         conn.execute("""
-            INSERT INTO v2_relation_maps (project_id, nodes, edges, role_groups)
-            VALUES (?,?,?,?)
+            INSERT INTO v2_relation_maps (project_id, nodes, edges, role_groups, updated_at)
+            VALUES (?,?,?,?,?)
             ON CONFLICT(project_id) DO UPDATE SET
-                nodes=excluded.nodes, edges=excluded.edges, role_groups=excluded.role_groups
+                nodes=excluded.nodes, edges=excluded.edges, role_groups=excluded.role_groups,
+                updated_at=excluded.updated_at
         """, (project_id, _j(data.get('nodes', [])), _j(data.get('edges', [])),
-              _j(data.get('role_groups', {}))))
+              _j(data.get('role_groups', {})), now))
         conn.commit()
         conn.close()
 

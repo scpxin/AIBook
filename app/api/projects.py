@@ -25,7 +25,7 @@ def sanitize_project_name(name: str) -> str:
 
 
 def validate_project_id(project_id: str) -> bool:
-    """校验项目ID格式（仅允许 proj_ 前缀 + 字母数字下划线，上限 64 字符）"""
+    """校验项目ID格式（字母数字+下划线+连字符，上限128字符）"""
     return bool(project_id and re.match(PROJECT_ID_PATTERN, project_id))
 
 
@@ -34,7 +34,7 @@ def project_save_v2(body: dict):
     """保存V2项目全量数据：所有模块数据 + 流水线状态 + 模板选择 + 共享上下文"""
     project_id = body.get('id') or ('proj_' + uuid.uuid4().hex[:12])
     if not validate_project_id(project_id):
-        return {"error": "无效的项目ID"}
+        raise HTTPException(status_code=400, detail="无效的项目ID")
 
     name = sanitize_project_name(body.get('name'))
     modules_data = body.get('modules', {})
@@ -44,9 +44,9 @@ def project_save_v2(body: dict):
     expected_updated_at = body.get('expectedUpdatedAt', '')
 
     if not isinstance(modules_data, dict):
-        return {"error": "modules数据格式错误"}
+        raise HTTPException(status_code=400, detail="modules数据格式错误")
     if len(json.dumps(modules_data, ensure_ascii=False)) > 20 * 1024 * 1024:
-        return {"error": "项目数据过大（上限20MB）"}
+        raise HTTPException(status_code=413, detail="项目数据过大（上限20MB）")
 
     # Optimistic lock: check updated_at to detect concurrent modifications
     if expected_updated_at:
@@ -214,11 +214,11 @@ def project_load_v2(body: dict):
     """加载V2项目全量数据"""
     project_id = body.get('id', '')
     if not validate_project_id(project_id):
-        return {"error": "无效的项目ID"}
+        raise HTTPException(status_code=400, detail="无效的项目ID")
 
     project = novel_db.get_project(project_id)
     if not project:
-        return {"error": "项目不存在"}
+        raise HTTPException(status_code=404, detail="项目不存在")
 
     # 1. 获取所有模块数据
     from app.api.pipeline import get_all_module_data

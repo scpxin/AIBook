@@ -39,15 +39,6 @@ def parse_style_profile(style_profile_str) -> dict | None:
         return None
 
 
-def send_gen_result(result, err, key=None):
-    if err:
-        return {"error": str(err)}, 500
-    elif result is None:
-        return {"error": "生成结果为空，请重试"}, 500
-    else:
-        return {key: result} if key else result, 200
-
-
 def build_style_section(style) -> str:
     parts = []
     if style.get('narrative_perspective'):

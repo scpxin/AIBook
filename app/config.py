@@ -7,7 +7,7 @@ DOWNLOAD_DIR = os.environ.get('DOWNLOAD_DIR', '/app/data/downloads')
 PROJECTS_DIR = os.environ.get('PROJECTS_DIR', '/app/data/projects')
 LOG_DIR = os.environ.get('LOG_DIR', '/app/data/logs')
 
-PROJECT_ID_PATTERN = re.compile(r'^[\w\-]{1,128}$')
+PROJECT_ID_PATTERN = re.compile(r'^[\w\-]{1,128}$')  # 字母数字+下划线+连字符,1-128字符
 
 SEARCH_API = os.environ.get('SEARCH_API', '')
 CONTENT_API = os.environ.get('CONTENT_API', '')

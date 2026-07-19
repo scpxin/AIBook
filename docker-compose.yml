@@ -40,6 +40,9 @@ services:
       - HTTP_TIMEOUT=20
       - MAX_BODY_SIZE=52428800
       - AI_VERIFY_SSL=${AI_VERIFY_SSL:-true}
+      - AI_ENDPOINT=${AI_ENDPOINT:-https://api.longcat.chat/openai}
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_MODEL=${AI_MODEL:-LongCat-2.0}
     networks:
       - app-net
     restart: unless-stopped

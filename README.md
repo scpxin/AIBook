@@ -139,7 +139,7 @@ fanqie-v2/
 | M6 | outline | 大纲 | v2_pipeline_states |
 | M7 | power_system | 力量体系 | v2_power_systems |
 | M8 | factions | 势力 | v2_factions |
-| M9 | timeline | 时间线 | v2_pipeline_states |
+| M9 | timeline | 时间线 | v2_timelines |
 | M10 | volumes | 卷纲 | v2_volumes |
 | M11 | chapter_plan | 章节规划 | v2_chapter_plans |
 | M12 | chapter_outline | 章节细纲 | v2_pipeline_states |
@@ -235,7 +235,7 @@ SQLite 双数据库架构：
 - `fanqie.db` - V1遗留数据
 - V2 使用独立表结构（`v2_*` 前缀表）
 
-运行 `database_v2..init_db_v2()` 自动创建所有V2表。
+运行 `database_v2.init_db_v2()` 自动创建所有V2表。
 
 ## License
 

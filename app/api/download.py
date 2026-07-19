@@ -81,7 +81,7 @@ def search(q: str = ''):
     if not q:
         return {"error": "missing q"}
     if not SEARCH_API:
-        return JSONResponse({"error": "search source not configured", "books": []}, status_code=503)
+        return JSONResponse(None, status_code=503)
     data = _http_get(SEARCH_API.format(urllib.parse.quote(q)))
     result = json.loads(data)
     books = []
@@ -99,6 +99,8 @@ def search(q: str = ''):
 def directory(book_id: str = ''):
     if not book_id:
         return {"error": "missing book_id"}
+    if not re.match(r'^\d{1,32}$', book_id):
+        return {"error": "invalid book_id"}
     data = _http_get(DIR_API.format(book_id))
     result = json.loads(data).get('data', {})
     ids = result.get('allItemIds', [])
@@ -109,6 +111,8 @@ def directory(book_id: str = ''):
 def content(item_id: str = ''):
     if not item_id:
         return {"error": "missing item_id"}
+    if not re.match(r'^\d{1,32}$', item_id):
+        return {"error": "invalid item_id"}
     data = _http_get(CONTENT_API.format(item_id))
     result = json.loads(data)
     if result.get('code') == 200:
