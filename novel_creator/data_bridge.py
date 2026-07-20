@@ -157,17 +157,20 @@ class DataBridge:
         merged = {**existing, **data}
         conn.execute("""
             INSERT INTO v2_world_buildings (project_id, origin, rules, structure, civilization,
-                history, doc_path, world_foreshadows, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+                history, doc_path, world_foreshadows, power_system, factions, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(project_id) DO UPDATE SET
                 origin=excluded.origin, rules=excluded.rules, structure=excluded.structure,
                 civilization=excluded.civilization, history=excluded.history,
                 doc_path=excluded.doc_path, world_foreshadows=excluded.world_foreshadows,
+                power_system=excluded.power_system, factions=excluded.factions,
                 updated_at=excluded.updated_at
         """, (project_id, _j(merged.get('origin', {})), _j(merged.get('rules', [])),
               _j(merged.get('structure', {})), _j(merged.get('civilization', {})),
               _j(merged.get('history', [])), str(merged.get('doc_path', '')),
-              _j(merged.get('world_foreshadows', [])), now, now))
+              _j(merged.get('world_foreshadows', [])),
+              _j(merged.get('power_system', {})), _j(merged.get('factions', [])),
+              now, now))
         conn.commit()
 
     # ========== M4: 人物系统 (按 char_id UPSERT) ==========
@@ -230,18 +233,23 @@ class DataBridge:
         merged = {**existing, **data}
         conn.execute("""
             INSERT INTO v2_story_systems (project_id, summary, conflict_layers, theme,
-                volume_cliffhangers, volumes_detail, total_plot_events, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?)
+                volume_cliffhangers, volumes_detail, total_plot_events,
+                timeline_events, timeline_consistency, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(project_id) DO UPDATE SET
                 summary=excluded.summary, conflict_layers=excluded.conflict_layers,
                 theme=excluded.theme, volume_cliffhangers=excluded.volume_cliffhangers,
                 volumes_detail=excluded.volumes_detail, total_plot_events=excluded.total_plot_events,
+                timeline_events=excluded.timeline_events, timeline_consistency=excluded.timeline_consistency,
                 updated_at=excluded.updated_at
         """, (project_id, str(merged.get('summary', '')),
               _j(merged.get('conflict_layers', [])), str(merged.get('theme', '')),
               _j(merged.get('volume_cliffhangers', [])),
               _j(merged.get('volumes_detail', [])),
-              _j(merged.get('total_plot_events', [])), now, now))
+              _j(merged.get('total_plot_events', [])),
+              _j(merged.get('timeline_events', [])),
+              _j(merged.get('timeline_consistency', {})),
+              now, now))
         conn.commit()
 
     # ========== M6: 全书大纲 ==========
@@ -304,8 +312,8 @@ class DataBridge:
                     plot_nodes_covered, timeline_events, hook_type, cliffhanger,
                     protagonist_level, locations, dialogue_ratio, pacing,
                     foreshadows_to_add, foreshadows_to_recycle, emotion_curve,
-                    scenes, knowledge_update, status, created_at, updated_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    scenes, knowledge_update, scene_designs, status, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (project_id, ch_no, str(c.get('title', '')),
                   c.get('target_words', 2000), _j(c.get('plot_nodes_covered', [])),
                   _j(c.get('timeline_events', [])), str(c.get('hook_type', '')),
@@ -314,6 +322,7 @@ class DataBridge:
                   str(c.get('pacing', 'normal')), _j(c.get('foreshadows_to_add', [])),
                   _j(c.get('foreshadows_to_recycle', [])), _j(c.get('emotion_curve', [])),
                   _j(c.get('scenes', [])), _j(c.get('knowledge_update', {})),
+                  _j(c.get('scene_designs', [])),
                   str(c.get('status', 'planned')), now, now))
         conn.commit()
 

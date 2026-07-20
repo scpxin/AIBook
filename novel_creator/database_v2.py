@@ -48,6 +48,14 @@ def init_db_v2():
             except Exception:
                 pass  # 列已存在
 
+        # 迁移: v2 schema 新增列 (power_system, factions, timeline_*, scene_designs)
+        from .db_schema import V2_SCHEMA_MIGRATIONS
+        for mig in V2_SCHEMA_MIGRATIONS:
+            try:
+                conn.execute(mig)
+            except Exception:
+                pass  # 列已存在
+
         # 迁移: v2_ideas 添加 project_id UNIQUE 约束
         try:
             conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_v2_ideas_project_unique ON v2_ideas(project_id)")

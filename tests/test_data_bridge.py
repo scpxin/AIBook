@@ -148,6 +148,15 @@ class TestWriteWorld:
         assert result['origin'] == {'type': 'created'}
         assert result['rules'] == ['rule1', 'rule2']
 
+    def test_power_system_and_factions(self, db):
+        DataBridge._write_world('p1', {
+            'power_system': {'tiers': [{'name': 'Qi'}]},
+            'factions': [{'name': 'Sect A'}]
+        })
+        result = DataBridge._read_world('p1')
+        assert result['power_system'] == {'tiers': [{'name': 'Qi'}]}
+        assert result['factions'] == [{'name': 'Sect A'}]
+
 
 class TestWriteCharacters:
     def test_write_single(self, db):
@@ -201,6 +210,15 @@ class TestWriteArchitecture:
         assert row['summary'] == 'step1'
         assert row['theme'] == 'step2'
 
+    def test_timeline_merge(self, db):
+        DataBridge._write_architecture('p1', {
+            'timeline_events': [{'era': 'Ancient', 'description': 'war'}],
+            'timeline_consistency': {'status': 'ok'}
+        })
+        result = DataBridge._read_architecture('p1')
+        assert result['timeline_events'] == [{'era': 'Ancient', 'description': 'war'}]
+        assert result['timeline_consistency'] == {'status': 'ok'}
+
 
 class TestWriteVolumes:
     def test_write_list(self, db):
@@ -218,6 +236,15 @@ class TestWriteVolumes:
         assert count == 1
         row = conn.execute("SELECT name FROM v2_volumes WHERE project_id='p1' AND volume_no=1").fetchone()
         assert row['name'] == 'V3'
+
+
+class TestWriteChapterPlan:
+    def test_scene_designs_column(self, db):
+        DataBridge._write_chapter_plan('p1', [
+            {'chapter_no': 1, 'title': 'Ch1', 'scene_designs': [{'setting': 'castle'}]}
+        ])
+        result = DataBridge._read_chapter_plan('p1', chapter_no='1')
+        assert result['scene_designs'] == [{'setting': 'castle'}]
 
 
 class TestWriteDraft:

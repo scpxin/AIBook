@@ -71,7 +71,7 @@ V2_SCHEMA_DDL = """            /* ========================================
                 updated_at TEXT DEFAULT (datetime('now','localtime'))
             );
 
-            /* 3. 世界观 (模块3) */
+            /* 3. 世界观 + 力量体系 + 势力 (模块3+6+7) */
             CREATE TABLE IF NOT EXISTS v2_world_buildings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id TEXT NOT NULL UNIQUE,
@@ -82,6 +82,8 @@ V2_SCHEMA_DDL = """            /* ========================================
                 history TEXT DEFAULT '[]',
                 doc_path TEXT DEFAULT '',
                 world_foreshadows TEXT DEFAULT '[]',
+                power_system TEXT DEFAULT '{}',
+                factions TEXT DEFAULT '[]',
                 created_at TEXT DEFAULT (datetime('now','localtime')),
                 updated_at TEXT DEFAULT (datetime('now','localtime'))
             );
@@ -118,7 +120,7 @@ V2_SCHEMA_DDL = """            /* ========================================
                 FOREIGN KEY (project_id) REFERENCES v2_projects(project_id)
             );
 
-            /* 5. 故事体系 (模块5) */
+            /* 5. 故事体系 + 时间线 (模块5+8) */
             CREATE TABLE IF NOT EXISTS v2_story_systems (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id TEXT NOT NULL UNIQUE,
@@ -128,6 +130,8 @@ V2_SCHEMA_DDL = """            /* ========================================
                 volume_cliffhangers TEXT DEFAULT '[]',
                 volumes_detail TEXT DEFAULT '[]',
                 total_plot_events TEXT DEFAULT '[]',
+                timeline_events TEXT DEFAULT '[]',
+                timeline_consistency TEXT DEFAULT '{}',
                 created_at TEXT DEFAULT (datetime('now','localtime')),
                 updated_at TEXT DEFAULT (datetime('now','localtime'))
             );
@@ -148,7 +152,9 @@ V2_SCHEMA_DDL = """            /* ========================================
                 updated_at TEXT DEFAULT (datetime('now','localtime'))
             );
 
-            /* 6. 力量体系 (模块6) */
+            /* --- 以下为废弃表 (保留兼容, 新数据写入合并表) --- */
+
+            /* 6. 力量体系 (DEPRECATED → v2_world_buildings.power_system) */
             CREATE TABLE IF NOT EXISTS v2_power_systems (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id TEXT NOT NULL UNIQUE,
@@ -161,7 +167,7 @@ V2_SCHEMA_DDL = """            /* ========================================
                 updated_at TEXT DEFAULT (datetime('now','localtime'))
             );
 
-            /* 7. 势力体系 (模块7) */
+            /* 7. 势力体系 (DEPRECATED → v2_world_buildings.factions) */
             CREATE TABLE IF NOT EXISTS v2_factions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id TEXT NOT NULL,
@@ -181,7 +187,7 @@ V2_SCHEMA_DDL = """            /* ========================================
                 UNIQUE(project_id, faction_id)
             );
 
-            /* 8. 时间线 (模块8) */
+            /* 8. 时间线 (DEPRECATED → v2_story_systems.timeline_*) */
             CREATE TABLE IF NOT EXISTS v2_timelines (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id TEXT NOT NULL UNIQUE,
@@ -210,7 +216,7 @@ V2_SCHEMA_DDL = """            /* ========================================
                 UNIQUE(project_id, volume_no)
             );
 
-            /* 10. 剧情节点 (模块10) */
+            /* 10. 剧情节点 (DEPRECATED → 删除, 无前端视图) */
             CREATE TABLE IF NOT EXISTS v2_plot_nodes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id TEXT NOT NULL,
@@ -231,7 +237,7 @@ V2_SCHEMA_DDL = """            /* ========================================
                 UNIQUE(project_id, event_id)
             );
 
-            /* 11. 章节扩展 (模块11-12) */
+            /* 11. 章节规划 + 场景设计 (模块11-12+14) */
             CREATE TABLE IF NOT EXISTS v2_chapter_plans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id TEXT NOT NULL,
@@ -251,13 +257,14 @@ V2_SCHEMA_DDL = """            /* ========================================
                 emotion_curve TEXT DEFAULT '[]',
                 scenes TEXT DEFAULT '[]',
                 knowledge_update TEXT DEFAULT '{}',
+                scene_designs TEXT DEFAULT '[]',
                 status TEXT DEFAULT 'planned',
                 created_at TEXT DEFAULT (datetime('now','localtime')),
                 updated_at TEXT DEFAULT (datetime('now','localtime')),
                 UNIQUE(project_id, chapter_no)
             );
 
-            /* 12. 场景设计 (模块14) */
+            /* 12. 场景设计 (DEPRECATED → v2_chapter_plans.scene_designs) */
             CREATE TABLE IF NOT EXISTS v2_scenes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id TEXT NOT NULL,
@@ -426,3 +433,12 @@ V2_SCHEMA_DDL = """            /* ========================================
             CREATE INDEX IF NOT EXISTS idx_v2_gen_tpl_world ON v2_generation_templates(world_type);
             CREATE INDEX IF NOT EXISTS idx_v2_gen_tpl_compat ON v2_generation_templates(compatibility_group);
         """
+
+# Schema v2 迁移: 为已有数据库补新增列
+V2_SCHEMA_MIGRATIONS = [
+    "ALTER TABLE v2_world_buildings ADD COLUMN power_system TEXT DEFAULT '{}'",
+    "ALTER TABLE v2_world_buildings ADD COLUMN factions TEXT DEFAULT '[]'",
+    "ALTER TABLE v2_story_systems ADD COLUMN timeline_events TEXT DEFAULT '[]'",
+    "ALTER TABLE v2_story_systems ADD COLUMN timeline_consistency TEXT DEFAULT '{}'",
+    "ALTER TABLE v2_chapter_plans ADD COLUMN scene_designs TEXT DEFAULT '[]'",
+]
