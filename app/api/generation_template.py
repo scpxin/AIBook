@@ -85,8 +85,8 @@ def create_template(body: dict):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"更新模板失败: {e}")
-        raise HTTPException(status_code=500, detail="更新模板失败，请稍后重试")
+        logger.error(f"创建模板失败: {e}")
+        raise HTTPException(status_code=500, detail="创建模板失败，请稍后重试")
 
 
 # ========== 更新模板 ==========

@@ -22,6 +22,9 @@ export const useGenerationStore = defineStore('generation', () => {
   let abortController: AbortController | null = null
 
   function getAbortSignal(): AbortSignal | undefined {
+    if (abortController) {
+      abortController.abort()
+    }
     abortController = new AbortController()
     return abortController.signal
   }

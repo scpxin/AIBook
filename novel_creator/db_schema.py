@@ -32,7 +32,7 @@ V2_SCHEMA_DDL = """            /* ========================================
             /* 1. 灵感 (模块1) */
             CREATE TABLE IF NOT EXISTS v2_ideas (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                project_id TEXT NOT NULL,
+                project_id TEXT NOT NULL UNIQUE,
                 user_input TEXT DEFAULT '',
                 genre_hint TEXT DEFAULT '',
                 reference_works TEXT DEFAULT '[]',

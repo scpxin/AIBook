@@ -47,6 +47,13 @@ def init_db_v2():
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN deleted_at TEXT DEFAULT NULL")
             except Exception:
                 pass  # 列已存在
+
+        # 迁移: v2_ideas 添加 project_id UNIQUE 约束
+        try:
+            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_v2_ideas_project_unique ON v2_ideas(project_id)")
+        except Exception:
+            pass
+
         conn.commit()
         conn.close()
 
@@ -90,7 +97,7 @@ def save_idea(project_id, data):
                 selected_concept, core_selling_points, target_audience, risks,
                 sustainability_estimate, total_score, status, created_at, updated_at)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(id) DO UPDATE SET
+            ON CONFLICT(project_id) DO UPDATE SET
                 user_input=excluded.user_input, genre_hint=excluded.genre_hint,
                 reference_works=excluded.reference_works, candidates=excluded.candidates,
                 selected_concept=excluded.selected_concept, core_selling_points=excluded.core_selling_points,
@@ -381,6 +388,7 @@ def get_power_system(project_id):
     d = dict(row)
     d['tiers'] = _jl(d.get('tiers', '[]'))
     d['combat_categories'] = _jl(d.get('combat_categories', '[]'))
+    d['growth_method'] = _jl(d.get('growth_method', ''))
     d['limits'] = _jl(d.get('limits', '[]'))
     d['bottlenecks'] = _jl(d.get('bottlenecks', '[]'))
     return d

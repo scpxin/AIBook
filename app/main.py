@@ -58,7 +58,9 @@ async def rate_limit_middleware(request: Request, call_next):
         with _rate_limit_lock:
             timestamps = _rate_limit_store[client_ip]
             _rate_limit_store[client_ip] = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
-            if len(_rate_limit_store[client_ip]) >= RATE_LIMIT_MAX:
+            if not _rate_limit_store[client_ip]:
+                del _rate_limit_store[client_ip]
+            elif len(_rate_limit_store[client_ip]) >= RATE_LIMIT_MAX:
                 return JSONResponse(
                     status_code=429,
                     content={"detail": "请求过于频繁，请稍后再试"},

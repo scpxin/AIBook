@@ -1,4 +1,3 @@
-import pytest
 from app.api.projects import sanitize_project_name, validate_project_id
 
 

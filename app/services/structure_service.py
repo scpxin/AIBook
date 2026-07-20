@@ -77,7 +77,7 @@ class PowerSystemService:
         database_v2.save_power_system(project_id, {
             'tiers': result.get('tiers', []),
             'combat_categories': result.get('combat_categories', []),
-            'growth_method': json.dumps(result.get('growth_method', ''), ensure_ascii=False),
+            'growth_method': result.get('growth_method', ''),
             'limits': result.get('limits', []),
             'bottlenecks': result.get('bottlenecks', []),
         })

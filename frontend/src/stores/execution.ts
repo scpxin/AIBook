@@ -41,7 +41,7 @@ export const useExecutionStore = defineStore('execution', () => {
   const loading = ref(false)
   const error = ref('')
 
-  async function generateDraftContent(pid: string, chapterNo: string, sceneSkeleton?: any) {
+  async function generateDraftContent(pid: string, chapterNo: string, sceneSkeleton?: any, onChunk?: (text: string) => void) {
     isGenerating.value = true
     generationProgress.value = 0
     draftContent.value = ''
@@ -52,6 +52,7 @@ export const useExecutionStore = defineStore('execution', () => {
         (text: string) => {
           draftContent.value += text
           generationProgress.value = draftContent.value.length
+          if (onChunk) onChunk(text)
         },
         () => {
           isGenerating.value = false
@@ -136,9 +137,7 @@ export const useExecutionStore = defineStore('execution', () => {
     isGenerating.value = true
     draftContent.value = ''
     try {
-      await generateDraftContent(pid, chapterNo, sceneSkeleton).then(() => {
-        // Stream already handled via draftContent ref
-      })
+      await generateDraftContent(pid, chapterNo, sceneSkeleton, onChunk)
     } finally {
       isGenerating.value = false
     }

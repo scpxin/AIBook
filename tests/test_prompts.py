@@ -1,6 +1,4 @@
-import json
-import pytest
-from novel_creator.prompts import format_prompt, parse_json_response, _fix_truncated_json
+from novel_creator.prompts import _fix_truncated_json, format_prompt, parse_json_response
 
 
 class TestFormatPrompt:
@@ -77,7 +75,7 @@ class TestFixTruncatedJson:
 
 class TestImportBackwardCompat:
     def test_templates_importable_from_prompts(self):
-        from novel_creator.prompts import WORLD_BUILDING, CHAPTER_POLISH
+        from novel_creator.prompts import CHAPTER_POLISH, WORLD_BUILDING
         assert len(WORLD_BUILDING) > 0
         assert len(CHAPTER_POLISH) > 0
 

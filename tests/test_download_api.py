@@ -1,6 +1,4 @@
-import pytest
 from app.api.download import router
-from app.config import ALLOWED_PROXY_DOMAINS
 
 
 class TestDownloadApiSecurity:
