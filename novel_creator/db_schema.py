@@ -113,6 +113,8 @@ V2_SCHEMA_DDL = """            /* ========================================
                 nodes TEXT DEFAULT '[]',
                 edges TEXT DEFAULT '[]',
                 role_groups TEXT DEFAULT '{}',
+                created_at TEXT DEFAULT (datetime('now','localtime')),
+                updated_at TEXT DEFAULT (datetime('now','localtime')),
                 FOREIGN KEY (project_id) REFERENCES v2_projects(project_id)
             );
 
