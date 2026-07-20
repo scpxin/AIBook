@@ -42,6 +42,21 @@ class DataBridge:
         "consistency":  "_write_consistency",
     }
 
+    READ_MAP = {
+        "idea":         "_read_idea",
+        "project":      "_read_project",
+        "world":        "_read_world",
+        "characters":   "_read_characters",
+        "relation_map": "_read_relation_map",
+        "architecture": "_read_architecture",
+        "outline":      "_read_outline",
+        "volumes":      "_read_volumes",
+        "chapter_plan": "_read_chapter_plan",
+        "draft":        "_read_draft",
+        "parse":        "_read_parse",
+        "consistency":  "_read_consistency",
+    }
+
     @staticmethod
     def _conn():
         if not hasattr(_local, 'conn') or _local.conn is None:
@@ -238,7 +253,7 @@ class DataBridge:
         conn.execute("""
             INSERT INTO v2_outlines (project_id, opening, rising_actions, subplots,
                 midpoint_turn, climax, ending, chapters, emotional_curve, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(project_id) DO UPDATE SET
                 opening=excluded.opening, rising_actions=excluded.rising_actions,
                 subplots=excluded.subplots, midpoint_turn=excluded.midpoint_turn,
@@ -381,6 +396,134 @@ class DataBridge:
               _j(data.get('items', [])), str(data.get('summary', '')),
               _j(data.get('fixes', [])), _now()))
         conn.commit()
+
+    @staticmethod
+    def read(project_id, module, chapter_no=None):
+        method_name = DataBridge.READ_MAP.get(module)
+        if not method_name:
+            return None
+        method = getattr(DataBridge, method_name, None)
+        if not method:
+            return None
+        return method(project_id, chapter_no)
+
+    @staticmethod
+    def read_all(project_id, chapter_no=None):
+        return {
+            k: getattr(DataBridge, v)(project_id, chapter_no)
+            for k, v in DataBridge.READ_MAP.items()
+        }
+
+    # ========== M1: 灵感 ==========
+
+    @staticmethod
+    def _read_idea(project_id, chapter_no=None):
+        row = DataBridge._conn().execute(
+            "SELECT * FROM v2_ideas WHERE project_id=?", (project_id,)).fetchone()
+        return _deserialize_row(row)
+
+    # ========== M2: 项目定位 ==========
+
+    @staticmethod
+    def _read_project(project_id, chapter_no=None):
+        row = DataBridge._conn().execute(
+            "SELECT * FROM v2_projects WHERE project_id=?", (project_id,)).fetchone()
+        return _deserialize_row(row)
+
+    # ========== M3: 世界观 ==========
+
+    @staticmethod
+    def _read_world(project_id, chapter_no=None):
+        row = DataBridge._conn().execute(
+            "SELECT * FROM v2_world_buildings WHERE project_id=?", (project_id,)).fetchone()
+        return _deserialize_row(row)
+
+    # ========== M4: 角色 ==========
+
+    @staticmethod
+    def _read_characters(project_id, chapter_no=None):
+        rows = DataBridge._conn().execute(
+            "SELECT * FROM v2_characters WHERE project_id=? ORDER BY id",
+            (project_id,)).fetchall()
+        return [_deserialize_row(r) for r in rows]
+
+    # ========== 关系网 ==========
+
+    @staticmethod
+    def _read_relation_map(project_id, chapter_no=None):
+        row = DataBridge._conn().execute(
+            "SELECT * FROM v2_relation_maps WHERE project_id=?", (project_id,)).fetchone()
+        return _deserialize_row(row)
+
+    # ========== M5: 故事体系 ==========
+
+    @staticmethod
+    def _read_architecture(project_id, chapter_no=None):
+        row = DataBridge._conn().execute(
+            "SELECT * FROM v2_story_systems WHERE project_id=?", (project_id,)).fetchone()
+        return _deserialize_row(row)
+
+    # ========== M6: 全书大纲 ==========
+
+    @staticmethod
+    def _read_outline(project_id, chapter_no=None):
+        row = DataBridge._conn().execute(
+            "SELECT * FROM v2_outlines WHERE project_id=?", (project_id,)).fetchone()
+        return _deserialize_row(row)
+
+    # ========== M7: 卷纲 ==========
+
+    @staticmethod
+    def _read_volumes(project_id, chapter_no=None):
+        rows = DataBridge._conn().execute(
+            "SELECT * FROM v2_volumes WHERE project_id=? ORDER BY volume_no",
+            (project_id,)).fetchall()
+        return [_deserialize_row(r) for r in rows]
+
+    # ========== M8: 章节规划 ==========
+
+    @staticmethod
+    def _read_chapter_plan(project_id, chapter_no=None):
+        if chapter_no:
+            row = DataBridge._conn().execute(
+                "SELECT * FROM v2_chapter_plans WHERE project_id=? AND chapter_no=?",
+                (project_id, chapter_no)).fetchone()
+            return _deserialize_row(row)
+        rows = DataBridge._conn().execute(
+            "SELECT * FROM v2_chapter_plans WHERE project_id=? ORDER BY chapter_no",
+            (project_id,)).fetchall()
+        return [_deserialize_row(r) for r in rows]
+
+    # ========== M10: 正文 ==========
+
+    @staticmethod
+    def _read_draft(project_id, chapter_no=None):
+        if chapter_no:
+            row = DataBridge._conn().execute(
+                "SELECT * FROM v2_drafts WHERE project_id=? AND chapter_no=?",
+                (project_id, chapter_no)).fetchone()
+            return _deserialize_row(row)
+        rows = DataBridge._conn().execute(
+            "SELECT * FROM v2_drafts WHERE project_id=? ORDER BY chapter_no",
+            (project_id,)).fetchall()
+        return [_deserialize_row(r) for r in rows]
+
+    # ========== M11: 内容解析 ==========
+
+    @staticmethod
+    def _read_parse(project_id, chapter_no=None):
+        row = DataBridge._conn().execute(
+            "SELECT * FROM v2_knowledge_states WHERE project_id=?", (project_id,)).fetchone()
+        return _deserialize_row(row)
+
+    # ========== M13: 一致性检查 ==========
+
+    @staticmethod
+    def _read_consistency(project_id, chapter_no=None):
+        rows = DataBridge._conn().execute(
+            "SELECT * FROM v2_consistency_reports WHERE project_id=? ORDER BY id DESC",
+            (project_id,)).fetchall()
+        return [_deserialize_row(r) for r in rows]
 
 
 # ========== 工具函数 ==========

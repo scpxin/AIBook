@@ -132,6 +132,22 @@ V2_SCHEMA_DDL = """            /* ========================================
                 updated_at TEXT DEFAULT (datetime('now','localtime'))
             );
 
+            /* 5b. 全书大纲 */
+            CREATE TABLE IF NOT EXISTS v2_outlines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id TEXT NOT NULL UNIQUE,
+                opening TEXT DEFAULT '{}',
+                rising_actions TEXT DEFAULT '[]',
+                subplots TEXT DEFAULT '[]',
+                midpoint_turn TEXT DEFAULT '{}',
+                climax TEXT DEFAULT '{}',
+                ending TEXT DEFAULT '{}',
+                chapters TEXT DEFAULT '[]',
+                emotional_curve TEXT DEFAULT '[]',
+                created_at TEXT DEFAULT (datetime('now','localtime')),
+                updated_at TEXT DEFAULT (datetime('now','localtime'))
+            );
+
             /* 6. 力量体系 (模块6) */
             CREATE TABLE IF NOT EXISTS v2_power_systems (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -352,6 +368,7 @@ V2_SCHEMA_DDL = """            /* ========================================
             CREATE INDEX IF NOT EXISTS idx_v2_world_project ON v2_world_buildings(project_id);
             CREATE INDEX IF NOT EXISTS idx_v2_chars_project ON v2_characters(project_id);
             CREATE INDEX IF NOT EXISTS idx_v2_story_project ON v2_story_systems(project_id);
+            CREATE INDEX IF NOT EXISTS idx_v2_outlines_project ON v2_outlines(project_id);
             CREATE INDEX IF NOT EXISTS idx_v2_power_project ON v2_power_systems(project_id);
             CREATE INDEX IF NOT EXISTS idx_v2_factions_project ON v2_factions(project_id);
             CREATE INDEX IF NOT EXISTS idx_v2_timeline_project ON v2_timelines(project_id);

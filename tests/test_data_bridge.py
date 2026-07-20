@@ -273,3 +273,154 @@ class TestWriteDispatch:
         DataBridge.write('p1', 'nonexistent', {'data': 'x'})
         # No error
 
+
+class TestReadIdea:
+    def test_read_after_write(self, db):
+        DataBridge._write_idea('p1', {'user_input': 'test idea', 'genre_hint': 'scifi'})
+        result = DataBridge._read_idea('p1')
+        assert result['user_input'] == 'test idea'
+        assert result['genre_hint'] == 'scifi'
+
+    def test_read_missing(self, db):
+        result = DataBridge._read_idea('nonexistent')
+        assert result is None
+
+
+class TestReadProject:
+    def test_read_after_write(self, db):
+        DataBridge._write_project('p1', {'novel_position': {'genre': 'fantasy'}})
+        result = DataBridge._read_project('p1')
+        assert result['novel_position'] == {'genre': 'fantasy'}
+
+    def test_read_missing(self, db):
+        result = DataBridge._read_project('nonexistent')
+        assert result is None
+
+
+class TestReadWorld:
+    def test_read_after_write(self, db):
+        DataBridge._write_world('p1', {'origin': {'type': 'creation'}})
+        result = DataBridge._read_world('p1')
+        assert result['origin'] == {'type': 'creation'}
+
+
+class TestReadCharacters:
+    def test_read_after_write(self, db):
+        DataBridge._write_characters('p1', [{'char_id': 'c1', 'role_type': 'protagonist', 'name': 'Alice'}])
+        result = DataBridge._read_characters('p1')
+        assert len(result) == 1
+        assert result[0]['name'] == 'Alice'
+
+    def test_read_multiple(self, db):
+        DataBridge._write_characters('p1', [
+            {'char_id': 'c1', 'role_type': 'protagonist', 'name': 'Alice'},
+            {'char_id': 'c2', 'role_type': 'supporting', 'name': 'Bob'},
+        ])
+        result = DataBridge._read_characters('p1')
+        assert len(result) == 2
+
+
+class TestReadRelationMap:
+    def test_read_after_write(self, db):
+        DataBridge._write_relation_map('p1', {'nodes': [{'id': 'n1'}], 'edges': []})
+        result = DataBridge._read_relation_map('p1')
+        assert result['nodes'] == [{'id': 'n1'}]
+
+
+class TestReadArchitecture:
+    def test_read_after_write(self, db):
+        DataBridge._write_architecture('p1', {'summary': 'test story', 'theme': 'redemption'})
+        result = DataBridge._read_architecture('p1')
+        assert result['summary'] == 'test story'
+        assert result['theme'] == 'redemption'
+
+
+class TestReadOutline:
+    def test_read_after_write(self, db):
+        DataBridge._write_outline('p1', {'opening': {'hook': 'big bang'}})
+        result = DataBridge._read_outline('p1')
+        assert result['opening'] == {'hook': 'big bang'}
+
+
+class TestReadVolumes:
+    def test_read_after_write(self, db):
+        DataBridge._write_volumes('p1', [{'name': 'V1'}, {'name': 'V2'}])
+        result = DataBridge._read_volumes('p1')
+        assert len(result) == 2
+
+    def test_read_empty(self, db):
+        assert DataBridge._read_volumes('p1') == []
+
+
+class TestReadChapterPlan:
+    def test_read_all(self, db):
+        DataBridge._write_chapter_plan('p1', [
+            {'chapter_no': 1, 'title': 'Ch1'},
+            {'chapter_no': 2, 'title': 'Ch2'},
+        ])
+        result = DataBridge._read_chapter_plan('p1')
+        assert len(result) == 2
+
+    def test_read_single_chapter(self, db):
+        DataBridge._write_chapter_plan('p1', [
+            {'chapter_no': 1, 'title': 'Ch1'},
+            {'chapter_no': 2, 'title': 'Ch2'},
+        ])
+        result = DataBridge._read_chapter_plan('p1', chapter_no='1')
+        assert result['title'] == 'Ch1'
+
+
+class TestReadDraft:
+    def test_read_all(self, db):
+        DataBridge._write_draft('p1', {'1': {'content': 'c1'}, '2': {'content': 'c2'}})
+        result = DataBridge._read_draft('p1')
+        assert len(result) == 2
+
+    def test_read_single_chapter(self, db):
+        DataBridge._write_draft('p1', {'1': {'content': 'c1'}, '2': {'content': 'c2'}})
+        result = DataBridge._read_draft('p1', chapter_no='1')
+        assert result['content'] == 'c1'
+
+
+class TestReadParse:
+    def test_read_after_write(self, db):
+        DataBridge._write_parse('p1', {'character_states': {'a': {}}, 'last_chapter_no': '3'})
+        result = DataBridge._read_parse('p1')
+        assert result['character_states'] == {'a': {}}
+
+
+class TestReadConsistency:
+    def test_read_after_write(self, db):
+        DataBridge._write_consistency('p1', {'chapter_no': '1', 'score': 0.9, 'summary': 'ok', 'items': [], 'fixes': []})
+        DataBridge._write_consistency('p1', {'chapter_no': '2', 'score': 0.8, 'summary': 'ok', 'items': [], 'fixes': []})
+        result = DataBridge._read_consistency('p1')
+        assert len(result) == 2
+
+
+class TestReadDispatch:
+    def test_read_via_dispatch(self, db):
+        DataBridge.write('p1', 'idea', {'user_input': 'read me'})
+        result = DataBridge.read('p1', 'idea')
+        assert result['user_input'] == 'read me'
+
+    def test_read_unknown_module_is_none(self, db):
+        assert DataBridge.read('p1', 'nonexistent') is None
+
+    def test_read_with_chapter_no(self, db):
+        DataBridge._write_draft('p1', {'1': {'content': 'ch1'}})
+        result = DataBridge.read('p1', 'draft', chapter_no='1')
+        assert result['content'] == 'ch1'
+
+
+class TestReadAll:
+    def test_read_all_basic(self, db):
+        DataBridge._write_idea('p1', {'user_input': 'idea'})
+        DataBridge._write_world('p1', {'origin': {'type': 'creation'}})
+        result = DataBridge.read_all('p1')
+        assert result['idea']['user_input'] == 'idea'
+        assert result['world']['origin'] == {'type': 'creation'}
+
+    def test_read_all_empty_project(self, db):
+        result = DataBridge.read_all('nonexistent')
+        assert all(v is None or v == [] for v in result.values())
+
