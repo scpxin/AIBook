@@ -322,8 +322,8 @@ def apply_template_to_project(template_id: int, project_id: str) -> dict[str, An
     """将模板数据应用到项目（不触发自动保存，直接写入数据库）"""
     from app.services.pipeline import (
         ModuleStatus,
+        _get_pipeline_state,
         _get_project_lock,
-        get_pipeline_state,
     )
     from novel_creator.database_v2 import (
         _v2_db,
@@ -346,7 +346,7 @@ def apply_template_to_project(template_id: int, project_id: str) -> dict[str, An
 
     lock = _get_project_lock(project_id)
     with lock:
-        db_rows = get_pipeline_state(project_id)
+        db_rows = _get_pipeline_state(project_id)
         existing = next((r for r in db_rows if r["module_name"] == module_key), None)
         started_at = existing.get("started_at", "") if existing else now
         retry_count = existing.get("retry_count", 0) if existing else 0
@@ -371,8 +371,8 @@ def apply_template_to_project(template_id: int, project_id: str) -> dict[str, An
                 conn.close()
 
     # 解锁后续模块
-    from app.services.pipeline import _unlock_dependents_db
-    _unlock_dependents_db(project_id, module_key)
+    from app.services.pipeline import _unlock_dependents
+    _unlock_dependents(project_id, module_key)
 
     # 增加复用计数
     increment_template_usage(template_id)
