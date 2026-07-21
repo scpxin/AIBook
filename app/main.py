@@ -142,6 +142,15 @@ async def startup_event():
         logging.warning(f'预置模板初始化失败: {e}')
 
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    try:
+        from novel_creator.data_bridge import DataBridge
+        DataBridge.close()
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
     import uvicorn
     print(f'番茄小说服务端 v2 (FastAPI) 已启动: http://0.0.0.0:{PORT}')
