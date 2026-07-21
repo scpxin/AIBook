@@ -17,7 +17,9 @@ import sys
 _current = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_current, '..', '..', '..'))
 from app.services.service_utils import build_style_str, get_default_generator
-from novel_creator import database_v2
+from novel_creator import data_bridge
+
+DataBridge = data_bridge.DataBridge
 
 logger = logging.getLogger('novel_creator.structure')
 
@@ -74,13 +76,13 @@ class PowerSystemService:
         if not result.get('tiers'):
             return None, "力量体系生成失败: AI未返回tiers数据"
 
-        database_v2.save_power_system(project_id, {
+        DataBridge.write(project_id, "world", {"power_system": {
             'tiers': result.get('tiers', []),
             'combat_categories': result.get('combat_categories', []),
             'growth_method': result.get('growth_method', ''),
             'limits': result.get('limits', []),
             'bottlenecks': result.get('bottlenecks', []),
-        })
+        }})
 
         return result, None
 
@@ -88,7 +90,7 @@ class PowerSystemService:
     def save(project_id: str, data: dict) -> tuple:
         """保存力量体系"""
         try:
-            database_v2.save_power_system(project_id, data)
+            DataBridge.write(project_id, "world", {"power_system": data})
             return {"saved": True}, None
         except Exception as e:
             return None, str(e)
@@ -134,11 +136,11 @@ class FactionService:
 
     @staticmethod
     def save(project_id: str, factions: list) -> tuple:
-        """保存势力"""
+        """保存势力 → 世界观.factions"""
         try:
-            for i, f in enumerate(factions):
-                fid = f.get('faction_id', f'faction-{i+1}-{project_id[:8]}')
-                database_v2.save_faction(project_id, fid, f)
+            for f in factions:
+                f.setdefault('faction_id', f.get('name', 'unknown'))
+            DataBridge.write(project_id, "world", {"factions": factions})
             return {"saved": True, "count": len(factions)}, None
         except Exception as e:
             return None, str(e)
@@ -178,15 +180,21 @@ class TimelineService:
             return None, err
 
         if isinstance(result, dict):
-            database_v2.save_timeline(project_id, result)
+            DataBridge.write(project_id, "architecture", {
+                "timeline_events": result.get("events", []),
+                "timeline_consistency": result.get("consistency_status", {}),
+            })
 
         return result, None
 
     @staticmethod
     def save(project_id: str, data: dict) -> tuple:
-        """保存时间线"""
+        """保存时间线 → 架构.timeline_*"""
         try:
-            database_v2.save_timeline(project_id, data)
+            DataBridge.write(project_id, "architecture", {
+                "timeline_events": data.get("events", data.get("timeline_events", [])),
+                "timeline_consistency": data.get("consistency_status", data.get("timeline_consistency", {})),
+            })
             return {"saved": True}, None
         except Exception as e:
             return None, str(e)
@@ -231,12 +239,11 @@ class MasterOutlineService:
 
     @staticmethod
     def save(project_id: str, data: dict) -> tuple:
-        """保存全书大纲"""
+        """保存全书大纲 → 架构"""
         try:
-            # 存储到 story_systems 表的扩展字段
-            existing = database_v2.get_story(project_id) or {}
+            existing = DataBridge.read(project_id, "architecture") or {}
             existing['master_outline'] = data
-            database_v2.save_story(project_id, existing)
+            DataBridge.write(project_id, "architecture", existing)
             return {"saved": True}, None
         except Exception as e:
             return None, str(e)
@@ -277,7 +284,7 @@ JSON结构:
             return None, err
 
         if isinstance(result, dict):
-            database_v2.save_volume(project_id, volume_no, result)
+            DataBridge.write(project_id, "volumes", [result])
 
         return result, None
 
@@ -328,8 +335,10 @@ JSON结构:
 
         for vol in volumes:
             if isinstance(vol, dict):
-                no = str(vol.get('volume_no', vol.get('volume_id', '')))
-                database_v2.save_volume(project_id, no, vol)
+                no = vol.get('volume_no', vol.get('volume_id', ''))
+                vol['volume_no'] = no
+        if volumes:
+            DataBridge.write(project_id, "volumes", volumes)
 
         return {"volumes": volumes}, None
 
@@ -337,7 +346,10 @@ JSON结构:
     def save(project_id: str, volume_no: int, data: dict) -> tuple:
         """保存卷纲"""
         try:
-            database_v2.save_volume(project_id, volume_no, data)
+            existing_vols = DataBridge.read(project_id, "volumes") or []
+            existing_vols = [v for v in existing_vols if str(v.get('volume_no', '')) != str(volume_no)]
+            existing_vols.append(data)
+            DataBridge.write(project_id, "volumes", existing_vols)
             return {"saved": True}, None
         except Exception as e:
             return None, str(e)
@@ -377,20 +389,16 @@ class PlotNodeService:
             return None, err
 
         if isinstance(result, dict):
-            for event in result.get('events', []):
-                eid = event.get('event_id', f'evt-{project_id[:8]}')
-                database_v2.save_plot_node(project_id, eid, event)
+            # plot_nodes 已废弃, 不再写入数据库
+            logger.warning("plot_nodes 模块已废弃, 跳过 save_plot_node")
 
         return result, None
 
     @staticmethod
     def save(project_id: str, event_id: str, data: dict) -> tuple:
-        """保存剧情节点"""
-        try:
-            database_v2.save_plot_node(project_id, event_id, data)
-            return {"saved": True}, None
-        except Exception as e:
-            return None, str(e)
+        """保存剧情节点 (已废弃, no-op)"""
+        logger.warning("plot_nodes 模块已废弃, save_plot_node 为 no-op")
+        return {"saved": True, "deprecated": True}, None
 
 
 # ========== M12: 章节规划 ==========
@@ -427,9 +435,9 @@ class ChapterPlanService:
             return None, err
 
         if isinstance(result, dict):
-            for ch in result.get('chapter_assignments', []):
-                ch_no = str(ch.get('chapter_no', '1'))
-                database_v2.save_chapter_plan(project_id, ch_no, ch)
+            chapters = result.get('chapter_assignments', [])
+            if chapters:
+                DataBridge.write(project_id, "chapter_plan", chapters)
 
         return result, None
 
@@ -437,7 +445,10 @@ class ChapterPlanService:
     def save(project_id: str, chapter_no: str, data: dict) -> tuple:
         """保存章节规划"""
         try:
-            database_v2.save_chapter_plan(project_id, chapter_no, data)
+            existing = DataBridge.read(project_id, "chapter_plan") or []
+            existing = [c for c in existing if str(c.get('chapter_no', '')) != str(chapter_no)]
+            existing.append(data)
+            DataBridge.write(project_id, "chapter_plan", existing)
             return {"saved": True}, None
         except Exception as e:
             return None, str(e)
@@ -520,17 +531,20 @@ class ChapterOutlineService:
 
     @staticmethod
     def save(project_id: str, chapter_no: str, data: dict) -> tuple:
-        """保存章节细纲"""
+        """保存章节细纲 → chapter_plan"""
         try:
-            existing = database_v2.get_chapter_plans(project_id) or []
-            # Merge outline into chapter plan
-            for ch in (existing if isinstance(existing, list) else []):
+            existing = DataBridge.read(project_id, "chapter_plan") or []
+            updated = False
+            for ch in existing:
                 if str(ch.get('chapter_no', '')) == str(chapter_no):
                     ch['outline'] = data
-                    database_v2.save_chapter_plan(project_id, chapter_no, ch)
+                    updated = True
                     break
+            if updated:
+                DataBridge.write(project_id, "chapter_plan", existing)
             return {"saved": True}, None
         except Exception as e:
+            return None, str(e)
             return None, str(e)
 
 

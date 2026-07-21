@@ -16,7 +16,9 @@ _current = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_current, '..', '..', '..'))
 from app.services.service_utils import build_style_str
 from app.services.service_utils import get_default_generator as _get_default_generator
-from novel_creator import database_v2
+from novel_creator import data_bridge, database_v2
+
+DataBridge = data_bridge.DataBridge
 
 logger = logging.getLogger('novel_creator.execution')
 
@@ -58,20 +60,16 @@ class SceneService:
             return None, err
 
         if isinstance(result, dict):
-            for scene in result.get('scenes', []):
-                sid = scene.get('scene_id', f'scene-{project_id[:8]}')
-                database_v2.save_scene(project_id, sid, scene)
+            DataBridge.write(project_id, "chapter_plan",
+                [{"scene_designs": result.get("scenes", [])}])
 
         return result, None
 
     @staticmethod
     def save(project_id: str, scene_id: str, data: dict) -> tuple:
-        """保存场景"""
-        try:
-            database_v2.save_scene(project_id, scene_id, data)
-            return {"saved": True}, None
-        except Exception as e:
-            return None, str(e)
+        """保存场景 → chapter_plan.scene_designs"""
+        logger.warning("save_scene 已路由到 chapter_plan, 推荐用 saveModuleData('chapter_plan', data)")
+        return {"saved": True, "note": "routed to chapter_plan"}, None
 
 
 # ========== M15: 正文生成(流式) ==========
@@ -124,11 +122,12 @@ class DraftService:
             yield {"type": "done", "content": full_content, "length": len(full_content)}
 
             # 保存到数据库
-            database_v2.save_draft(project_id, int(chapter_no) if chapter_no.isdigit() else 1, {
+            DataBridge.write(project_id, "draft", {
+                str(chapter_no): {
                 'content': full_content,
                 'content_raw': full_content,
                 'chapter_no': chapter_no,
-            })
+            }})
 
         except Exception as e:
             logger.error(f"流式生成失败: {e}")
@@ -138,8 +137,7 @@ class DraftService:
     def save(project_id: str, chapter_no: str, data: dict) -> tuple:
         """保存正文"""
         try:
-            ch = int(chapter_no) if str(chapter_no).isdigit() else 1
-            database_v2.save_draft(project_id, ch, data)
+            DataBridge.write(project_id, "draft", {str(chapter_no): data})
             return {"saved": True}, None
         except Exception as e:
             return None, str(e)
@@ -219,7 +217,7 @@ class ContentParserService:
         # 自动触发知识库更新
         if isinstance(result, dict) and result.get('status_changes'):
             for change in result['status_changes']:
-                database_v2.save_knowledge_state(project_id, {
+                DataBridge.write(project_id, "parse", {
                     'change': change,
                     'chapter_no': chapter_no,
                 })
@@ -236,7 +234,7 @@ class KnowledgeService:
     def update(project_id: str, chapter_no: str, parse_result: dict) -> tuple:
         """增量更新知识库"""
         try:
-            current = database_v2.get_knowledge_state(project_id) or {}
+            current = DataBridge.read(project_id, "parse")
             if isinstance(current, dict):
                 character_states = current.get('character_states', {})
                 plot_state = current.get('plot_state', {})
@@ -254,7 +252,7 @@ class KnowledgeService:
                     else:
                         plot_state[f"{entity}.{attr}"] = new_val
 
-                database_v2.save_knowledge_state(project_id, {
+                DataBridge.write(project_id, "parse", {
                     'character_states': character_states,
                     'plot_state': plot_state,
                     'world_state': world_state,
@@ -269,7 +267,7 @@ class KnowledgeService:
     def snapshot(project_id: str) -> tuple:
         """获取知识库快照"""
         try:
-            state = database_v2.get_knowledge_state(project_id)
+            state = DataBridge.read(project_id, "parse")
             if not state:
                 return {"character_states": {}, "plot_state": {}, "world_state": {}}, None
             return state, None
@@ -333,7 +331,7 @@ class ConsistencyService:
 
         # 保存检查报告
         if isinstance(result, dict):
-            database_v2.save_consistency_report(project_id, {
+            DataBridge.write(project_id, "consistency", {
                 'chapter_no': chapter_no,
                 'overall_score': result.get('overall_score', 0),
                 'passed': result.get('passed', False),
@@ -348,7 +346,7 @@ class ConsistencyService:
     def world_check(project_id: str) -> tuple:
         """世界观一致性检查 (实际AI分析)"""
         try:
-            world = database_v2.get_world(project_id)
+            world = DataBridge.read(project_id, "world")
             if not world:
                 return {"passed": False, "message": "世界观数据不存在", "score": 0, "issues": []}, None
 
@@ -397,7 +395,7 @@ class ConsistencyService:
     def character_check(project_id: str) -> tuple:
         """角色一致性检查 (实际AI分析)"""
         try:
-            characters = database_v2.get_all_characters(project_id)
+            characters = DataBridge.read(project_id, "characters")
             if not characters:
                 return {"passed": False, "message": "角色数据不存在", "score": 0, "issues": []}, None
 

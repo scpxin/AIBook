@@ -14,7 +14,9 @@ import sys
 _current = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_current, '..', '..', '..'))
 from app.services.service_utils import build_style_str, get_default_generator
-from novel_creator import database_v2
+from novel_creator import data_bridge
+
+DataBridge = data_bridge.DataBridge
 
 logger = logging.getLogger('novel_creator.design')
 
@@ -74,7 +76,7 @@ class IdeaService:
             idea['_index'] = i + 1
 
         # 保存到数据库
-        database_v2.save_idea(project_id, {
+        DataBridge.write(project_id, "idea", {
             'user_input': user_input,
             'genre_hint': genre_hint,
             'selected_concept': ideas[0].get('concept', ''),
@@ -322,7 +324,7 @@ class ProjectService:
             result = normalized if normalized else result
 
         # 保存项目定位
-        database_v2.save_project_detail(project_id, {
+        DataBridge.write(project_id, "project", {
             'project_overview': idea[:500],
             'platform_choice': platform,
             'novel_position': result if isinstance(result, dict) else {"raw": result},
@@ -598,7 +600,7 @@ key必须与上述完全一致。只返回JSON,不要markdown代码块。"""
                     history = history['history']
                 else:
                     history = [{'era': k, 'description': str(v)} for k, v in history.items()]
-            database_v2.save_world(project_id, {
+            DataBridge.write(project_id, "world", {
                 'origin': origin,
                 'rules': rules,
                 'structure': world_data.get('structure', {}),
@@ -649,15 +651,15 @@ key必须与上述完全一致。只返回JSON,不要markdown代码块。"""
             return None, err
 
         if isinstance(result, dict):
-            char_id = f"char-protagonist-{project_id[:8]}"
-            database_v2.save_character(project_id, char_id, {
+            DataBridge.write(project_id, "characters", [{
+                'char_id': f"char-protagonist-{project_id[:8]}",
                 'name': result.get('name', '未知'),
                 'role_type': 'protagonist',
                 'appearance': result.get('appearance', ''),
                 'personality': result.get('personality', ''),
                 'growth_route': result.get('arc', ''),
                 'profile': json.dumps(result, ensure_ascii=False),
-            })
+            }])
 
         return result, None
 
@@ -692,15 +694,19 @@ key必须与上述完全一致。只返回JSON,不要markdown代码块。"""
             return None, err
 
         if isinstance(result, dict):
+            chars = []
             for i, char in enumerate(result.get('characters', [])):
                 char_id = f"char-supporting-{i+1}-{project_id[:8]}"
-                database_v2.save_character(project_id, char_id, {
+                chars.append({
+                    'char_id': char_id,
                     'name': char.get('name', f'配角{i+1}'),
                     'role_type': char.get('role', 'supporting'),
                     'appearance': char.get('appearance', ''),
                     'personality': char.get('trait', ''),
                     'profile': json.dumps(char, ensure_ascii=False),
                 })
+            if chars:
+                DataBridge.write(project_id, "characters", chars)
 
         return result, None
 
@@ -765,7 +771,7 @@ key必须与上述完全一致。只返回JSON,不要markdown代码块。"""
 
         # 保存关系图
         if isinstance(result, dict):
-            database_v2.save_relation_map(project_id, result)
+            DataBridge.write(project_id, "relation_map", result)
 
         return result, None
 
@@ -839,7 +845,7 @@ class StoryService:
 
         # 保存故事体系(pipeline state通过前端saveModuleData)
         if isinstance(result, dict):
-            database_v2.save_story(project_id, {
+            DataBridge.write(project_id, "architecture", {
                 'summary': result.get('oneLiner', ''),
                 'conflict_layers': {'main': result.get('coreConflict', '')},
                 'theme': result.get('theme', ''),
@@ -881,14 +887,17 @@ class StoryService:
 
         # 保存卷纲
         if isinstance(result, dict):
+            vols = []
             for vol in result.get('volumes', []):
-                vol_no = vol.get('volume_no', 1)
-                database_v2.save_volume(project_id, vol_no, {
+                vol_no = vol.get('volume_no', len(vols) + 1)
+                vols.append({
                     'name': vol.get('title', f'第{vol_no}卷'),
-                    'summary': vol.get('theme', ''),
+                    'volume_no': vol_no,
                     'target_words': vol.get('wordcount_target', 250000),
                     **vol,
                 })
+            if vols:
+                DataBridge.write(project_id, "volumes", vols)
 
         return result, None
 
