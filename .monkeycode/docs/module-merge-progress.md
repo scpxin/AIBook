@@ -1,7 +1,8 @@
 # 模块重组进度报告
 
 > 19 模块 → 13 模块重构，统一数据访问层 DataBridge
-> 最后更新: 2026-07-20
+> 最后更新: 2026-07-21
+> 测试: 123 passed, lint: 仅预存 E402 (非阻塞)
 
 ---
 
@@ -13,9 +14,9 @@
 | 2 | DataBridge 写入层 | 已完成 | `5127865` |
 | 3 | DataBridge 读取层 | 已完成 | `f702423` |
 | 4 | DB Schema 迁移 | 已完成 | `6ab6193` |
-| 5 | Pipeline 模块重定义 | 未开始 | - |
-| 6-7 | Service 去写 + 功能合并 | 未开始 | - |
-| 8-9 | API 层适配 + main.py 集成 | 未开始 | - |
+| 5 | Pipeline 模块重定义 | 已完成 | `782d730` |
+| 6-7 | Service 去写 + 功能合并 | 已完成 | `eafdf10` |
+| 8-9 | API 层适配 + main.py 集成 | 已完成 (基础) | `25fc2d8` |
 | 10 | 前端适配 | 未开始 | - |
 | 11-12 | 测试改造 + 验证推送 | 未开始 | - |
 
@@ -75,80 +76,93 @@
 
 ## 待实施详情
 
-### 阶段5: Pipeline 模块重定义 (save_map→DataBridge)
+### 阶段5: Pipeline 模块重定义 (`782d730`)
 
-目标: 将 pipeline.py 中 19 模块定义简化为 13 模块。
+**已完成:**
+- `PIPELINE_MODULES`: 19 → 13 条目，层重设计 (design/structure/planning/execution)
+- `MODULE_ORDER`: 13 模块拓扑排序
+- `LEGACY_MODULE_MAP`: 11 条旧→新映射 (兼容已有数据)
+- 所有 `database_v2` 调用替换为 `DataBridge` 内部函数
+  - `get_pipeline_state` → `_get_pipeline_state` (DataBridge._conn())
+  - `save_pipeline_state` → `_save_pipeline_state` (DataBridge._conn())
+- `set_module_status` → 使用 DataBridge 连接而非 _v2_db
+- `_unlock_dependents_db` → `_unlock_dependents`
+- `get_executionlayer_state` → 4 模块 (draft/parse/polish/consistency)
+- `is_execution_loop_complete` → 检查 draft + consistency
 
-**模块变更:**
+**13 模块架构:**
 
-| 序号 | 新模块名 | 原模块 | 变更 |
-|------|----------|--------|------|
-| M1 | idea | idea | - |
-| M2 | project | project | - |
-| M3 | world | world + power_system + factions | 力量+势力合并 |
-| M4 | characters | characters | - |
-| M5 | architecture | story_architecture + timeline | 时间线合并 |
-| M6 | outline | outline | - |
-| M7 | volumes | volumes | - |
-| M8 | chapter_plan | chapter_plan + chapter_outline | 合并 |
-| M9 | draft | draft_generation | 重命名 |
-| M10 | parse | content_parsing + knowledge_update | 内容解析+知识库合并 |
-| M11 | polish | polish | - |
-| M12 | consistency | consistency_check | 重命名 |
-| M13 | relation_map | (relation_map) | 角色关系网独立路由 |
+| # | 模块名 | 显示名 | 层 | 依赖 |
+|---|--------|--------|-----|------|
+| M1 | idea | 灵感 | design | - |
+| M2 | project | 项目定位 | design | idea |
+| M3 | world | 世界观体系 | design | project |
+| M4 | characters | 人物系统 | design | project, world |
+| M5 | architecture | 故事架构 | design | characters |
+| M6 | relation_map | 角色关系网 | design | characters (并行) |
+| M7 | outline | 全书大纲 | structure | architecture (并行) |
+| M8 | volumes | 卷纲 | planning | architecture |
+| M9 | chapter_plan | 章节规划 | planning | volumes, architecture |
+| M10 | draft | 正文生成 | execution | chapter_plan (迭代) |
+| M11 | parse | 内容解析 | execution | draft (迭代) |
+| M12 | polish | 润色 | execution | draft (迭代) |
+| M13 | consistency | 一致性检查 | execution | parse, polish (迭代) |
 
-**需要做的事:**
-1. `pipeline.py`: PIPELINE_MODULES 从 19 条减到 13 条
-2. `pipeline.py`: MODULE_ORDER 重排
-3. `save_pipeline_state()` 改为调用 `DataBridge.write()` 写 v2_pipeline_states
-4. `get_pipeline_state()` 改为调用 `DataBridge.read()`
-5. pipeline.py import 从 database_v2 改为 data_bridge
-6. 删除原 19 模块中废弃的定义 (power_system/factions/timeline/scene_design/plot_nodes/knowledge_update)
+### 阶段6-7: Service 去写 + 功能合并 (`eafdf10`)
 
-**数据层写入口变更:**
-- `save_pipeline_state(project_id, module_name, **fields)` → `DataBridge.write(project_id, "pipeline", {...})` (需新增 _write_pipeline)
-- `get_pipeline_state(project_id, module_name)` → `DataBridge.read(project_id, "pipeline")`
+**design_service.py (8处 → DataBridge):**
 
-### 阶段6-7: Service 去写 + 功能合并
+| 原调用 | 新调用 |
+|--------|--------|
+| `save_idea(project_id, {...})` | `DataBridge.write(project_id, "idea", {...})` |
+| `save_project_detail(project_id, {...})` | `DataBridge.write(project_id, "project", {...})` |
+| `save_world(project_id, {...})` | `DataBridge.write(project_id, "world", {...})` |
+| `save_character(project_id, char_id, {...})` | `DataBridge.write(project_id, "characters", [{char_id: ..., ...}])` |
+| `save_relation_map(project_id, result)` | `DataBridge.write(project_id, "relation_map", result)` |
+| `save_story(project_id, {...})` | `DataBridge.write(project_id, "architecture", {...})` |
+| `save_volume(project_id, vol_no, {...})` | `DataBridge.write(project_id, "volumes", [...])` |
 
-目标: 所有 Service 层不再直接调用 database_v2.save_*()，统一走 DataBridge.write()。
+**structure_service.py (14处 → DataBridge，含合并):**
 
-**需要变更的文件和函数:**
-1. `design_service.py`: IdeaService/ProjectService/WorldService/CharacterService/StoryArchitectureService 的 save 方法
-2. `structure_service.py`: PowerSystemService.save → 写入 world.power_system; FactionService.save → 写入 world.factions; TimelineService.save → 写入 architecture.timeline_*
-3. `planning_service.py`: VolumeService/ChapterPlanService/OutlineService 的 save 方法
-4. `execution_service.py`: SceneService → 写入 chapter_plan.scene_designs; DraftService; ParseService; PolishService
-5. `refinement_service.py`: KnowledgeService → 合并到 parse; ConsistencyService
+| 原调用 | 新调用 | 合并方向 |
+|--------|--------|----------|
+| `save_power_system(project_id, {...})` | `DataBridge.write(project_id, "world", {"power_system": {...}})` | power → world |
+| `save_faction(project_id, fid, f)` | `DataBridge.write(project_id, "world", {"factions": [...]})` | factions → world |
+| `save_timeline(project_id, result)` | `DataBridge.write(project_id, "architecture", {"timeline_*": ...})` | timeline → architecture |
+| `save_story(project_id, {...})` | `DataBridge.write(project_id, "architecture", {...})` | - |
+| `save_volume(project_id, no, vol)` | `DataBridge.write(project_id, "volumes", [...])` | - |
+| `save_plot_node(...)` | no-op (logger.warning) | 已废弃 |
+| `save_chapter_plan(project_id, ch_no, ch)` | `DataBridge.write(project_id, "chapter_plan", [...])` | - |
+| `get_story(project_id)` → `save_story` | `DataBridge.read/write(project_id, "architecture", ...)` | - |
 
-**运行 `python3 -m ruff check` 确保无 lint 错误**
+**execution_service.py (11处 → DataBridge，含合并):**
 
-**运行 `python3 -m pytest tests/ -q` 确保 123+ 测试通过**
+| 原调用 | 新调用 | 合并方向 |
+|--------|--------|----------|
+| `save_scene(project_id, sid, scene)` | `DataBridge.write(project_id, "chapter_plan", [{"scene_designs": [...]}])` | scene → chapter_plan |
+| `save_draft(project_id, ch, data)` | `DataBridge.write(project_id, "draft", {ch: data})` | - |
+| `save_knowledge_state(project_id, {...})` | `DataBridge.write(project_id, "parse", {...})` | knowledge → parse |
+| `get_knowledge_state(project_id)` | `DataBridge.read(project_id, "parse")` | knowledge → parse |
+| `save_consistency_report(project_id, {...})` | `DataBridge.write(project_id, "consistency", {...})` | - |
+| `get_world(project_id)` | `DataBridge.read(project_id, "world")` | - |
+| `get_all_characters(project_id)` | `DataBridge.read(project_id, "characters")` | - |
 
-### 阶段8-9: API 层适配 + main.py 集成
+**保留 database_v2 调用 (3处):**
+- `get_foreshadows()` — 专用伏笔查询
+- `get_ai_generations()` — AI 生成日志查询
+- `settings_service.py` — 全局设置表（非项目数据）
 
-目标: API 路由适配 13 模块结构。
+### 阶段8-9: main.py 集成 (`25fc2d8`)
 
-**新增路由:**
-- `/api/v2/architecture/*` — 替代原 /api/v2/story-architecture/*
-- `/api/v2/outline/generate` — 大纲生成端点
+- 添加 `@app.on_event("shutdown")` 调用 `DataBridge.close()` 清理连接
 
-**删除路由 (6 个):**
-- `/api/v2/power-system/*`
-- `/api/v2/factions/*`
-- `/api/v2/timeline/*`
-- `/api/v2/scene/*`
-- `/api/v2/knowledge/*`
-- `/api/v2/plot-nodes/*`
+---
 
-**main.py 集成:**
-- 在 FastAPI lifespan 中调用 `DataBridge.close()` 清理连接
-- 中间件中按请求创建/关闭 DataBridge 连接
+## 待实施详情
 
 ### 阶段10: 前端适配
 
-目标: 前端视图映射到 13 模块。
-
-**需要变更的文件:**
+**需要变更:**
 - `frontend/src/views/CreateV2.vue`: 13 模块视图映射更新
 - WorldView: 新增力量体系子面板 + 势力子面板
 - ArchitectureView: 替代 StoryArchitectureView + 时间线面板
@@ -157,16 +171,10 @@
 
 ### 阶段11-12: 测试改造 + 验证推送
 
-目标: 最终测试验证和代码清理。
-
-**测试验证:**
+- API 路由适配 (新增 `/api/v2/architecture/*`, `/api/v2/outline/generate`, 删除 6 个废弃端点)
+- 前端构建验证
 - 运行 `python3 -m pytest tests/ -q` 确保全部通过
-- 运行 `python3 -m ruff check . --ignore=B904` 检查全局
-- 运行 `python3 -m pytest tests/ -q --cov=novel_creator --cov=app` 检查覆盖率
-
-**代码清理:**
-- 删除 database_v2.py 中已废弃的 CRUD 函数 (标注 deprecation warning)
-- 清理未使用的 import
+- 运行 `python3 -m ruff check . --ignore=B904,E402,E741` 全局检查
 
 ---
 
