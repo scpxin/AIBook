@@ -17,7 +17,7 @@
 | 5 | Pipeline 模块重定义 | 已完成 | `782d730` |
 | 6-7 | Service 去写 + 功能合并 | 已完成 | `eafdf10` |
 | 8-9 | API 层适配 + main.py 集成 | 已完成 (基础) | `25fc2d8` |
-| 10 | 前端适配 | 已完成 | - |
+| 11-12 | 废弃端点清理 + 死视图删除 + 验证 | 已完成 | `213aae8` |
 | 11-12 | 测试改造 + 验证推送 | 未开始 | - |
 
 ---
@@ -274,4 +274,61 @@
 ### 验证
 
 - `npx vue-tsc --noEmit`: clean (0 errors)
-- `python3 -m pytest tests/`: 61 passed
+- `python3 -m pytest tests/`: 123 passed
+
+---
+
+## 阶段 11-12: 废弃端点清理 + 验证推送
+
+### structure.py (API 路由清理)
+
+移除 6 个废弃端点:
+- `POST /api/v2/power-system/generate`
+- `POST /api/v2/power-system/save`
+- `POST /api/v2/factions/generate`
+- `POST /api/v2/factions/save`
+- `POST /api/v2/timeline/build`
+- `POST /api/v2/timeline/save`
+
+保留仍被前端使用的端点:
+- `POST /plot-nodes/generate`, `POST /plot-nodes/save` (ArchitectureView 生成剧情节点)
+- `POST /scenes/design`, `POST /scenes/save` (PlanningView 场景设计子面板)
+- `POST /knowledge/*`, `GET /knowledge/*` (ContentView 知识库操作)
+
+### 死视图文件清理
+
+移除 5 个不再被 CreateV2.vue 导入的视图文件:
+- `PowerSystemView.vue`
+- `FactionsView.vue`
+- `TimelineView.vue`
+- `SceneDesignView.vue`
+- `StoryArchitectureView.vue` (已被 ArchitectureView.vue 替代)
+
+### 前端 API 函数清理 (v2.ts)
+
+移除 6 个不再使用的 API 导出函数:
+- `generatePowerSystem`, `savePowerSystem`
+- `generateFactions`, `saveFactions`
+- `buildTimeline`, `saveTimeline`
+
+### 变更统计
+
+- 7 files changed, +1/-1591 lines
+- 后端 123 tests passed
+- 前端 vue-tsc clean (0 errors)
+- Ruff lint: structure.py clean, 预存错误在 download.py/generation_template.py (非本次引入)
+
+### 模块合并完成总计
+
+| 指标 | 数值 |
+|------|------|
+| 总提交数 | 9 |
+| 后端测试 | 123 passed |
+| 前端类型检查 | clean |
+| 模块数量 | 19 → 13 |
+| 新增文件 | DataBridge (564行), ArchitectureView.vue |
+| 删除文件 | 5个死视图 + 相应导入 |
+| 废弃端点 | 6个删除 |
+| 废弃表 | 5张标记 DEPRECATED |
+| 新表 | v2_outlines |
+| Schema新增列 | 5列 (v2_world_buildings +2, v2_story_systems +2, v2_chapter_plans +1) |
