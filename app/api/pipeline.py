@@ -116,7 +116,58 @@ def cleanup_state(project_id: str, confirm: bool = False):
     return {"success": True, "message": f"已清理项目 {project_id} 的流水线状态"}
 
 
-# ========== V2 数据查询API(19模块) ==========
+# ========== V2 数据查询API(13模块) ==========
+
+
+def _query_v2_data(project_id: str, module_name: str):
+    """根据模块名查询对应V2表"""
+    from app.services.pipeline import LEGACY_MODULE_MAP
+    resolved = LEGACY_MODULE_MAP.get(module_name)
+    if resolved is not None:
+        module_name = resolved
+
+    query_map = {
+        "idea": lambda pid: database_v2.get_pipeline_module_data(pid, "idea"),
+        "project": lambda pid: database_v2.get_pipeline_module_data(pid, "project"),
+        "world": database_v2.get_world,
+        "characters": lambda pid: _restructure_characters(database_v2.get_all_characters(pid)),
+        "architecture": lambda pid: database_v2.get_pipeline_module_data(pid, "architecture"),
+        "relation_map": database_v2.get_relation_map,
+        "outline": lambda pid: database_v2.get_pipeline_module_data(pid, "outline"),
+        "volumes": database_v2.get_volumes,
+        "chapter_plan": lambda pid: _get_chapter_plan_with_subdata(pid),
+        "draft": database_v2.get_drafts,
+        "parse": lambda pid: database_v2.get_pipeline_module_data(pid, "parse"),
+        "polish": lambda pid: database_v2.get_pipeline_module_data(pid, "polish"),
+        "consistency": database_v2.get_consistency_reports,
+    }
+    query_fn = query_map.get(module_name)
+    if not query_fn:
+        return database_v2.get_pipeline_module_data(project_id, module_name)
+    try:
+        result = query_fn(project_id)
+        return result
+    except Exception as e:
+        logger.error(f"查询模块数据失败 {module_name}: {e}")
+        return None
+
+
+def _get_chapter_plan_with_subdata(project_id: str) -> dict:
+    """读取 chapter_plan 合并数据"""
+    plans = database_v2.get_chapter_plans(project_id)
+    if isinstance(plans, dict):
+        return plans
+    outlines = database_v2.get_pipeline_module_data(project_id, "chapter_outline")
+    scenes = database_v2.get_pipeline_module_data(project_id, "scene_design")
+    result = {}
+    if plans:
+        result.update(plans if isinstance(plans, dict) else {"chapterPlans": plans})
+    if outlines:
+        result["chapter_outline"] = outlines
+    if scenes:
+        result["scene_designs"] = scenes.get("scenes", scenes)
+    return result
+
 
 @router.get("/{project_id}/data/{module_name}")
 def get_module_data(project_id: str, module_name: str):
@@ -165,26 +216,26 @@ def _now_iso_str():
 
 def save_module_data(project_id: str, module_name: str, data: Any = Body(...)):
     """保存模块的V2数据"""
+    from app.services.pipeline import LEGACY_MODULE_MAP
+    # 归一化旧模块名
+    resolved = LEGACY_MODULE_MAP.get(module_name)
+    if resolved is not None:
+        module_name = resolved
+
     save_map = {
         "idea": lambda pid, d: database_v2.save_pipeline_state(pid, "idea", d),
         "project": lambda pid, d: database_v2.save_pipeline_state(pid, "project", d),
-        "world": database_v2.save_world,
+        "world": _save_world_with_subs,
         "characters": lambda pid, d: _save_characters_batch(pid, d),
-        "power_system": lambda pid, d: database_v2.save_power_system(pid, _map_power_system(d)),
-        "factions": lambda pid, d: _save_factions_batch(pid, d),
-        "volumes": _save_volumes_batch,
-        "chapter_plan": _save_chapter_plans_batch,
-        "chapter_outline": lambda pid, d: _save_chapter_outline(pid, d),
-        "plot_nodes": lambda pid, d: [database_v2.save_plot_node(pid, e.get('event_id', f'pn{i}') , e) for i, e in enumerate(d.get('events', []))],
-        "scene_design": lambda pid, d: database_v2.save_pipeline_state(pid, "scene_design", d),
-        "draft_generation": lambda pid, d: _save_draft_generation(pid, d),
-        "content_parsing": lambda pid, d: database_v2.save_pipeline_state(pid, "content_parsing", d),
-        "polish": lambda pid, d: database_v2.save_pipeline_state(pid, "polish", d),
-        "knowledge_update": database_v2.save_knowledge_state,
-        "consistency_check": database_v2.save_consistency_report,
-        "story_architecture": lambda pid, d: database_v2.save_pipeline_state(pid, "story_architecture", d),
-        "timeline": lambda pid, d: database_v2.save_timeline(pid, d),
+        "architecture": lambda pid, d: database_v2.save_pipeline_state(pid, "architecture", d),
+        "relation_map": lambda pid, d: database_v2.save_relation_map(pid, d),
         "outline": lambda pid, d: database_v2.save_pipeline_state(pid, "outline", d),
+        "volumes": _save_volumes_batch,
+        "chapter_plan": _save_chapter_plan_with_subs,
+        "draft": lambda pid, d: _save_draft_generation(pid, d),
+        "parse": lambda pid, d: database_v2.save_pipeline_state(pid, "parse", d),
+        "polish": lambda pid, d: database_v2.save_pipeline_state(pid, "polish", d),
+        "consistency": database_v2.save_consistency_report,
     }
     _ensure_v2_project_exists(project_id)
     save_fn = save_map.get(module_name)
@@ -299,6 +350,28 @@ def _save_chapter_outline(project_id: str, data):
         database_v2.save_pipeline_state(project_id, "chapter_outline", {"outlines": []})
 
 
+def _save_world_with_subs(project_id: str, data):
+    """保存世界观数据（含力量体系+势力子字段）"""
+    world_data = data if isinstance(data, dict) else {}
+    database_v2.save_world(project_id, world_data)
+    # 子字段通过 DataBridge 的 world write 自然持久化
+
+
+def _save_chapter_plan_with_subs(project_id: str, data):
+    """保存章节规划数据（含细纲+场景设计子字段）"""
+    if isinstance(data, dict):
+        cp_data = data.get("chapterPlans", data.get("chapters", data))
+        if "outlines" in data or "chapterOutlines" in data:
+            outlines = data.get("outlines", data.get("chapterOutlines", {}))
+            database_v2.save_pipeline_state(project_id, "chapter_outline", outlines)
+        if "sceneDesigns" in data or "scenes" in data:
+            scenes = data.get("sceneDesigns", data.get("scenes", {}))
+            database_v2.save_pipeline_state(project_id, "scene_design", scenes)
+        _save_chapter_plans_batch(project_id, cp_data)
+    else:
+        _save_chapter_plans_batch(project_id, data)
+
+
 def _save_characters_batch(project_id: str, data):
     """批量保存角色(支持{protagonist, supporting, villains}结构或list或单条)"""
     if isinstance(data, list):
@@ -333,72 +406,6 @@ def _save_characters_batch(project_id: str, data):
             database_v2.save_character(project_id, cid, data)
 
 
-def _save_factions_batch(project_id: str, data):
-    """批量保存势力(支持{pattern, factions:[...]}结构或list或单条)"""
-    if isinstance(data, list):
-        for i, f in enumerate(data):
-            fid = f.get("faction_id", f.get("name", f"f{i+1}"))
-            database_v2.save_faction(project_id, fid, f)
-    elif isinstance(data, dict):
-        if "factions" in data and isinstance(data["factions"], list):
-            for i, f in enumerate(data["factions"]):
-                fid = f.get("faction_id", f.get("name", f"f{i+1}"))
-                database_v2.save_faction(project_id, fid, f)
-        elif data.get("faction_id") or data.get("name"):
-            fid = data.get("faction_id", data.get("name", "f1"))
-            database_v2.save_faction(project_id, fid, data)
-
-
-def _map_power_system(d: dict) -> dict:
-    """将前端power_system字段映射到数据库schema"""
-    import json as _json
-    levels = d.get("levels", "")
-    if isinstance(levels, str) and levels.strip():
-        tiers = [{"name": l.strip(), "level": i + 1} for i, l in enumerate(levels.split("\n")) if l.strip()]
-    else:
-        tiers = d.get("tiers", [])
-    growth = d.get("growth_method", d.get("system_type", d.get("systemType", "")))
-    return {
-        "tiers": tiers,
-        "combat_categories": d.get("combat_categories", []),
-        "growth_method": _json.dumps(growth, ensure_ascii=False) if isinstance(growth, dict) else growth,
-        "limits": d.get("rules", d.get("limits", "")),
-        "bottlenecks": d.get("bottlenecks", []),
-    }
-
-
-def _query_v2_data(project_id: str, module_name: str):
-    """根据模块名查询对应V2表，无专用表时从pipeline_state的data_json读取"""
-    query_map = {
-        "idea": lambda pid: database_v2.get_pipeline_module_data(pid, "idea"),
-        "project": lambda pid: database_v2.get_pipeline_module_data(pid, "project"),
-        "world": database_v2.get_world,
-        "characters": lambda pid: _restructure_characters(database_v2.get_all_characters(pid)),
-        "power_system": database_v2.get_power_system,
-        "factions": lambda pid: {"factions": database_v2.get_factions(pid)},
-        "plot_nodes": lambda pid: {"events": database_v2.get_plot_nodes(pid)},
-        "volumes": database_v2.get_volumes,
-        "chapter_plan": database_v2.get_chapter_plans,
-        "chapter_outline": lambda pid: database_v2.get_pipeline_module_data(pid, "chapter_outline"),
-        "scene_design": lambda pid: database_v2.get_pipeline_module_data(pid, "scene_design"),
-        "content_parsing": lambda pid: database_v2.get_pipeline_module_data(pid, "content_parsing"),
-        "polish": lambda pid: database_v2.get_pipeline_module_data(pid, "polish"),
-        "knowledge_update": database_v2.get_knowledge_state,
-        "consistency_check": database_v2.get_consistency_reports,
-        "draft_generation": database_v2.get_drafts,
-        "story_architecture": lambda pid: database_v2.get_pipeline_module_data(pid, "story_architecture"),
-        "outline": lambda pid: database_v2.get_pipeline_module_data(pid, "outline"),
-        "timeline": lambda pid: {"events": database_v2.get_timeline(pid)},
-    }
-    query_fn = query_map.get(module_name)
-    if not query_fn:
-        return None
-    try:
-        result = query_fn(project_id)
-        return result
-    except Exception as e:
-        logger.error(f"查询模块数据失败 {module_name}: {e}")
-        return None
 
 
 def _restructure_characters(characters) -> dict:

@@ -94,23 +94,26 @@ def project_save_v2(body: dict):
 def _save_module_data(project_id: str, module_name: str, data: any):
     """根据模块名选择正确的保存方式"""
     from novel_creator import database_v2
+    from app.services.pipeline import LEGACY_MODULE_MAP
+    # 归一化旧模块名
+    resolved = LEGACY_MODULE_MAP.get(module_name)
+    if resolved is not None:
+        module_name = resolved
 
     save_map = {
         "idea": lambda pid, d: database_v2.save_pipeline_state(pid, "idea", d.get('module_data', d) if isinstance(d, dict) else d),
         "project": lambda pid, d: database_v2.save_pipeline_state(pid, "project", d.get('module_data', d) if isinstance(d, dict) else d),
         "world": database_v2.save_world,
         "characters": lambda pid, d: _save_characters_from_data(pid, d),
-        "power_system": lambda pid, d: database_v2.save_power_system(pid, d),
-        "factions": lambda pid, d: _save_factions_from_data(pid, d),
+        "architecture": lambda pid, d: database_v2.save_pipeline_state(pid, "architecture", d.get('module_data', d) if isinstance(d, dict) else d),
+        "relation_map": lambda pid, d: database_v2.save_relation_map(pid, d),
+        "outline": lambda pid, d: database_v2.save_pipeline_state(pid, "outline", d.get('module_data', d) if isinstance(d, dict) else d),
         "volumes": lambda pid, d: _save_volumes_from_data(pid, d),
         "chapter_plan": lambda pid, d: _save_chapter_plans_from_data(pid, d),
-        "chapter_outline": lambda pid, d: database_v2.save_pipeline_state(pid, "chapter_outline", d.get('module_data', d) if isinstance(d, dict) else d),
-        "plot_nodes": lambda pid, d: _save_plot_nodes_from_data(pid, d),
-        "scene_design": lambda pid, d: database_v2.save_pipeline_state(pid, "scene_design", d.get('module_data', d) if isinstance(d, dict) else d),
-        "story_architecture": lambda pid, d: database_v2.save_pipeline_state(pid, "story_architecture", d.get('module_data', d) if isinstance(d, dict) else d),
-        "timeline": database_v2.save_timeline,
-        "outline": lambda pid, d: database_v2.save_pipeline_state(pid, "outline", d.get('module_data', d) if isinstance(d, dict) else d),
-        "draft_generation": lambda pid, d: _save_drafts_from_data(pid, d),
+        "draft": lambda pid, d: _save_drafts_from_data(pid, d),
+        "parse": lambda pid, d: database_v2.save_pipeline_state(pid, "parse", d.get('module_data', d) if isinstance(d, dict) else d),
+        "polish": lambda pid, d: database_v2.save_pipeline_state(pid, "polish", d.get('module_data', d) if isinstance(d, dict) else d),
+        "consistency": database_v2.save_consistency_report,
     }
     save_fn = save_map.get(module_name)
     if save_fn:
@@ -140,16 +143,6 @@ def _save_characters_from_data(project_id, data):
             database_v2.save_character(project_id, str(vid), v_data)
 
 
-def _save_factions_from_data(project_id, data):
-    from novel_creator import database_v2
-    if isinstance(data, dict) and 'module_data' in data:
-        data = data['module_data']
-    factions = data.get('factions', data) if isinstance(data, dict) else data
-    for i, f in enumerate(factions if isinstance(factions, list) else [factions] if isinstance(factions, dict) else []):
-        fid = f.get('faction_id') or f.get('id') or f.get('name', f'faction_{i}')
-        database_v2.save_faction(project_id, str(fid), f)
-
-
 def _save_volumes_from_data(project_id, data):
     from novel_creator import database_v2
     if isinstance(data, dict) and 'module_data' in data:
@@ -168,17 +161,6 @@ def _save_chapter_plans_from_data(project_id, data):
     for p in (plans if isinstance(plans, list) else [plans] if isinstance(plans, dict) else []):
         cno = p.get('chapter_no') or p.get('id') or '1'
         database_v2.save_chapter_plan(project_id, str(cno), p)
-
-
-def _save_plot_nodes_from_data(project_id, data):
-    from novel_creator import database_v2
-    if isinstance(data, dict) and 'module_data' in data:
-        data = data['module_data']
-    events = data.get('events', data) if isinstance(data, dict) else data
-    if isinstance(events, list):
-        for i, e in enumerate(events):
-            eid = e.get('event_id', f'pn{i}')
-            database_v2.save_plot_node(project_id, eid, e)
 
 
 def _save_drafts_from_data(project_id, data):
