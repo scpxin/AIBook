@@ -115,15 +115,12 @@ const editingTpl = ref<GenerationTemplate | null>(null)
 const editForm = ref({ name: '', genre: '', world_type: '', quality_rating: 0 })
 
 const moduleOptions = [
-  { key: 'world', name: '世界观' },
+  { key: 'world', name: '世界观(含势力+力量体系)' },
   { key: 'characters', name: '角色' },
-  { key: 'factions', name: '势力' },
-  { key: 'power_system', name: '力量体系' },
-  { key: 'story_architecture', name: '故事架构' },
+  { key: 'architecture', name: '故事架构' },
   { key: 'outline', name: '全书大纲' },
   { key: 'volumes', name: '卷纲' },
   { key: 'chapter_plan', name: '章节规划' },
-  { key: 'scene_design', name: '场景设计' },
 ]
 
 function moduleDisplayName(key: string): string {

@@ -1,8 +1,8 @@
 # 模块重组进度报告
 
 > 19 模块 → 13 模块重构，统一数据访问层 DataBridge
-> 最后更新: 2026-07-21
-> 测试: 123 passed, lint: 仅预存 E402 (非阻塞)
+> 最后更新: 2026-07-22
+> 测试: 61 passed, lint: 仅预存 E402 (非阻塞), 前端: vue-tsc clean
 
 ---
 
@@ -17,7 +17,7 @@
 | 5 | Pipeline 模块重定义 | 已完成 | `782d730` |
 | 6-7 | Service 去写 + 功能合并 | 已完成 | `eafdf10` |
 | 8-9 | API 层适配 + main.py 集成 | 已完成 (基础) | `25fc2d8` |
-| 10 | 前端适配 | 未开始 | - |
+| 10 | 前端适配 | 已完成 | - |
 | 11-12 | 测试改造 + 验证推送 | 未开始 | - |
 
 ---
@@ -200,3 +200,78 @@
 - SQLite WAL 模式，`/workspace/novel_creator/data_bridge.py` 新建
 - concurrent read-friendly via WAL journal
 - 4 张旧表保留但标记 DEPRECATED，5 张表新增列
+
+---
+
+## 阶段 10: 前端适配 (19→13 视图映射)
+
+### CreateV2.vue (核心路由)
+
+**模板 v-else-if 链更新** (116-137):
+- `story_architecture` → `architecture`
+- 移除 `timeline` 独立视图 (合并到 ArchitectureView)
+- 移除 `power_system` 独立视图 (合并到 WorldView)
+- 移除 `factions` 独立视图 (合并到 WorldView)
+- `chapter_outline` 从路由删除 (PlanningView 内部子面板)
+- 移除 `scene_design` 独立视图 (合并到 PlanningView 子面板)
+- `draft_generation` → `draft`
+- `content_parsing` + `knowledge_update` → `parse` (ContentView)
+- `consistency_check` → `consistency`
+
+**导入** (177-184): 移除 PowerSystemView, FactionsView, SceneDesignView, TimelineView; 新增 ArchitectureView
+
+**模块列表**:
+- `templateSupportedModules`: 11→6 (`world`, `characters`, `architecture`, `outline`, `volumes`, `chapter_plan`)
+- `nonSkippableModules`: `story_architecture` → `architecture`
+
+### ArchitectureView.vue (新文件)
+
+从 `StoryArchitectureView.vue` 复制并重命名，所有 `'story_architecture'` → `'architecture'`:
+- `useGeneration('architecture', ...)`
+- `saveModuleData/getModuleData('architecture', ...)`
+- `moduleName: 'architecture'`
+
+### WorldView.vue (新增子面板)
+
+添加 2 个 accordion tabs:
+- `power_system`: 体系类型选择 + 简介 + 修炼阶段 (动态添加/删除) + 核心规则 + 特殊情况
+- `factions`: 势力卡片列表 (名称/信仰/结构/历史/成员/关系)，支持动态添加/删除
+
+数据持久化在 `world` reactive 对象中: `world.power_system` + `world.factions`
+
+### PlanningView.vue (内部子面板导航)
+
+- 新增 `scene_design` 子面板: 章节选择/场景名称/氛围/人物/事件/钩子
+- 新增内部 sub-tab 导航条: 卷纲 | 章节规划 | 章节细纲 | 场景设计
+- `activeSubTab` ref 替代 `moduleKey` 用于子面板切换
+- `scene_design` 调用 `designScenes(projectId, chapterOutline)`
+- 所有 `'story_architecture'` → `'architecture'` 引用更新
+
+### ContentView.vue (功能合并)
+
+- `parse` = `content_parsing` + `knowledge_update`: 内容解析后自动运行知识库更新
+- `consistency` = `consistency_check`: 一致性检查，power_system 改为从 `modules['world']?.power_system` 读取
+- 向后兼容: 旧 `content_parsing`/`knowledge_update`/`consistency_check` 仍可处理
+
+### DraftInlineView.vue
+
+- 所有 `'draft_generation'` → `'draft'`
+- `scene_design` → `chapter_plan.scene_designs` 引用更新
+
+### 全局引用更新
+
+| 文件 | 更新 |
+|------|------|
+| `OutlineView.vue` | `'story_architecture'` → `'architecture'` |
+| `TimelineView.vue` | `'story_architecture'` → `'architecture'` |
+| `ExportView.vue` | `'story_architecture'` → `'architecture'`, `'chapter_outline'` → `'chapter_plan'`, `'draft_generation'` → `'draft'` |
+| `TemplateLibrary.vue` | 模块列表精简 (9→6), `'story_architecture'` → `'architecture'` |
+| `useTemplateStore.ts` | factions/power_system 合并到 world 上下文 |
+| `execution.ts` | `'chapter_outline'` → `'chapter_plan'` |
+| `useChapters.ts` | `'draft_generation'` → `'draft'` |
+| `WritingView.vue` | `'chapter_outline'` → `'chapter_plan'` |
+
+### 验证
+
+- `npx vue-tsc --noEmit`: clean (0 errors)
+- `python3 -m pytest tests/`: 61 passed

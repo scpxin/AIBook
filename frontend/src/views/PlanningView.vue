@@ -5,7 +5,13 @@
       <p>加载中...</p>
     </div>
     <div v-else>
-    <div v-if="moduleKey === 'volumes'" class="sub-pane">
+    <div class="sub-tabs">
+      <button :class="{ active: activeSubTab === 'volumes' }" @click="activeSubTab = 'volumes'">卷纲</button>
+      <button :class="{ active: activeSubTab === 'chapter_plan' }" @click="activeSubTab = 'chapter_plan'">章节规划</button>
+      <button :class="{ active: activeSubTab === 'chapter_outline' }" @click="activeSubTab = 'chapter_outline'">章节细纲</button>
+      <button :class="{ active: activeSubTab === 'scene_design' }" @click="activeSubTab = 'scene_design'">场景设计</button>
+    </div>
+    <div v-if="activeSubTab === 'volumes'" class="sub-pane">
       <h4>卷纲设计</h4>
       <p class="tip">规划整部小说的卷结构，每卷包含核心冲突与字数目标</p>
       <div class="form-group">
@@ -117,6 +123,62 @@
       </div>
     </div>
 
+    <div v-else-if="moduleKey === 'scene_design'" class="sub-pane">
+      <h4>场景设计</h4>
+      <p class="tip">为每个章节设计具体场景：环境氛围、出场人物、关键事件</p>
+      <div class="form-group">
+        <label>章节选择</label>
+        <select v-model="sceneForm.chapterNo" class="form-select">
+          <option v-for="i in 20" :key="i" :value="i">第 {{ i }} 章</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>参考章节大纲</label>
+        <div class="context-hint" v-if="upstreamData">{{ upstreamData }}</div>
+        <div class="context-hint empty" v-else>暂无章节大纲数据</div>
+      </div>
+      <div class="form-group">
+        <label>场景名称</label>
+        <input v-model="sceneForm.sceneName" placeholder="如：山门拜师、密林遇袭..." class="form-input" />
+      </div>
+      <div class="form-group">
+        <label>场景氛围</label>
+        <select v-model="sceneForm.atmosphere" class="form-select">
+          <option value="tense">紧张刺激</option>
+          <option value="calm">平和日常</option>
+          <option value="mysterious">神秘诡异</option>
+          <option value="epic">史诗恢弘</option>
+          <option value="emotional">情感浓烈</option>
+          <option value="humorous">轻松诙谐</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>出场人物</label>
+        <input v-model="sceneForm.characters" placeholder="如：主角、师兄李青、长老王玄..." class="form-input" />
+      </div>
+      <div class="form-group">
+        <label>关键事件概要</label>
+        <textarea v-model="sceneForm.event" rows="4" placeholder="描述本场景发生的核心事件..." class="form-textarea" />
+      </div>
+      <div class="form-group">
+        <label>场景钩子（悬念）</label>
+        <input v-model="sceneForm.hook" placeholder="本场景结尾留下的悬念..." class="form-input" />
+      </div>
+      <div v-if="sceneDesigns.length" class="result-list">
+        <div v-for="(s, idx) in sceneDesigns" :key="idx" class="plan-card">
+          <div class="plan-card-header">
+            <span class="plan-num">场景{{ idx + 1 }}</span>
+            <span class="plan-title">{{ s.name || s.sceneName }}</span>
+          </div>
+          <p class="plan-summary">{{ s.event || s.description }}</p>
+          <div class="plan-meta">
+            <span v-if="s.atmosphere">氛围: {{ s.atmosphere }}</span>
+            <span v-if="s.characters">人物: {{ s.characters }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="actions">
       <button @click="generate" :disabled="generating" class="btn-primary">
         <span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : 'AI生成' }}
@@ -135,7 +197,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import EmotionCurveChart from '../components/EmotionCurveChart.vue'
 import { saveModuleData, getAllModuleData, getModuleData } from '../api/v2'
 import { useGeneration } from '../composables/useGeneration'
@@ -154,6 +216,7 @@ const toast = useToastStore()
 const pageLoading = ref(true)
 
 const moduleKey = computed(() => props.currentModule)
+const activeSubTab = ref(props.currentModule === 'chapter_plan' ? 'chapter_plan' : (props.currentModule === 'volumes' ? 'volumes' : 'chapter_plan'))
 const generating = ref(false)
 const error = ref('')
 const upstreamData = ref('')
@@ -164,53 +227,61 @@ const formDefaults: Record<string, any> = {
   volumes: { volumeCount: '5', chaptersPerVolume: 20, themes: '' },
   chapter_plan: { totalChapters: 100, wordsPerChapter: 3000, rhythmMode: '3chapter' },
   chapter_outline: { detailLevel: 'medium', focusChapters: '', totalChapters: 10 },
+  scene_design: { chapterNo: 1, sceneName: '', atmosphere: 'tense', characters: '', event: '', hook: '' },
 }
 
 const form = ref({ ...(formDefaults[props.currentModule] || formDefaults.volumes) })
 
 watch(moduleKey, (key) => {
   form.value = { ...formDefaults[key] }
+  if (key === 'scene_design') {
+    form.value = sceneForm
+  }
 })
 
 const volumeList = ref<any[]>([])
 const chapterPlans = ref<any[]>([])
 const chapterOutlines = ref<any[]>([])
+const sceneDesigns = ref<any[]>([])
+const sceneForm = reactive({ chapterNo: 1, sceneName: '', atmosphere: 'tense', characters: '', event: '', hook: '' })
 
 const planningData = () => {
-   const key = moduleKey.value
+   const key = activeSubTab.value
    if (key === 'volumes') return { volumes: volumeList.value, form: form.value }
    if (key === 'chapter_plan') return { chapterPlans: chapterPlans.value, form: form.value }
    if (key === 'chapter_outline') return { chapterOutlines: chapterOutlines.value, form: form.value }
+   if (key === 'scene_design') return { sceneDesigns: sceneDesigns.value, form: sceneForm }
    return { volumes: volumeList.value, chapterPlans: chapterPlans.value, chapterOutlines: chapterOutlines.value, form: form.value }
 }
 const resultPayload = computed(planningData)
 const { scheduleSave } = useAutoSave({
    dataRef: planningData,
    saveFn: async (data) => {
-      try { await v2Api.saveModuleData(props.projectId, moduleKey.value || 'volumes', data) } catch (_e) { /* silent */ }
+      try { await v2Api.saveModuleData(props.projectId, activeSubTab.value || 'volumes', data) } catch (_e) { /* silent */ }
    },
    debounce: 1500,
-   storageKey: `planning_${props.currentModule}_${props.projectId}`,
+   storageKey: `planning_${activeSubTab.value}_${props.projectId}`,
    projectId: props.projectId,
-   moduleName: moduleKey.value || 'volumes',
+   moduleName: activeSubTab.value || 'volumes',
 })
-watch([volumeList, chapterPlans, chapterOutlines, form], () => { scheduleSave() }, { deep: true })
+watch([volumeList, chapterPlans, chapterOutlines, sceneDesigns, form], () => { scheduleSave() }, { deep: true })
 
 onMounted(async () => {
   try {
-    const saved = await getModuleData(props.projectId, moduleKey.value)
+    const saved = await getModuleData(props.projectId, activeSubTab.value)
     const raw = saved?.data
     if (raw) {
       if (Array.isArray(raw)) {
-        if (moduleKey.value === 'volumes') { volumeList.value = raw; return }
-        if (moduleKey.value === 'chapter_plan') { chapterPlans.value = raw; return }
-        if (moduleKey.value === 'chapter_outline') { chapterOutlines.value = raw; return }
+        if (activeSubTab.value === 'volumes') { volumeList.value = raw; return }
+        if (activeSubTab.value === 'chapter_plan') { chapterPlans.value = raw; return }
+        if (activeSubTab.value === 'chapter_outline') { chapterOutlines.value = raw; return }
       }
       if (raw.form || raw.volumes || raw.chapterPlans || raw.chapterOutlines) {
         if (raw.form) Object.assign(form.value, raw.form)
         if (raw.volumes) volumeList.value = raw.volumes
         if (raw.chapterPlans) chapterPlans.value = raw.chapterPlans
         if (raw.chapterOutlines) chapterOutlines.value = raw.chapterOutlines
+        if (raw.sceneDesigns) sceneDesigns.value = raw.sceneDesigns
         if (raw.upstreamData) upstreamData.value = raw.upstreamData
         return
       }
@@ -218,8 +289,8 @@ onMounted(async () => {
     const allData = await getAllModuleData(props.projectId)
     const modules = allData?.modules || {}
     upstreamRawData.value = modules
-    if (moduleKey.value === 'volumes') {
-      const sa = modules['story_architecture']
+    if (activeSubTab.value === 'volumes') {
+      const sa = modules['architecture']
       if (sa) {
         const title = sa.outline?.title || sa.story?.oneLiner || ''
         const theme = sa.outline?.theme || sa.story?.theme || ''
@@ -228,13 +299,16 @@ onMounted(async () => {
           form.value.themes = (theme || sa.story?.theme)
         }
       }
-    } else if (moduleKey.value === 'chapter_plan') {
-      const sa = modules['story_architecture']
+    } else if (activeSubTab.value === 'chapter_plan') {
+      const sa = modules['architecture']
       const pn = sa?.plot_nodes
       upstreamData.value = (pn && pn.length) ? `已加载${pn.length}个剧情节点` : ''
-    } else if (moduleKey.value === 'chapter_outline') {
+    } else if (activeSubTab.value === 'chapter_outline') {
       const plans = modules['chapter_plan']
       upstreamData.value = plans ? `已加载章节规划数据` : ''
+    } else if (activeSubTab.value === 'scene_design') {
+      const outlines = modules['chapter_outline']
+      upstreamData.value = outlines ? `已加载章节细纲数据` : ''
     }
   } catch (_e) { /* ignore */ } finally { pageLoading.value = false }
 })
@@ -247,7 +321,7 @@ async function proceed() {
   })
   if (!ok) return
   try {
-    await v2Api.saveModuleData(props.projectId, moduleKey.value || 'volumes', resultPayload.value)
+    await v2Api.saveModuleData(props.projectId, activeSubTab.value || 'volumes', resultPayload.value)
   } catch (e) {
     toast.error('保存规划数据失败，请重试')
     return
@@ -261,10 +335,10 @@ async function generate() {
   error.value = ''
   isOffline.value = false
   try {
-    const key = moduleKey.value
+    const key = activeSubTab.value
     const modules = upstreamRawData.value
     if (key === 'volumes') {
-      const sa = modules['story_architecture'] || {}
+      const sa = modules['architecture'] || {}
       const outline = sa.outline || sa.story || {}
       const count = parseInt(form.value.volumeCount) || 5
       const result = await v2Api.generateVolumes(props.projectId, count, outline).catch((e) => { console.error('[PlanningView] generateVolumes error:', e); return null }) as any
@@ -273,7 +347,7 @@ async function generate() {
       if (!items.length) useOfflineMode()
       else await saveModuleData(props.projectId, 'volumes', { volumes: volumeList.value, form: form.value })
     } else if (key === 'chapter_plan') {
-      const sa = modules['story_architecture'] || {}
+      const sa = modules['architecture'] || {}
       const outline = sa.outline || sa.story || {}
       const plotNodesData = sa.plot_nodes || []
       const result = await v2Api.planChapters(
@@ -290,6 +364,20 @@ async function generate() {
       const items = (result as any).outlines || (result as any).chapters || (result as any).items || []
       chapterOutlines.value = items
       await saveModuleData(props.projectId, 'chapter_outline', { chapterOutlines: chapterOutlines.value, form: form.value })
+    } else if (key === 'scene_design') {
+      const chapterNo = sceneForm.chapterNo || 1
+      const chapterOutline = {
+        chapterNo,
+        sceneName: sceneForm.sceneName,
+        atmosphere: sceneForm.atmosphere,
+        characters: sceneForm.characters,
+        event: sceneForm.event,
+        hook: sceneForm.hook,
+      }
+      const result = await v2Api.designScenes(props.projectId, chapterOutline).catch(() => null)
+      sceneDesigns.value = result ? (Array.isArray(result) ? result : (result.scenes || [result])) : []
+      if (!sceneDesigns.value.length) useOfflineMode()
+      else await saveModuleData(props.projectId, 'scene_design', { sceneDesigns: sceneDesigns.value, form: sceneForm })
     }
   } catch (e: any) {
     errorBar.showError(e, () => generate())
@@ -304,7 +392,7 @@ async function generate() {
 function useOfflineMode() {
   toast.warning('AI生成不可用，已使用离线模板数据，可稍后重新生成')
   isOffline.value = true
-  const key = moduleKey.value
+  const key = activeSubTab.value
   if (key === 'volumes') {
     const themes = form.value.themes?.split('\n').filter(Boolean) || []
     const count = parseInt(form.value.volumeCount) || 5
@@ -335,6 +423,10 @@ function useOfflineMode() {
 
 <style scoped>
 .planning-view { max-width: 1100px; }
+.sub-tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 2px solid #eee; }
+.sub-tabs button { padding: 10px 18px; border: none; background: none; cursor: pointer; font-size: 14px; color: #888; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .2s; }
+.sub-tabs button:hover { color: #555; }
+.sub-tabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
 .sub-pane { background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,.05); }
 .sub-pane h4 { font-size: 20px; margin: 0 0 6px; }
 .tip { color: #888; margin-bottom: 18px; font-size: 14px; }

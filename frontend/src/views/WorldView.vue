@@ -73,6 +73,82 @@
             <h3>历史时间线</h3>
             <TimelineChart :events="world.history" />
           </div>
+
+          <div v-else-if="tab.key === 'power_system'" class="tab-pane">
+            <h3>力量体系</h3>
+            <div class="form-group">
+              <label>体系类型</label>
+              <select v-model="world.power_system.systemType" class="form-select">
+                <option value="cultivation">修炼体系</option>
+                <option value="magic">魔法体系</option>
+                <option value="science">科技体系</option>
+                <option value="hybrid">混合体系</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>体系简介</label>
+              <textarea v-model="world.power_system.intro" class="form-textarea" rows="3" placeholder="力量体系的总体描述..." maxlength="5000" />
+              <span class="char-count">{{ (world.power_system.intro || '').length }}/5000</span>
+            </div>
+            <div class="form-group">
+              <label>修炼阶段</label>
+              <div v-for="(s, i) in world.power_system.stages" :key="i" class="stage-row">
+                <input v-model="s.name" class="form-input" placeholder="阶段名称" />
+                <input v-model="s.desc" class="form-input" placeholder="描述" />
+                <input v-model="s.abilities" class="form-input" placeholder="能力" />
+                <button @click="world.power_system.stages.splice(i, 1)" class="btn-sm danger">-</button>
+              </div>
+              <button @click="world.power_system.stages.push({ name: '', desc: '', abilities: '' })" class="btn-sm">+ 添加阶段</button>
+            </div>
+            <div class="form-group">
+              <label>核心规则</label>
+              <div v-for="(r, i) in world.power_system.rules" :key="i" class="rule-row">
+                <input v-model="r.rule" class="form-input" placeholder="规则描述" />
+                <button @click="world.power_system.rules.splice(i, 1)" class="btn-sm danger">-</button>
+              </div>
+              <button @click="world.power_system.rules.push({ rule: '' })" class="btn-sm">+ 添加规则</button>
+            </div>
+            <div class="form-group">
+              <label>特殊情况</label>
+              <div v-for="(c, i) in world.power_system.specialCases" :key="i" class="rule-row">
+                <input v-model="c.case" class="form-input" placeholder="特殊情况描述" />
+                <button @click="world.power_system.specialCases.splice(i, 1)" class="btn-sm danger">-</button>
+              </div>
+              <button @click="world.power_system.specialCases.push({ case: '' })" class="btn-sm">+ 添加特殊情况</button>
+            </div>
+          </div>
+
+          <div v-else-if="tab.key === 'factions'" class="tab-pane">
+            <h3>势力体系</h3>
+            <div v-for="(f, idx) in world.factions" :key="idx" class="faction-card">
+              <div class="faction-header">
+                <input v-model="f.groupName" class="form-input" placeholder="势力名称" />
+                <button @click="world.factions.splice(idx, 1)" class="btn-sm danger">删除</button>
+              </div>
+              <div class="form-group">
+                <label>信仰理念</label>
+                <textarea v-model="f.beliefs" class="form-textarea" rows="2" placeholder="势力的信仰、理念、核心价值观..." maxlength="3000" />
+              </div>
+              <div class="form-group">
+                <label>组织结构</label>
+                <textarea v-model="f.structure" class="form-textarea" rows="2" placeholder="势力的组织架构、层级关系..." maxlength="3000" />
+              </div>
+              <div class="form-group">
+                <label>历史背景</label>
+                <textarea v-model="f.history" class="form-textarea" rows="2" placeholder="势力的起源和历史发展..." maxlength="3000" />
+              </div>
+              <div class="form-group">
+                <label>核心成员</label>
+                <textarea v-model="f.keyMembers" class="form-textarea" rows="2" placeholder="势力中的关键人物及其角色..." maxlength="3000" />
+              </div>
+              <div class="form-group">
+                <label>与其他势力的关系</label>
+                <textarea v-model="f.conflicts" class="form-textarea" rows="2" placeholder="与其他势力的关系、冲突或合作..." maxlength="3000" />
+              </div>
+            </div>
+            <button @click="world.factions.push({ groupName: '', beliefs: '', structure: '', history: '', keyMembers: '', conflicts: '' })" class="btn-sm">+ 添加势力</button>
+          </div>
         </div>
       </div>
     </div>
@@ -118,6 +194,8 @@ const tabs = [
   { key: 'structure', label: '结构' },
   { key: 'civilization', label: '文明' },
   { key: 'history', label: '历史' },
+  { key: 'power_system', label: '力量体系' },
+  { key: 'factions', label: '势力体系' },
 ]
 const activeTab = ref('origin')
 
@@ -138,6 +216,8 @@ const world = reactive<any>({
   structure: {},
   civilization: {},
   history: [],
+  power_system: { systemType: 'cultivation', intro: '', stages: [{ name: '', desc: '', abilities: '' }], rules: [{ rule: '' }], specialCases: [{ case: '' }] },
+  factions: [{ groupName: '', beliefs: '', structure: '', history: '', keyMembers: '', conflicts: '' }],
 })
 
 const worldRules = [
@@ -353,4 +433,16 @@ watch(world, () => {
 .error-box { color: #e74c3c; background: #fff1f0; border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 14px; }
 .page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; }
 .loading-spinner { width: 36px; height: 36px; border: 3px solid #f0f0f0; border-top-color: #409eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+.form-input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; margin-bottom: 6px; }
+.stage-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.stage-row .form-input { flex: 1; margin-bottom: 0; }
+.rule-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.rule-row .form-input { flex: 1; margin-bottom: 0; }
+.faction-card { border: 1px solid #eee; border-radius: 10px; padding: 18px; margin-bottom: 16px; background: #fafafa; }
+.faction-header { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+.faction-header .form-input { flex: 1; margin-bottom: 0; font-weight: 600; font-size: 18px; }
+.btn-sm { padding: 5px 14px; border: 1px solid #ddd; border-radius: 5px; background: #f5f5f5; cursor: pointer; font-size: 14px; }
+.btn-sm:hover { background: #e8e8e8; }
+.btn-sm.danger { color: #e74c3c; border-color: #e74c3c; }
+.btn-sm.danger:hover { background: #ffeaea; }
 </style>

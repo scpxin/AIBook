@@ -118,18 +118,13 @@
             <ProjectView v-else-if="currentModule === 'project'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
             <WorldView v-else-if="currentModule === 'world'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
             <CharacterView v-else-if="currentModule === 'characters'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-            <StoryArchitectureView v-else-if="currentModule === 'story_architecture'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-            <TimelineView v-else-if="currentModule === 'timeline'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
+            <ArchitectureView v-else-if="currentModule === 'architecture'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
             <OutlineView v-else-if="currentModule === 'outline'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-<PowerSystemView v-else-if="currentModule === 'power_system'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" @skip="onModuleComplete" />
-<FactionsView v-else-if="currentModule === 'factions'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" @skip="onModuleComplete" />
-            <PlanningView v-else-if="['volumes', 'chapter_plan', 'chapter_outline'].includes(currentModule)" :key="currentModule + projectId" :project-id="projectId" :current-module="currentModule" @complete="onModuleComplete" />
-            <SceneDesignView v-else-if="currentModule === 'scene_design'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-            <DraftInlineView v-else-if="currentModule === 'draft_generation'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-            <ContentView v-else-if="currentModule === 'content_parsing'" :key="currentModule + '_cp' + projectId" :project-id="projectId" module-type="content_parsing" title="内容解析" desc="对正文进行结构化解析，提取场景、对白、情绪等要素" action-label="解析内容" @complete="onModuleComplete" />
-            <ContentView v-else-if="currentModule === 'polish'" :key="currentModule + '_pl' + projectId" :project-id="projectId" module-type="polish" title="润色优化" desc="对正文进行AI润色，提升文采、修正语病、增强表现力" action-label="开始润色" @complete="onModuleComplete" />
-            <ContentView v-else-if="currentModule === 'knowledge_update'" :key="currentModule + '_ku' + projectId" :project-id="projectId" module-type="knowledge_update" title="知识库更新" desc="根据正文内容自动更新角色状态、世界状态、剧情状态" action-label="更新知识库" @complete="onModuleComplete" />
-            <ContentView v-else-if="currentModule === 'consistency_check'" :key="currentModule + '_cc' + projectId" :project-id="projectId" module-type="consistency_check" title="一致性检查" desc="检查正文与前期设定的矛盾冲突：人物、世界观、剧情连贯性" action-label="运行检查" @complete="onModuleComplete" />
+            <PlanningView v-else-if="['volumes', 'chapter_plan'].includes(currentModule)" :key="currentModule + projectId" :project-id="projectId" :current-module="currentModule" @complete="onModuleComplete" />
+            <DraftInlineView v-else-if="currentModule === 'draft'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
+            <ContentView v-else-if="currentModule === 'parse'" :key="currentModule + '_parse' + projectId" :project-id="projectId" module-type="parse" title="内容解析" desc="对正文进行结构化解析，提取场景、对白、情绪等要素，并更新知识库" action-label="解析内容" @complete="onModuleComplete" />
+            <ContentView v-else-if="currentModule === 'polish'" :key="currentModule + '_polish' + projectId" :project-id="projectId" module-type="polish" title="润色优化" desc="对正文进行AI润色，提升文采、修正语病、增强表现力" action-label="开始润色" @complete="onModuleComplete" />
+            <ContentView v-else-if="currentModule === 'consistency'" :key="currentModule + '_consistency' + projectId" :project-id="projectId" module-type="consistency" title="一致性检查" desc="检查正文与前期设定的矛盾冲突：人物、世界观、剧情连贯性" action-label="运行检查" @complete="onModuleComplete" />
             <div v-else class="module-placeholder" :key="currentModule">
               <h3>{{ currentModuleInfo?.display_name || currentModule }}</h3>
               <p>该模块视图正在建设中...</p>
@@ -178,14 +173,10 @@ import IdeaView from './IdeaView.vue'
 import ProjectView from './ProjectView.vue'
 import WorldView from './WorldView.vue'
 import CharacterView from './CharacterView.vue'
-import StoryArchitectureView from './StoryArchitectureView.vue'
-import PowerSystemView from './PowerSystemView.vue'
-import FactionsView from './FactionsView.vue'
+import ArchitectureView from './ArchitectureView.vue'
 import PlanningView from './PlanningView.vue'
-import SceneDesignView from './SceneDesignView.vue'
 import DraftInlineView from './DraftInlineView.vue'
 import ContentView from './ContentView.vue'
-import TimelineView from './TimelineView.vue'
 import OutlineView from './OutlineView.vue'
 import { useTemplateStore } from '../composables/useTemplateStore'
 import type { GenerationTemplate } from '../composables/useTemplateStore'
@@ -275,7 +266,7 @@ const sidebarStats = computed(() => {
   const d = allModulesData.value
   const vols = d['volumes']
   const cps = d['chapter_plan']
-  const drafts = d['draft_generation']
+  const drafts = d['draft']
   const chars = d['characters']
   const charList = Array.isArray(chars) ? chars : []
   const charCount = charList.length
@@ -534,13 +525,11 @@ const selectedTemplateModules = ref<Record<string, string>>({})
 
 // Available modules that support template
 const templateSupportedModules = [
-  'world', 'characters', 'factions', 'power_system',
-  'story_architecture', 'outline', 'volumes', 'chapter_plan',
-  'chapter_outline', 'scene_design', 'plot_nodes'
+  'world', 'characters', 'architecture', 'outline', 'volumes', 'chapter_plan'
 ]
 
 // P2-1: Key modules that cannot be skipped (core design layer)
-const nonSkippableModules = ['idea', 'project', 'story_architecture', 'outline']
+const nonSkippableModules = ['idea', 'project', 'architecture', 'outline']
 
 const projectContextForTemplate = computed(() => ({
   genre: currentProjectGenre.value || '',
@@ -810,8 +799,8 @@ function startNewProject() {
       }
       const charData = v2Data?.modules?.['characters']
      if (charData) tplStore.updateSharedContext('characters', charData, projectId.value)
-      const facData = v2Data?.modules?.['factions']
-     if (facData) tplStore.updateSharedContext('factions', facData, projectId.value)
+      const facData = v2Data?.modules?.['world']?.factions
+      if (facData) tplStore.updateSharedContext('factions', facData, projectId.value)
   } catch (_e) {
     console.error('[CreateV2] restore module data failed:', _e)
   }

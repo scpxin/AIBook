@@ -93,6 +93,8 @@ const moduleLabel = computed(() => {
     content_parsing: '内容解析',
     knowledge_update: '知识库更新',
     consistency_check: '一致性检查',
+    parse: '内容解析',
+    consistency: '一致性检查',
   }
   return map[props.moduleType] || '内容处理'
 })
@@ -133,13 +135,15 @@ const contentLabel = computed(() => {
     content_parsing: '待解析正文',
     knowledge_update: '正文内容（用于更新知识库）',
     consistency_check: '待检查正文',
+    parse: '待解析正文',
+    consistency: '待检查正文',
   }
   return map[props.moduleType] || '正文内容'
 })
 
 const contentPlaceholder = computed(() => {
   if (props.moduleType === 'polish') return '粘贴需要润色的正文内容...'
-  if (props.moduleType === 'content_parsing') return '粘贴需要解析的正文内容...'
+  if (props.moduleType === 'content_parsing' || props.moduleType === 'parse') return '粘贴需要解析的正文内容...'
   return '粘贴或输入正文内容...'
 })
 
@@ -203,7 +207,8 @@ async function runModule() {
         toast.success('润色完成')
         break
       }
-      case 'content_parsing': {
+      case 'content_parsing':
+      case 'parse': {
         const allData = await v2Api.getAllModuleData(props.projectId).catch(() => null)
         const chars = allData?.modules?.['characters']
         const characters = Array.isArray(chars) ? chars : (chars ? [
@@ -211,7 +216,14 @@ async function runModule() {
         ].filter(Boolean) : undefined)
         const res = await v2Api.parseContent(pid, chapterNo, content, characters)
         result.value = res
-        toast.success('内容解析完成')
+        // Also run knowledge update as part of parse
+        try {
+          const knowRes = await v2Api.updateKnowledge(pid, chapterNo, res)
+          knowledgeAdded.value = (knowRes as any).added || []
+          toast.success(`内容解析完成，知识库更新 ${knowledgeAdded.value.length} 条`)
+        } catch (_e) {
+          toast.success('内容解析完成')
+        }
         break
       }
       case 'knowledge_update': {
@@ -222,10 +234,11 @@ async function runModule() {
         toast.success(`知识库更新完成，新增 ${knowledgeAdded.value.length} 条`)
         break
       }
-      case 'consistency_check': {
+      case 'consistency_check':
+      case 'consistency': {
         const allData = await v2Api.getAllModuleData(props.projectId).catch(() => null)
         const modules = allData?.modules || {}
-        const knowledgeState = modules['consistency_check'] || null
+        const knowledgeState = modules['consistency_check'] || modules['consistency'] || null
         const chars = modules['characters']
         const characters = Array.isArray(chars) ? chars : (chars ? [
           chars.protagonist,
@@ -233,7 +246,7 @@ async function runModule() {
           ...(chars.villains || []),
         ].filter(Boolean) : undefined)
         const worldData = modules['world'] || undefined
-        const powerSystem = modules['power_system'] || undefined
+        const powerSystem = modules['world']?.power_system || undefined
         const res = await v2Api.checkConsistency(pid, chapterNo, content, knowledgeState, characters, worldData, powerSystem)
         result.value = res
         toast.success('一致性检查完成')
@@ -277,7 +290,7 @@ onMounted(async () => {
     } catch (_e) { /* ignore */ }
     try {
       const allData = await v2Api.getAllModuleData(props.projectId)
-      const drafts = allData?.modules?.['draft_generation']
+      const drafts = allData?.modules?.['draft']
       const draftArr = Array.isArray(drafts) ? drafts : []
       const firstDraft = draftArr.find((d: any) => String(d.chapter_no) === String(form.chapterNo)) || draftArr[0]
       if (firstDraft) {

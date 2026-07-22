@@ -164,7 +164,7 @@ export const useExecutionStore = defineStore('execution', () => {
 
   async function getChaptersForWriting(pid: string) {
     try {
-      const outlinesRes = await getModuleData(pid, 'chapter_outline')
+      const outlinesRes = await getModuleData(pid, 'chapter_plan')
       const outlines = outlinesRes?.data
       if (outlines) {
         let outlineList: OutlineItemRaw[] = []

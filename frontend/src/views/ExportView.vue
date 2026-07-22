@@ -100,11 +100,11 @@ async function loadData() {
     const data = await v2Api.getAllModuleData(props.projectId)
     modulesData.value = data?.modules || {}
 
-    const sa = modulesData.value['story_architecture'] || {}
+    const sa = modulesData.value['architecture'] || {}
     volumes.value = modulesData.value['volumes'] || []
     chapterPlans.value = modulesData.value['chapter_plan'] || []
-    chapterOutlines.value = modulesData.value['chapter_outline'] || []
-    drafts.value = modulesData.value['draft_generation'] || []
+    chapterOutlines.value = modulesData.value['chapter_plan'] || []
+    drafts.value = modulesData.value['draft'] || []
 
     if (!Array.isArray(volumes.value)) volumes.value = []
     if (!Array.isArray(chapterPlans.value)) chapterPlans.value = []

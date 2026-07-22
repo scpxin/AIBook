@@ -69,7 +69,7 @@ import { useToastStore } from '../stores/toast'
 
 const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: any] }>()
-const gen = useGeneration('draft_generation', '正文生成')
+const gen = useGeneration('draft', '正文生成')
 const confirm = setupConfirm()
 const errorBar = setupErrorBar()
 const pageLoading = ref(true)
@@ -167,7 +167,7 @@ ${skeleton || '（暂无场景骨架，请先完成场景设计模块）'}
 async function save() {
   if (!content.value) return
   try {
-    await saveModuleData(props.projectId, 'draft_generation', resultData.value)
+    await saveModuleData(props.projectId, 'draft', resultData.value)
     await saveDraft(props.projectId, String(form.chapterNo), content.value)
     toast.success('草稿已保存')
   } catch (e: any) {
@@ -184,7 +184,7 @@ async function handleComplete() {
   })
   if (!ok) return
   try {
-    await saveModuleData(props.projectId, 'draft_generation', resultData.value)
+    await saveModuleData(props.projectId, 'draft', resultData.value)
   } catch (_e) { /* ignore */ }
   emit('complete', resultData.value)
 }
@@ -201,13 +201,13 @@ const draftData = () => resultData.value
 const { scheduleSave } = useAutoSave({
   dataRef: draftData,
   saveFn: async (data) => {
-    await saveModuleData(props.projectId, 'draft_generation', data)
+    await saveModuleData(props.projectId, 'draft', data)
     await saveDraft(props.projectId, String(form.chapterNo), data.content)
   },
   debounce: 5000,
   storageKey: `draft_${props.projectId}`,
   projectId: props.projectId,
-  moduleName: 'draft_generation',
+  moduleName: 'draft',
 })
 watch([content, form], () => { scheduleSave() }, { deep: true })
 
@@ -237,7 +237,7 @@ onMounted(async () => {
     }
     try {
       const allData = await getAllModuleData(props.projectId)
-      const sceneDesign = allData?.modules?.['scene_design']
+      const sceneDesign = allData?.modules?.['chapter_plan']?.scene_designs
       if (sceneDesign && !form.skeleton) {
         const scenes = sceneDesign.scenes || sceneDesign || []
         if (Array.isArray(scenes) && scenes.length > 0) {

@@ -170,7 +170,7 @@ onMounted(async () => {
       const wh = Array.isArray(world.history) ? world.history : []
       if (!historyEvents.value.length) historyEvents.value = wh
     }
-    const story = allData?.modules?.['story_architecture']
+    const story = allData?.modules?.['architecture']
     if (story?.plotEvents && Array.isArray(story.plotEvents)) {
       historyEvents.value.push(...story.plotEvents)
     }

@@ -37,7 +37,7 @@ export function useChapters(projectId: string) {
         }
       }
 
-      const drafts = modules['draft_generation']
+      const drafts = modules['draft']
       if (Array.isArray(drafts) && drafts.length > 0) {
         return drafts.map((d: any) => ({
           value: d.chapter_no ?? d.chapterNo ?? d.id ?? 1,

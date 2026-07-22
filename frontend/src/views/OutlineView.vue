@@ -171,7 +171,7 @@ async function generate() {
     const allData = await getAllModuleData(props.projectId)
     const chars = allData?.modules?.['characters']
     const world = allData?.modules?.['world']
-    const storyArch = allData?.modules?.['story_architecture']
+    const storyArch = allData?.modules?.['architecture']
     const storySystem = {
       theme: form.title || storyArch?.story?.theme || '',
       conflict: form.conflict || storyArch?.story?.coreConflict || '',
@@ -215,7 +215,7 @@ async function prefillFromStory() {
   prefillLoading.value = true
   let saved: any
   try {
-    saved = await getModuleData(props.projectId, 'story_architecture')
+    saved = await getModuleData(props.projectId, 'architecture')
   } catch (e) {
     toast.error('从故事框架预填数据失败')
     prefillLoading.value = false

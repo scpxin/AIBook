@@ -265,21 +265,24 @@ export function useTemplateStore() {
     }
 
     if (moduleKey === 'factions') {
-      const facs = outputData.factions
-      if (Array.isArray(facs)) {
-        ctx.factions = facs
-          .filter((f: any) => f && f.name)
-          .map((f: any) => f.name)
+      // factions merged into world: update world context's factions field
+      const facs: string[] = []
+      if (Array.isArray(outputData)) {
+        for (const f of outputData) {
+          if (f.groupName) facs.push(f.groupName)
+        }
       }
+      if (facs.length) ctx.factions = facs
     }
 
     if (moduleKey === 'power_system') {
-      if (outputData.system_type || outputData.systemType) {
-        ctx.powerSystem = outputData.system_type || outputData.systemType
+      // power_system merged into world: update world context's powerSystem field
+      if (outputData.systemType || outputData.intro) {
+        ctx.powerSystem = outputData.intro || outputData.systemType || ''
       }
     }
 
-    if (moduleKey === 'story_architecture') {
+    if (moduleKey === 'architecture') {
       const nodes = outputData.plot_nodes || outputData.key_events
       if (Array.isArray(nodes)) {
         ctx.plotNodes = nodes
