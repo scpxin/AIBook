@@ -176,48 +176,6 @@ export function checkStoryConsistency(projectId: string, storyData: any, charact
   })
 }
 
-// ========== M6: 力量体系 ==========
-
-export function generatePowerSystem(projectId: string, worldRules: any, characterAbilities?: any[]) {
-  return apiPost<PowerSystem>('/api/v2/power-system/generate', {
-    project_id: projectId, world_rules: worldRules, character_abilities: characterAbilities,
-  }, 300000)
-}
-
-export function savePowerSystem(projectId: string, data: any) {
-  return apiPost<{ saved: boolean }>('/api/v2/power-system/save', {
-    project_id: projectId, data,
-  })
-}
-
-// ========== M7: 势力 ==========
-
-export function generateFactions(projectId: string, civilization: any, characters?: Character[]) {
-  return apiPost<{ factions: Faction[]; metaAnalysis: string }>('/api/v2/factions/generate', {
-    project_id: projectId, civilization, characters,
-  }, 180000)
-}
-
-export function saveFactions(projectId: string, factions: Faction[]) {
-  return apiPost<{ saved: boolean; count: number }>('/api/v2/factions/save', {
-    project_id: projectId, factions,
-  })
-}
-
-// ========== M8: 时间线 ==========
-
-export function buildTimeline(projectId: string, worldHistory: any, storyEvents: any) {
-  return apiPost<Timeline>('/api/v2/timeline/build', {
-    project_id: projectId, world_history: worldHistory, story_events: storyEvents,
-  }, 300000)
-}
-
-export function saveTimeline(projectId: string, data: any) {
-  return apiPost<{ saved: boolean }>('/api/v2/timeline/save', {
-    project_id: projectId, data,
-  })
-}
-
 // ========== M9: 全书大纲 ==========
 
 export function generateMasterOutline(projectId: string, storySystem: any) {

@@ -9,16 +9,10 @@ from app.models.v2_schemas import (
     ChaptersOutlineSaveRequest,
     ChaptersPlanRequest,
     ChaptersPlanSaveRequest,
-    FactionsGenerateRequest,
-    FactionsSaveRequest,
     OutlineMasterRequest,
     OutlineSaveRequest,
     PlotNodesGenerateRequest,
     PlotNodesSaveRequest,
-    PowerSystemGenerateRequest,
-    PowerSystemSaveRequest,
-    TimelineBuildRequest,
-    TimelineSaveRequest,
     VolumeGenerateBatchRequest,
     VolumeGenerateRequest,
     VolumeSaveRequest,
@@ -26,11 +20,8 @@ from app.models.v2_schemas import (
 from app.services.structure_service import (
     ChapterOutlineService,
     ChapterPlanService,
-    FactionService,
     MasterOutlineService,
     PlotNodeService,
-    PowerSystemService,
-    TimelineService,
     VolumeService,
 )
 from app.utils.errors import categorize_error as _categorize_error
@@ -38,90 +29,6 @@ from app.utils.errors import categorize_error as _categorize_error
 logger = logging.getLogger('novel_creator.api.v2.structure')
 
 router = APIRouter(prefix="/api/v2", tags=["V2结构层+规划层"])
-
-
-# ========== M6: 力量体系 ==========
-
-@router.post("/power-system/generate")
-def power_generate(payload: PowerSystemGenerateRequest):
-    """POST /api/v2/power-system/generate — 完整力量体系"""
-    result, err = PowerSystemService.generate(
-        payload.project_id,
-        payload.world_rules,
-        payload.character_abilities,
-    )
-    if err:
-        msg, status = _categorize_error(err)
-        raise HTTPException(status, msg)
-    return {"ok": True, "data": result}
-
-
-@router.post("/power-system/save")
-def power_save(payload: PowerSystemSaveRequest):
-    """POST /api/v2/power-system/save"""
-    result, err = PowerSystemService.save(
-        payload.project_id, payload.data,
-    )
-    if err:
-        msg, status = _categorize_error(err)
-        raise HTTPException(status, msg)
-    return {"ok": True, "data": result}
-
-
-# ========== M7: 势力体系 ==========
-
-@router.post("/factions/generate")
-def factions_generate(payload: FactionsGenerateRequest):
-    """POST /api/v2/factions/generate"""
-    result, err = FactionService.generate(
-        payload.project_id,
-        payload.civilization,
-        payload.characters,
-    )
-    if err:
-        msg, status = _categorize_error(err)
-        raise HTTPException(status, msg)
-    return {"ok": True, "data": result}
-
-
-@router.post("/factions/save")
-def factions_save(payload: FactionsSaveRequest):
-    """POST /api/v2/factions/save"""
-    result, err = FactionService.save(
-        payload.project_id, payload.factions,
-    )
-    if err:
-        msg, status = _categorize_error(err)
-        raise HTTPException(status, msg)
-    return {"ok": True, "data": result}
-
-
-# ========== M8: 时间线 ==========
-
-@router.post("/timeline/build")
-def timeline_build(payload: TimelineBuildRequest):
-    """POST /api/v2/timeline/build"""
-    result, err = TimelineService.build(
-        payload.project_id,
-        payload.world_history,
-        payload.story_events,
-    )
-    if err:
-        msg, status = _categorize_error(err)
-        raise HTTPException(status, msg)
-    return {"ok": True, "data": result}
-
-
-@router.post("/timeline/save")
-def timeline_save(payload: TimelineSaveRequest):
-    """POST /api/v2/timeline/save"""
-    result, err = TimelineService.save(
-        payload.project_id, payload.data,
-    )
-    if err:
-        msg, status = _categorize_error(err)
-        raise HTTPException(status, msg)
-    return {"ok": True, "data": result}
 
 
 # ========== M9: 全书大纲 ==========
@@ -209,7 +116,7 @@ def volumes_save(payload: VolumeSaveRequest):
     return {"ok": True, "data": result}
 
 
-# ========== M11: 剧情节点 ==========
+# ========== M11: 剧情节点 (由 Architecture 模块使用) ==========
 
 @router.post("/plot-nodes/generate")
 def plot_nodes_generate(payload: PlotNodesGenerateRequest):
