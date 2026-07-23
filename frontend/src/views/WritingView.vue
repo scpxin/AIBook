@@ -319,7 +319,7 @@ async function retryLoad() {
         const chaptersData = await execution.getChaptersForWriting(projectId.value)
         if (chaptersData?.length) { chapters.value = chaptersData as any; return }
       } catch (_e) { /* fallback to v2 */ }
-      // Fallback: 从v2 pipeline chapter_outline加载
+      // Fallback: 从v2 pipeline chapter_plan加载
       const outlineData = await v2Api.getModuleData(projectId.value, 'chapter_plan')
       const raw = outlineData?.data
       if (raw) {

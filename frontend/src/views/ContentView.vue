@@ -58,7 +58,7 @@
           </div>
         </div>
       </div>
-      <div v-if="moduleType === 'knowledge_update' && knowledgeAdded.length" class="diff-box">
+      <div v-if="moduleType === 'parse' && knowledgeAdded.length" class="diff-box">
         <h4>知识库更新 (&times;{{ knowledgeAdded.length }})</h4>
         <ul class="knowledge-list">
           <li v-for="(item, i) in knowledgeAdded" :key="i">{{ item }}</li>
@@ -143,7 +143,7 @@ const contentLabel = computed(() => {
 
 const contentPlaceholder = computed(() => {
   if (props.moduleType === 'polish') return '粘贴需要润色的正文内容...'
-  if (props.moduleType === 'content_parsing' || props.moduleType === 'parse') return '粘贴需要解析的正文内容...'
+  if (props.moduleType === 'parse' || props.moduleType === 'parse') return '粘贴需要解析的正文内容...'
   return '粘贴或输入正文内容...'
 })
 
@@ -207,7 +207,6 @@ async function runModule() {
         toast.success('润色完成')
         break
       }
-      case 'content_parsing':
       case 'parse': {
         const allData = await v2Api.getAllModuleData(props.projectId).catch(() => null)
         const chars = allData?.modules?.['characters']
@@ -226,19 +225,11 @@ async function runModule() {
         }
         break
       }
-      case 'knowledge_update': {
-        const parseRes = await v2Api.parseContent(pid, chapterNo, content).catch(() => ({}))
-        const res = await v2Api.updateKnowledge(pid, chapterNo, parseRes)
-        result.value = { updated: (res as any).updated, count: (res as any).count || 0 }
-        knowledgeAdded.value = (res as any).added || []
-        toast.success(`知识库更新完成，新增 ${knowledgeAdded.value.length} 条`)
-        break
-      }
-      case 'consistency_check':
+      case 'consistency':
       case 'consistency': {
         const allData = await v2Api.getAllModuleData(props.projectId).catch(() => null)
         const modules = allData?.modules || {}
-        const knowledgeState = modules['consistency_check'] || modules['consistency'] || null
+        const knowledgeState = modules['consistency'] || modules['consistency'] || null
         const chars = modules['characters']
         const characters = Array.isArray(chars) ? chars : (chars ? [
           chars.protagonist,

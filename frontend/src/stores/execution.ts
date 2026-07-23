@@ -170,8 +170,8 @@ export const useExecutionStore = defineStore('execution', () => {
         let outlineList: OutlineItemRaw[] = []
         if (Array.isArray(outlines)) {
           outlineList = outlines
-        } else if (outlines.chapter_outline && Array.isArray(outlines.chapter_outline)) {
-          outlineList = outlines.chapter_outline
+        } else if (outlines.chapter_plan && Array.isArray(outlines.chapter_plan)) {
+          outlineList = outlines.chapter_plan
         } else if (outlines.module_data && Array.isArray(outlines.module_data)) {
           outlineList = outlines.module_data
         } else if (outlines.chapters && Array.isArray(outlines.chapters)) {

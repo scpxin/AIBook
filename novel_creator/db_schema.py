@@ -3,7 +3,7 @@ Schema Version: 1
 """
 
 V2_SCHEMA_DDL = """            /* ========================================
-             * V2 数据库 — 18模块创作流水线
+             * V2 数据库 — 13模块创作流水线
              * Schema Version: 1
              * ======================================== */
 
@@ -306,7 +306,7 @@ V2_SCHEMA_DDL = """            /* ========================================
                 UNIQUE(project_id, foreshadow_id)
             );
 
-            /* 14. 知识库 (模块17-18) */
+            /* 14. 知识库 */
             CREATE TABLE IF NOT EXISTS v2_knowledge_states (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id TEXT NOT NULL UNIQUE,

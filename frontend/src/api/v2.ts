@@ -433,7 +433,7 @@ export async function characterConsistencyCheck(projectId: string) {
 }
 
 export function getDrafts(projectId: string) {
-  return apiGet<any[]>(`/api/v2/pipeline/${projectId}/data/draft_generation`)
+  return apiGet<any[]>(`/api/v2/pipeline/${projectId}/data/draft`)
 }
 
 export function testModelConnection(endpoint: string, apiKey: string, model: string) {

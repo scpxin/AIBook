@@ -8,7 +8,7 @@
     <div class="sub-tabs">
       <button :class="{ active: activeSubTab === 'volumes' }" @click="activeSubTab = 'volumes'">卷纲</button>
       <button :class="{ active: activeSubTab === 'chapter_plan' }" @click="activeSubTab = 'chapter_plan'">章节规划</button>
-      <button :class="{ active: activeSubTab === 'chapter_outline' }" @click="activeSubTab = 'chapter_outline'">章节细纲</button>
+      <button :class="{ active: activeSubTab === 'chapter_plan' }" @click="activeSubTab = 'chapter_plan'">章节细纲</button>
       <button :class="{ active: activeSubTab === 'scene_design' }" @click="activeSubTab = 'scene_design'">场景设计</button>
     </div>
     <div v-if="activeSubTab === 'volumes'" class="sub-pane">
@@ -88,7 +88,7 @@
       </div>
     </div>
 
-    <div v-else-if="moduleKey === 'chapter_outline'" class="sub-pane">
+    <div v-else-if="moduleKey === 'chapter_plan'" class="sub-pane">
       <h4>章节细纲</h4>
       <p class="tip">为每个章节写出场景、情绪、核心动作的详细大纲</p>
       <div class="form-group">
@@ -104,7 +104,7 @@
           <option value="fine">细纲(每章8-15句)</option>
         </select>
       </div>
-      <div v-if="moduleKey === 'chapter_outline'" class="form-group">
+      <div v-if="moduleKey === 'chapter_plan'" class="form-group">
         <label>章节总数</label>
         <input v-model.number="form.totalChapters" type="number" min="1" max="1000" />
       </div>
@@ -225,8 +225,7 @@ const upstreamRawData = ref<any>({})
 
 const formDefaults: Record<string, any> = {
   volumes: { volumeCount: '5', chaptersPerVolume: 20, themes: '' },
-  chapter_plan: { totalChapters: 100, wordsPerChapter: 3000, rhythmMode: '3chapter' },
-  chapter_outline: { detailLevel: 'medium', focusChapters: '', totalChapters: 10 },
+  chapter_plan: { totalChapters: 100, wordsPerChapter: 3000, rhythmMode: '3chapter', detailLevel: 'medium', focusChapters: '' },
   scene_design: { chapterNo: 1, sceneName: '', atmosphere: 'tense', characters: '', event: '', hook: '' },
 }
 
@@ -249,7 +248,7 @@ const planningData = () => {
    const key = activeSubTab.value
    if (key === 'volumes') return { volumes: volumeList.value, form: form.value }
    if (key === 'chapter_plan') return { chapterPlans: chapterPlans.value, form: form.value }
-   if (key === 'chapter_outline') return { chapterOutlines: chapterOutlines.value, form: form.value }
+   if (key === 'chapter_plan') return { chapterOutlines: chapterOutlines.value, form: form.value }
    if (key === 'scene_design') return { sceneDesigns: sceneDesigns.value, form: sceneForm }
    return { volumes: volumeList.value, chapterPlans: chapterPlans.value, chapterOutlines: chapterOutlines.value, form: form.value }
 }
@@ -274,7 +273,7 @@ onMounted(async () => {
       if (Array.isArray(raw)) {
         if (activeSubTab.value === 'volumes') { volumeList.value = raw; return }
         if (activeSubTab.value === 'chapter_plan') { chapterPlans.value = raw; return }
-        if (activeSubTab.value === 'chapter_outline') { chapterOutlines.value = raw; return }
+        if (activeSubTab.value === 'chapter_plan') { chapterOutlines.value = raw; return }
       }
       if (raw.form || raw.volumes || raw.chapterPlans || raw.chapterOutlines) {
         if (raw.form) Object.assign(form.value, raw.form)
@@ -303,11 +302,11 @@ onMounted(async () => {
       const sa = modules['architecture']
       const pn = sa?.plot_nodes
       upstreamData.value = (pn && pn.length) ? `已加载${pn.length}个剧情节点` : ''
-    } else if (activeSubTab.value === 'chapter_outline') {
+    } else if (activeSubTab.value === 'chapter_plan') {
       const plans = modules['chapter_plan']
       upstreamData.value = plans ? `已加载章节规划数据` : ''
     } else if (activeSubTab.value === 'scene_design') {
-      const outlines = modules['chapter_outline']
+      const outlines = modules['chapter_plan']
       upstreamData.value = outlines ? `已加载章节细纲数据` : ''
     }
   } catch (_e) { /* ignore */ } finally { pageLoading.value = false }
@@ -357,13 +356,13 @@ async function generate() {
       chapterPlans.value = result ? (Array.isArray(result) ? result : (result.chapters || [])) : []
       if (!chapterPlans.value.length) useOfflineMode()
       else await saveModuleData(props.projectId, 'chapter_plan', { chapterPlans: chapterPlans.value, form: form.value })
-    } else if (key === 'chapter_outline') {
+    } else if (key === 'chapter_plan') {
       const chapterPlansData = modules['chapter_plan'] || {}
       const total = form.value.totalChapters || 10
       const result = await v2Api.generateChapterOutlines(props.projectId, total, chapterPlansData)
       const items = (result as any).outlines || (result as any).chapters || (result as any).items || []
       chapterOutlines.value = items
-      await saveModuleData(props.projectId, 'chapter_outline', { chapterOutlines: chapterOutlines.value, form: form.value })
+      await saveModuleData(props.projectId, 'chapter_plan', { chapterOutlines: chapterOutlines.value, form: form.value })
     } else if (key === 'scene_design') {
       const chapterNo = sceneForm.chapterNo || 1
       const chapterOutline = {
@@ -410,7 +409,7 @@ function useOfflineMode() {
       pace: i % 3 === 0 ? '高' : i % 3 === 1 ? '中' : '低',
       hook_type: i % 4 === 0 ? '悬念' : i % 4 === 1 ? '爽点' : i % 4 === 2 ? '反转' : '铺垫',
     }))
-  } else if (key === 'chapter_outline') {
+  } else if (key === 'chapter_plan') {
     const density = form.value.detailLevel === 'coarse' ? 3 : form.value.detailLevel === 'medium' ? 6 : 10
     chapterOutlines.value = Array.from({ length: 3 }, (_, i) => ({
       title: `第${i + 1}章大纲`,

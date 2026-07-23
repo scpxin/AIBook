@@ -48,21 +48,8 @@ def _extract_entities(module_key: str, data: Any) -> dict[str, Any]:
                         chars.append(c['name'])
         entities['characters'] = chars
 
-    elif module_key == 'factions':
-        fac_list = data.get('factions', [])
-        if isinstance(fac_list, list):
-            entities['faction_names'] = [f.get('name', '') for f in fac_list if isinstance(f, dict)]
-
-    elif module_key == 'power_system':
-        entities['system_type'] = data.get('system_type', data.get('systemType', ''))
-        levels = data.get('levels', data.get('tiers', []))
-        if isinstance(levels, str):
-            entities['levels'] = [l.strip() for l in levels.split('\n') if l.strip()]
-        elif isinstance(levels, list):
-            entities['levels'] = [l.get('name', str(l)) if isinstance(l, dict) else str(l) for l in levels]
-
-    elif module_key == 'story_architecture':
-        entities['plot_nodes'] = data.get('plot_nodes', data.get('key_events', []))
+    elif module_key == 'architecture':
+        entities['plot_nodes'] = data.get('key_events', data.get('plot_nodes', []))
         if isinstance(entities['plot_nodes'], list):
             entities['plot_nodes'] = [p.get('name', p.get('event', '')) if isinstance(p, dict) else str(p) for p in entities['plot_nodes']]
 
@@ -81,15 +68,7 @@ def _extract_entities(module_key: str, data: Any) -> dict[str, Any]:
         if isinstance(plans, list):
             entities['chapter_count'] = len(plans)
 
-    elif module_key == 'scene_design':
-        scenes = data.get('scenes', [])
-        if isinstance(scenes, list):
-            entities['scene_locations'] = [s.get('location', s.get('place', '')) if isinstance(s, dict) else '' for s in scenes]
 
-    elif module_key == 'timeline':
-        events = data.get('events', data.get('timeline', []))
-        if isinstance(events, list):
-            entities['event_count'] = len(events)
 
     return entities
 
@@ -155,21 +134,19 @@ def _auto_generate_name(module_key: str, ctx: dict, entities: dict) -> str:
     """自动生成模板名称"""
     genre = ctx.get('genre', '通用')
     module_names = {
+        'idea': '灵感',
+        'project': '项目定位',
         'world': '世界观',
         'characters': '角色',
-        'factions': '势力',
-        'power_system': '力量体系',
-        'story_architecture': '故事架构',
+        'architecture': '故事架构',
+        'relation_map': '关系图谱',
         'outline': '全书大纲',
         'volumes': '卷纲',
         'chapter_plan': '章节规划',
-        'chapter_outline': '章节细纲',
-        'scene_design': '场景设计',
-        'plot_nodes': '剧情节点',
-        'timeline': '时间线',
-        'idea': '灵感',
-        'project': '项目定位',
-        'draft_generation': '正文',
+        'draft': '正文',
+        'parse': '内容解析',
+        'polish': '润色',
+        'consistency': '一致性检查',
     }
     module_name = module_names.get(module_key, module_key)
     world_type = ctx.get('world_type', '')
@@ -296,8 +273,6 @@ def _has_entity_conflict(module_a: str, entities_a: dict, module_b: str, entitie
     """检查两个模块的实体引用是否冲突"""
     type_dependent_pairs = {
         ('characters', 'world'): [('characters', 'world_type')],
-        ('factions', 'world'): [('faction_names', 'world_type')],
-        ('scene_design', 'characters'): [('scene_locations', 'characters')],
         ('outline', 'world'): [('chapter_titles', 'world_type')],
     }
 
@@ -435,7 +410,7 @@ def seed_system_templates():
         },
         {
             'name': '玄幻-东方修真-修炼体系模板',
-            'module_key': 'power_system',
+            'module_key': 'world',
             'genre': '玄幻',
             'world_type': '东方',
             'tone': '热血',
@@ -450,7 +425,7 @@ def seed_system_templates():
         },
         {
             'name': '玄幻-东方修真-故事架构模板',
-            'module_key': 'story_architecture',
+            'module_key': 'architecture',
             'genre': '玄幻',
             'world_type': '东方',
             'tone': '热血',
@@ -466,7 +441,7 @@ def seed_system_templates():
         },
         {
             'name': '都市-现代-故事架构模板',
-            'module_key': 'story_architecture',
+            'module_key': 'architecture',
             'genre': '都市',
             'world_type': '现代',
             'tone': '轻松',
