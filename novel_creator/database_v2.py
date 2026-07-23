@@ -199,17 +199,20 @@ def save_world(project_id, data):
         now = _v2_now()
         conn.execute("""
             INSERT INTO v2_world_buildings (project_id, origin, rules, structure, civilization,
-                history, doc_path, world_foreshadows, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+                history, doc_path, world_foreshadows, power_system, factions, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(project_id) DO UPDATE SET
                 origin=excluded.origin, rules=excluded.rules, structure=excluded.structure,
                 civilization=excluded.civilization, history=excluded.history,
                 doc_path=excluded.doc_path, world_foreshadows=excluded.world_foreshadows,
+                power_system=excluded.power_system, factions=excluded.factions,
                 updated_at=excluded.updated_at
         """, (project_id, _j(data.get('origin', {})), _j(data.get('rules', [])),
               _j(data.get('structure', {})), _j(data.get('civilization', {})),
               _j(data.get('history', [])), data.get('doc_path', ''),
-              _j(data.get('world_foreshadows', [])), now, now))
+              _j(data.get('world_foreshadows', [])),
+              _j(data.get('power_system', {})), _j(data.get('factions', [])),
+              now, now))
         conn.commit()
         conn.close()
 
@@ -576,8 +579,8 @@ def save_chapter_plan(project_id, chapter_no, data):
                 plot_nodes_covered, timeline_events, hook_type, cliffhanger,
                 protagonist_level, locations, dialogue_ratio, pacing,
                 foreshadows_to_add, foreshadows_to_recycle, emotion_curve,
-                scenes, knowledge_update, status, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                scenes, knowledge_update, scene_designs, status, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(project_id, chapter_no) DO UPDATE SET
                 title=excluded.title, target_words=excluded.target_words,
                 plot_nodes_covered=excluded.plot_nodes_covered,
@@ -587,7 +590,8 @@ def save_chapter_plan(project_id, chapter_no, data):
                 pacing=excluded.pacing, foreshadows_to_add=excluded.foreshadows_to_add,
                 foreshadows_to_recycle=excluded.foreshadows_to_recycle,
                 emotion_curve=excluded.emotion_curve, scenes=excluded.scenes,
-                knowledge_update=excluded.knowledge_update, status=excluded.status,
+                knowledge_update=excluded.knowledge_update,
+                scene_designs=excluded.scene_designs, status=excluded.status,
                 updated_at=excluded.updated_at
         """, (project_id, chapter_no, data.get('title', ''),
               data.get('target_words', 2000), _j(data.get('plot_nodes_covered', [])),
@@ -597,6 +601,7 @@ def save_chapter_plan(project_id, chapter_no, data):
               data.get('pacing', 'normal'), _j(data.get('foreshadows_to_add', [])),
               _j(data.get('foreshadows_to_recycle', [])), _j(data.get('emotion_curve', [])),
               _j(data.get('scenes', [])), _j(data.get('knowledge_update', {})),
+              _j(data.get('scene_designs', [])),
               data.get('status', 'planned'), now, now))
         conn.commit()
         conn.close()

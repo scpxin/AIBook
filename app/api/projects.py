@@ -92,89 +92,26 @@ def project_save_v2(body: dict):
 
 
 def _save_module_data(project_id: str, module_name: str, data: any):
-    """根据模块名选择正确的保存方式"""
-    from novel_creator import database_v2
+    """根据模块名选择正确的保存方式（统一走 DataBridge）"""
+    from novel_creator import DataBridge
     from app.services.pipeline import LEGACY_MODULE_MAP
     # 归一化旧模块名
     resolved = LEGACY_MODULE_MAP.get(module_name)
     if resolved is not None:
         module_name = resolved
 
-    save_map = {
-        "idea": lambda pid, d: database_v2.save_pipeline_state(pid, "idea", d.get('module_data', d) if isinstance(d, dict) else d),
-        "project": lambda pid, d: database_v2.save_pipeline_state(pid, "project", d.get('module_data', d) if isinstance(d, dict) else d),
-        "world": database_v2.save_world,
-        "characters": lambda pid, d: _save_characters_from_data(pid, d),
-        "architecture": lambda pid, d: database_v2.save_pipeline_state(pid, "architecture", d.get('module_data', d) if isinstance(d, dict) else d),
-        "relation_map": lambda pid, d: database_v2.save_relation_map(pid, d),
-        "outline": lambda pid, d: database_v2.save_pipeline_state(pid, "outline", d.get('module_data', d) if isinstance(d, dict) else d),
-        "volumes": lambda pid, d: _save_volumes_from_data(pid, d),
-        "chapter_plan": lambda pid, d: _save_chapter_plans_from_data(pid, d),
-        "draft": lambda pid, d: _save_drafts_from_data(pid, d),
-        "parse": lambda pid, d: database_v2.save_pipeline_state(pid, "parse", d.get('module_data', d) if isinstance(d, dict) else d),
-        "polish": lambda pid, d: database_v2.save_pipeline_state(pid, "polish", d.get('module_data', d) if isinstance(d, dict) else d),
-        "consistency": database_v2.save_consistency_report,
-    }
-    save_fn = save_map.get(module_name)
-    if save_fn:
+    db_modules = {"world", "characters", "relation_map", "volumes", "chapter_plan", "draft", "consistency"}
+    if module_name in db_modules:
         try:
-            save_fn(project_id, data)
-        except Exception:
-            database_v2.save_pipeline_state(project_id, module_name,
+            DataBridge.write(project_id, module_name,
                 data.get('module_data', data) if isinstance(data, dict) else data)
-    else:
-        database_v2.save_pipeline_state(project_id, module_name,
-            data.get('module_data', data) if isinstance(data, dict) else data)
-
-
-def _save_characters_from_data(project_id, data):
+            return
+        except Exception:
+            pass
+    # 回退到 pipeline_state
     from novel_creator import database_v2
-    if isinstance(data, dict) and 'module_data' in data:
-        data = data['module_data']
-    if isinstance(data, dict):
-        chars = data.get('characters') or data.get('protagonists') or []
-        villains = data.get('villains') or data.get('antagonists') or []
-        for i, c in enumerate(chars if isinstance(chars, list) else [chars]):
-            cid = c.get('charId') or c.get('id') or c.get('name', f'char_{i}')
-            database_v2.save_character(project_id, str(cid), c)
-        for i, v in enumerate(villains if isinstance(villains, list) else [villains]):
-            vid = v.get('charId') or v.get('id') or v.get('name', f'villain_{i}')
-            v_data = {**v, 'role_type': 'antagonist'}
-            database_v2.save_character(project_id, str(vid), v_data)
-
-
-def _save_volumes_from_data(project_id, data):
-    from novel_creator import database_v2
-    if isinstance(data, dict) and 'module_data' in data:
-        data = data['module_data']
-    volumes = data.get('volumes', data) if isinstance(data, dict) else data
-    for v in (volumes if isinstance(volumes, list) else [volumes] if isinstance(volumes, dict) else []):
-        vno = v.get('volume_no') or v.get('id') or 1
-        database_v2.save_volume(project_id, int(vno), v)
-
-
-def _save_chapter_plans_from_data(project_id, data):
-    from novel_creator import database_v2
-    if isinstance(data, dict) and 'module_data' in data:
-        data = data['module_data']
-    plans = data.get('chapterPlans', data) if isinstance(data, dict) else data
-    for p in (plans if isinstance(plans, list) else [plans] if isinstance(plans, dict) else []):
-        cno = p.get('chapter_no') or p.get('id') or '1'
-        database_v2.save_chapter_plan(project_id, str(cno), p)
-
-
-def _save_drafts_from_data(project_id, data):
-    from novel_creator import database_v2
-    if isinstance(data, dict) and 'module_data' in data:
-        data = data['module_data']
-    drafts = data.get('drafts', data) if isinstance(data, dict) else data
-    if isinstance(drafts, list):
-        for d in drafts:
-            ch = str(d.get('chapter_no', '1'))
-            database_v2.save_draft(project_id, ch, d)
-    elif isinstance(drafts, dict):
-        for ch, content in drafts.items():
-            database_v2.save_draft(project_id, ch, content)
+    database_v2.save_pipeline_state(project_id, module_name,
+        data.get('module_data', data) if isinstance(data, dict) else data)
 
 
 def _update_pipeline_status(project_id: str, pipeline_state: dict):
