@@ -34,10 +34,10 @@ class TestDatabaseV2Init:
             'idea_templates', 'settings',
             'v2_characters', 'v2_chapter_plans', 'v2_consistency_reports',
             'v2_drafts', 'v2_factions', 'v2_ideas',
-            'v2_knowledge_states', 'v2_plot_nodes', 'v2_power_systems',
-            'v2_projects', 'v2_relation_maps', 'v2_scenes',
-            'v2_story_systems', 'v2_timelines', 'v2_volumes',
-            'v2_world_buildings',
+            'v2_knowledge_states', 'v2_pipeline_states', 'v2_plot_nodes',
+            'v2_power_systems', 'v2_projects', 'v2_relation_maps',
+            'v2_scenes', 'v2_story_systems', 'v2_timelines',
+            'v2_volumes', 'v2_world_buildings',
         ]
         for table in expected:
             assert table in tables, f"Table {table} not found in {tables}"
@@ -142,3 +142,21 @@ class TestDatabaseV2CRUD:
             conn.close()
 
         assert rows["cnt"] == 2
+
+    def test_v2_pipeline_state_modules(self, temp_db):
+        from novel_creator.database_v2 import init_db_v2, save_pipeline_state, get_pipeline_module_data
+        init_db_v2()
+
+        test_cases = [
+            ("architecture", {"type": "framework", "sections": 5}),
+            ("outline", {"chapters": 10, "theme": "adventure"}),
+            ("parse", {"status": "done", "parsed": 5}),
+            ("polish", {"round": 1, "changes": 3}),
+        ]
+
+        for module_name, data in test_cases:
+            save_pipeline_state("test-ps", module_name, data)
+
+        for module_name, expected in test_cases:
+            result = get_pipeline_module_data("test-ps", module_name)
+            assert result == expected, f"模块 {module_name} 数据不匹配: {result} != {expected}"
