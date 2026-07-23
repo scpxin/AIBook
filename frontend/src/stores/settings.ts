@@ -106,7 +106,7 @@ export const useSettingsStore = defineStore('settings', () => {
         }
       } catch { /* ignore */ }
     }
-  })
+  }).catch(() => { /* backend unavailable, fallback to localStorage */ })
 
   return {
     models,

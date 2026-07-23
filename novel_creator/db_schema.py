@@ -406,6 +406,11 @@ V2_SCHEMA_DDL = """            /* ========================================
             );
             CREATE INDEX IF NOT EXISTS idx_v2_pipeline_project ON v2_pipeline_states(project_id);
 
+            /* 复合索引 — 高频查询优化 */
+            CREATE INDEX IF NOT EXISTS idx_v2_drafts_project_chapter ON v2_drafts(project_id, chapter_no);
+            CREATE INDEX IF NOT EXISTS idx_v2_aigens_project_module ON v2_ai_generations(project_id, module_name);
+            CREATE INDEX IF NOT EXISTS idx_v2_fore_project_status ON v2_foreshadowings(project_id, status);
+
             /* 19. 生成模板库 — AI生成结果存为可复用模板 */
             CREATE TABLE IF NOT EXISTS v2_generation_templates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

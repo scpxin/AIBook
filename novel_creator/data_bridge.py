@@ -10,6 +10,7 @@ import threading
 from datetime import datetime
 
 _local = threading.local()
+_lock = threading.RLock()
 DB_PATH = os.environ.get(
     'DB_PATH',
     os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'fanqie.db'),
@@ -78,9 +79,10 @@ class DataBridge:
 
     @staticmethod
     def write(project_id, module, data):
-        method_name = DataBridge.WRITE_MAP.get(module, "_write_generic")
-        method = getattr(DataBridge, method_name, DataBridge._write_generic)
-        return method(project_id, data)
+        with _lock:
+            method_name = DataBridge.WRITE_MAP.get(module, "_write_generic")
+            method = getattr(DataBridge, method_name, DataBridge._write_generic)
+            return method(project_id, data)
 
     @staticmethod
     def _write_generic(project_id, data):
@@ -408,20 +410,22 @@ class DataBridge:
 
     @staticmethod
     def read(project_id, module, chapter_no=None):
-        method_name = DataBridge.READ_MAP.get(module)
-        if not method_name:
-            return None
-        method = getattr(DataBridge, method_name, None)
-        if not method:
-            return None
-        return method(project_id, chapter_no)
+        with _lock:
+            method_name = DataBridge.READ_MAP.get(module)
+            if not method_name:
+                return None
+            method = getattr(DataBridge, method_name, None)
+            if not method:
+                return None
+            return method(project_id, chapter_no)
 
     @staticmethod
     def read_all(project_id, chapter_no=None):
-        return {
-            k: getattr(DataBridge, v)(project_id, chapter_no)
-            for k, v in DataBridge.READ_MAP.items()
-        }
+        with _lock:
+            return {
+                k: getattr(DataBridge, v)(project_id, chapter_no)
+                for k, v in DataBridge.READ_MAP.items()
+            }
 
     # ========== M1: 灵感 ==========
 
