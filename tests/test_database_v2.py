@@ -144,7 +144,7 @@ class TestDatabaseV2CRUD:
         assert rows["cnt"] == 2
 
     def test_v2_pipeline_state_modules(self, temp_db):
-        from novel_creator.database_v2 import init_db_v2, save_pipeline_state, get_pipeline_module_data
+        from novel_creator.database_v2 import get_pipeline_module_data, init_db_v2, save_pipeline_state
         init_db_v2()
 
         test_cases = [

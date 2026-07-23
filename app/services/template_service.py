@@ -30,7 +30,7 @@ def _extract_entities(module_key: str, data: Any) -> dict[str, Any]:
             entities['world_type'] = wb.get('world_type', wb.get('worldType', ''))
             entities['locations'] = wb.get('locations', wb.get('territories', []))
             if isinstance(entities['locations'], str):
-                entities['locations'] = [l.strip() for l in entities['locations'].split('\n') if l.strip()]
+                entities['locations'] = [loc.strip() for loc in entities['locations'].split('\n') if loc.strip()]
             entities['factions'] = wb.get('factions_races', wb.get('races', []))
             if isinstance(entities['factions'], str):
                 entities['factions'] = [f.strip() for f in entities['factions'].split('\n') if f.strip()]

@@ -37,9 +37,12 @@ def _resolve_book_id(q: str):
     def extract(url):
         try:
             page = _http_get(url).decode('utf-8', errors='ignore')
-            m2 = re.search(r'"bookId"\s*:\s*"(\d+)"', page); bid = m2.group(1) if m2 else None
-            m2 = re.search(r'"bookName"\s*:\s*"([^"]+)"', page); title = m2.group(1) if m2 else None
-            m2 = re.search(r'"author"\s*:\s*"([^"]+)"', page); author = m2.group(1) if m2 else None
+            m2 = re.search(r'"bookId"\s*:\s*"(\d+)"', page)
+            bid = m2.group(1) if m2 else None
+            m2 = re.search(r'"bookName"\s*:\s*"([^"]+)"', page)
+            title = m2.group(1) if m2 else None
+            m2 = re.search(r'"author"\s*:\s*"([^"]+)"', page)
+            author = m2.group(1) if m2 else None
             return bid, title, author
         except (urllib.error.URLError, OSError, UnicodeDecodeError):
             return None, None, None
