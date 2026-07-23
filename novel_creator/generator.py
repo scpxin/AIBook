@@ -6,18 +6,12 @@ import re
 logger = logging.getLogger('novel_creator.generator')
 from .ai_client import AIClient
 from .craft_prompts import (
-    ANALYSIS_REPORT,
-    ANALYZE_GOLDEN_THREE,
-    ANALYZE_HOOKS,
-    ANALYZE_SATISFACTION_RHYTHM,
     CHAPTER_CONTINUATION_CRAFT,
     CHAPTER_CONTINUATION_CRAFT_STYLE,
     CHAPTER_GENERATION_CRAFT,
     CHAPTER_GENERATION_CRAFT_STYLE,
     CHAPTER_OUTLINE_CRAFT,
     CHAPTER_OUTLINE_CRAFT_STYLE,
-    DETECT_AI_FLAVOR,
-    FIX_AI_FLAVOR,
     INSPIRATION_DESCRIPTION_CRAFT,
     INSPIRATION_TITLE_CRAFT,
     QUALITY_SCORE,
@@ -44,8 +38,6 @@ from .prompts import (
     INSPIRATION_TITLE_STYLE,
     OUTLINE_CREATE,
     OUTLINE_CREATE_STYLE,
-    PLOT_ANALYSIS,
-    STYLE_ANALYSIS,
     WORLD_BUILDING,
     WORLD_BUILDING_STYLE,
     _fix_truncated_json,
@@ -1242,76 +1234,7 @@ class NovelGenerator:
 
         return all_characters, None
 
-    # ========== 分析功能 ==========
-
-    def analyze_style(self, content):
-        """分析写作风格"""
-        prompt = format_prompt(STYLE_ANALYSIS, content=content[:6000])
-        result, err = self._generate_json(prompt)
-        if err:
-            return None, err
-        return result, None
-
-    def analyze_chapter(self, chapter_number, title, content):
-        """分析章节"""
-        prompt = format_prompt(PLOT_ANALYSIS, chapter_number=chapter_number, title=title, content=content[:6000])
-        result, err = self._generate_json(prompt)
-        if err:
-            return None, err
-        return result, None
-
-    # ========== 仿写生成 ==========
-
-    def generate_with_style(self, style_profile, genre, count, protagonist, world, outline, target_word_count=3000):
-        """根据风格仿写生成小说"""
-        prompt = f"""你是一位专业小说作家。请根据以下风格特征，创作新的小说内容。
-
-=== 参考风格 ===
-{style_profile}
-
-=== 创作要求 ===
-- 题材：{genre}
-- 主角：{protagonist}
-- 世界观：{world}
-- 故事大纲：{outline}
-- 目标字数：{target_word_count}字
-
-请直接输出小说正文，从故事场景或动作开始。不要写标题，直接开始正文。"""
-        text, err = self.client.generate(prompt, temperature=0.8, max_tokens=8000)
-        return text, err
-
     # ========== 网文创作技法（Craft）==========
-
-    def detect_ai_flavor(self, content):
-        """检测AI味"""
-        prompt = format_prompt(DETECT_AI_FLAVOR, content=content[:6000])
-        result, err = self._generate_json(prompt)
-        return result, err
-
-    def fix_ai_flavor(self, content, issues):
-        """修复AI味"""
-        issues_text = "\n".join([f"- [{i.get('type', '未知')}] {i.get('excerpt', '')} (严重程度{i.get('severity', 3)}/5)" for i in (issues or [])])
-        prompt = format_prompt(FIX_AI_FLAVOR, content=content[:6000], issues=issues_text)
-        text, err = self.client.generate(prompt, temperature=0.3, max_tokens=8000)
-        return text, err
-
-    def analyze_golden_three(self, content):
-        """黄金三章拆解分析"""
-        prompt = format_prompt(ANALYZE_GOLDEN_THREE, content=content[:8000])
-        result, err = self._generate_json(prompt)
-        return result, err
-
-    def analyze_hooks(self, content):
-        """开篇钩子分析"""
-        prompt = format_prompt(ANALYZE_HOOKS, content=content[:6000])
-        result, err = self._generate_json(prompt)
-        return result, err
-
-    def analyze_satisfaction_rhythm(self, content):
-        """爽点节奏分析"""
-        prompt = format_prompt(ANALYZE_SATISFACTION_RHYTHM, content=content[:8000])
-        result, err = self._generate_json(prompt)
-        return result, err
 
     def quality_score(self, content, title="", genre=""):
         """质量评分"""
@@ -1506,8 +1429,3 @@ class NovelGenerator:
             return None, err
         return result[:10] if isinstance(result, list) else result, None
 
-    def generate_analysis_report(self, content):
-        """生成综合分析报告"""
-        prompt = format_prompt(ANALYSIS_REPORT, content=content[:4000])
-        text, err = self.client.generate(prompt, temperature=0.3, max_tokens=3000)
-        return text, err

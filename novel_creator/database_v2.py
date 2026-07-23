@@ -327,156 +327,44 @@ def get_relation_map(project_id):
     return d
 
 
-# ========== 故事体系 CRUD ==========
-
-def save_story(project_id, data):
-    """保存故事体系"""
-    with _v2_lock:
-        conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_story_systems (project_id, summary, conflict_layers, theme,
-                volume_cliffhangers, volumes_detail, total_plot_events, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id) DO UPDATE SET
-                summary=excluded.summary, conflict_layers=excluded.conflict_layers,
-                theme=excluded.theme, volume_cliffhangers=excluded.volume_cliffhangers,
-                volumes_detail=excluded.volumes_detail, total_plot_events=excluded.total_plot_events,
-                updated_at=excluded.updated_at
-        """, (project_id, data.get('summary', ''), _j(data.get('conflict_layers', [])),
-              data.get('theme', ''), _j(data.get('volume_cliffhangers', [])),
-              _j(data.get('volumes_detail', [])), _j(data.get('total_plot_events', [])),
-              now, now))
-        conn.commit()
-        conn.close()
-
-
-def get_story(project_id):
-    """获取故事体系"""
-    with _v2_lock:
-        conn = _v2_db()
-        row = conn.execute("SELECT * FROM v2_story_systems WHERE project_id=?", (project_id,)).fetchone()
-        conn.close()
-    if not row:
-        return None
-    d = dict(row)
-    d['conflict_layers'] = _jl(d.get('conflict_layers', '[]'))
-    d['volume_cliffhangers'] = _jl(d.get('volume_cliffhangers', '[]'))
-    d['volumes_detail'] = _jl(d.get('volumes_detail', '[]'))
-    d['total_plot_events'] = _jl(d.get('total_plot_events', '[]'))
-    return d
-
 
 # ========== 力量/势力/时间线 CRUD ==========
 
-def save_power_system(project_id, data):
-    """保存力量体系"""
-    with _v2_lock:
-        conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_power_systems (project_id, tiers, combat_categories,
-                growth_method, limits, bottlenecks, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id) DO UPDATE SET
-                tiers=excluded.tiers, combat_categories=excluded.combat_categories,
-                growth_method=excluded.growth_method, limits=excluded.limits,
-                bottlenecks=excluded.bottlenecks, updated_at=excluded.updated_at
-        """, (project_id, _j(data.get('tiers', [])), _j(data.get('combat_categories', [])),
-              data.get('growth_method', ''), _j(data.get('limits', [])),
-              _j(data.get('bottlenecks', [])), now, now))
-        conn.commit()
-        conn.close()
+def save_power_system(*args, **kwargs):
+    """[DEPRECATED] 力量体系 — 数据已合并，请通过 DataBridge 写入"""
+    import warnings
+    warnings.warn('use DataBridge.write(project_id, "world", ...)', DeprecationWarning, stacklevel=2)
+    return None
 
+def get_power_system(*args, **kwargs):
+    """[DEPRECATED] 力量体系 — 数据已合并，请通过 DataBridge 写入"""
+    import warnings
+    warnings.warn('use DataBridge.write(project_id, "world", ...)', DeprecationWarning, stacklevel=2)
+    return None
 
-def get_power_system(project_id):
-    with _v2_lock:
-        conn = _v2_db()
-        row = conn.execute("SELECT * FROM v2_power_systems WHERE project_id=?", (project_id,)).fetchone()
-        conn.close()
-    if not row:
-        return None
-    d = dict(row)
-    d['tiers'] = _jl(d.get('tiers', '[]'))
-    d['combat_categories'] = _jl(d.get('combat_categories', '[]'))
-    d['growth_method'] = _jl(d.get('growth_method', ''))
-    d['limits'] = _jl(d.get('limits', '[]'))
-    d['bottlenecks'] = _jl(d.get('bottlenecks', '[]'))
-    return d
+def save_faction(*args, **kwargs):
+    """[DEPRECATED] 势力 — 数据已合并，请通过 DataBridge 写入"""
+    import warnings
+    warnings.warn('use DataBridge.write(project_id, "world", ...)', DeprecationWarning, stacklevel=2)
+    return None
 
+def get_factions(*args, **kwargs):
+    """[DEPRECATED] 势力 — 数据已合并，请通过 DataBridge 写入"""
+    import warnings
+    warnings.warn('use DataBridge.write(project_id, "world", ...)', DeprecationWarning, stacklevel=2)
+    return None
 
-def save_faction(project_id, faction_id, data):
-    """保存势力"""
-    with _v2_lock:
-        conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_factions (project_id, faction_id, name, faction_type, territory,
-                leader_char_id, military_strength, core_value, relations,
-                protagonist_status, members, internal_conflicts, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id, faction_id) DO UPDATE SET
-                name=excluded.name, faction_type=excluded.faction_type,
-                territory=excluded.territory, leader_char_id=excluded.leader_char_id,
-                military_strength=excluded.military_strength, core_value=excluded.core_value,
-                relations=excluded.relations, protagonist_status=excluded.protagonist_status,
-                members=excluded.members, internal_conflicts=excluded.internal_conflicts,
-                updated_at=excluded.updated_at
-        """, (project_id, faction_id, data.get('name', ''), data.get('faction_type', ''),
-              data.get('territory', ''), data.get('leader_char_id', ''),
-              data.get('military_strength', ''), data.get('core_value', ''),
-              _j(data.get('relations', [])), data.get('protagonist_status', ''),
-              _j(data.get('members', [])), _j(data.get('internal_conflicts', [])),
-              now, now))
-        conn.commit()
-        conn.close()
+def save_timeline(*args, **kwargs):
+    """[DEPRECATED] 时间线 — 数据已合并，请通过 DataBridge 写入"""
+    import warnings
+    warnings.warn('use DataBridge.write(project_id, "architecture", ...)', DeprecationWarning, stacklevel=2)
+    return None
 
-
-def get_factions(project_id):
-    with _v2_lock:
-        conn = _v2_db()
-        rows = conn.execute("SELECT * FROM v2_factions WHERE project_id=? ORDER BY id",
-                          (project_id,)).fetchall()
-        conn.close()
-    result = []
-    for row in rows:
-        d = dict(row)
-        d['relations'] = _jl(d.get('relations', '[]'))
-        d['members'] = _jl(d.get('members', '[]'))
-        d['internal_conflicts'] = _jl(d.get('internal_conflicts', '[]'))
-        result.append(d)
-    return result
-
-
-def save_timeline(project_id, data):
-    """保存时间线"""
-    with _v2_lock:
-        conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_timelines (project_id, events, consistency_status, created_at, updated_at)
-            VALUES (?,?,?,?,?)
-            ON CONFLICT(project_id) DO UPDATE SET
-                events=excluded.events, consistency_status=excluded.consistency_status,
-                updated_at=excluded.updated_at
-        """, (project_id, _j(data.get('events', [])), _j(data.get('consistency_status', {})),
-              now, now))
-        conn.commit()
-        conn.close()
-
-
-def get_timeline(project_id):
-    with _v2_lock:
-        conn = _v2_db()
-        row = conn.execute("SELECT * FROM v2_timelines WHERE project_id=?", (project_id,)).fetchone()
-        conn.close()
-    if not row:
-        return None
-    d = dict(row)
-    d['events'] = _jl(d.get('events', '[]'))
-    d['consistency_status'] = _jd(d.get('consistency_status', '{}'), {})
-    return d
-
+def get_timeline(*args, **kwargs):
+    """[DEPRECATED] 时间线 — 数据已合并，请通过 DataBridge 写入"""
+    import warnings
+    warnings.warn('use DataBridge.write(project_id, "architecture", ...)', DeprecationWarning, stacklevel=2)
+    return None
 
 # ========== 卷纲/剧情节点/章节/场景 CRUD ==========
 
@@ -526,48 +414,17 @@ def get_volumes(project_id):
     return result
 
 
-def save_plot_node(project_id, event_id, data):
-    """保存剧情节点"""
-    with _v2_lock:
-        conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_plot_nodes (project_id, event_id, title, trigger, scene_location,
-                characters, action_purpose, dialogue_points, climax, consequence,
-                next_events, word_count_min, word_count_max, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id, event_id) DO UPDATE SET
-                title=excluded.title, trigger=excluded.trigger,
-                scene_location=excluded.scene_location, characters=excluded.characters,
-                action_purpose=excluded.action_purpose, dialogue_points=excluded.dialogue_points,
-                climax=excluded.climax, consequence=excluded.consequence,
-                next_events=excluded.next_events, word_count_min=excluded.word_count_min,
-                word_count_max=excluded.word_count_max, updated_at=excluded.updated_at
-        """, (project_id, event_id, data.get('title', ''), data.get('trigger', ''),
-              data.get('scene_location', ''), _j(data.get('characters', [])),
-              data.get('action_purpose', ''), _j(data.get('dialogue_points', [])),
-              data.get('climax', ''), data.get('consequence', ''),
-              _j(data.get('next_events', [])), data.get('word_count_min', 1500),
-              data.get('word_count_max', 3000), now, now))
-        conn.commit()
-        conn.close()
+def save_plot_node(*args, **kwargs):
+    """[DEPRECATED] 剧情节点 — 数据已合并，请通过 DataBridge 写入"""
+    import warnings
+    warnings.warn('use DataBridge.write(project_id, "architecture", ...)', DeprecationWarning, stacklevel=2)
+    return None
 
-
-def get_plot_nodes(project_id):
-    with _v2_lock:
-        conn = _v2_db()
-        rows = conn.execute("SELECT * FROM v2_plot_nodes WHERE project_id=?  ORDER BY id",
-                          (project_id,)).fetchall()
-        conn.close()
-    result = []
-    for row in rows:
-        d = dict(row)
-        d['characters'] = _jl(d.get('characters', '[]'))
-        d['dialogue_points'] = _jl(d.get('dialogue_points', '[]'))
-        d['next_events'] = _jl(d.get('next_events', '[]'))
-        result.append(d)
-    return result
-
+def get_plot_nodes(*args, **kwargs):
+    """[DEPRECATED] 剧情节点 — 数据已合并，请通过 DataBridge 写入"""
+    import warnings
+    warnings.warn('use DataBridge.write(project_id, "architecture", ...)', DeprecationWarning, stacklevel=2)
+    return None
 
 def save_chapter_plan(project_id, chapter_no, data):
     """保存章节规划/细纲"""
@@ -624,58 +481,17 @@ def get_chapter_plans(project_id):
     return result
 
 
-def save_scene(project_id, scene_id, data):
-    """保存场景"""
-    with _v2_lock:
-        conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_scenes (project_id, scene_id, chapter_no, setting, plot_purpose,
-                core_conflict, combat_strategy, foreshadow_integration, atmosphere,
-                reader_reaction, expected_emotion, scene_hooks, word_count_actual,
-                content_path, state_diff, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id, scene_id) DO UPDATE SET
-                chapter_no=excluded.chapter_no, setting=excluded.setting,
-                plot_purpose=excluded.plot_purpose, core_conflict=excluded.core_conflict,
-                combat_strategy=excluded.combat_strategy,
-                foreshadow_integration=excluded.foreshadow_integration,
-                atmosphere=excluded.atmosphere, reader_reaction=excluded.reader_reaction,
-                expected_emotion=excluded.expected_emotion, scene_hooks=excluded.scene_hooks,
-                word_count_actual=excluded.word_count_actual, content_path=excluded.content_path,
-                state_diff=excluded.state_diff, updated_at=excluded.updated_at
-        """, (project_id, scene_id, data.get('chapter_no', ''),
-              _j(data.get('setting', {})), data.get('plot_purpose', ''),
-              data.get('core_conflict', ''), data.get('combat_strategy', ''),
-              data.get('foreshadow_integration', ''), data.get('atmosphere', ''),
-              data.get('reader_reaction', ''), _j(data.get('expected_emotion', {})),
-              _j(data.get('scene_hooks', {})), data.get('word_count_actual', 0),
-              data.get('content_path', ''), _j(data.get('state_diff', {})),
-              now, now))
-        conn.commit()
-        conn.close()
+def save_scene(*args, **kwargs):
+    """[DEPRECATED] 场景设计 — 数据已合并，请通过 DataBridge 写入"""
+    import warnings
+    warnings.warn('use DataBridge.write(project_id, "chapter_plan", ...)', DeprecationWarning, stacklevel=2)
+    return None
 
-
-def get_scenes(project_id, chapter_no=None):
-    with _v2_lock:
-        conn = _v2_db()
-        if chapter_no:
-            rows = conn.execute("SELECT * FROM v2_scenes WHERE project_id=? AND chapter_no=? ORDER BY id",
-                              (project_id, chapter_no)).fetchall()
-        else:
-            rows = conn.execute("SELECT * FROM v2_scenes WHERE project_id=?  ORDER BY id",
-                              (project_id,)).fetchall()
-        conn.close()
-    result = []
-    for row in rows:
-        d = dict(row)
-        d['setting'] = _jd(d.get('setting', '{}'), {})
-        d['expected_emotion'] = _jd(d.get('expected_emotion', '{}'), {})
-        d['scene_hooks'] = _jd(d.get('scene_hooks', '{}'), {})
-        d['state_diff'] = _jd(d.get('state_diff', '{}'), {})
-        result.append(d)
-    return result
-
+def get_scenes(*args, **kwargs):
+    """[DEPRECATED] 场景设计 — 数据已合并，请通过 DataBridge 写入"""
+    import warnings
+    warnings.warn('use DataBridge.write(project_id, "chapter_plan", ...)', DeprecationWarning, stacklevel=2)
+    return None
 
 # ========== 伏笔 CRUD ==========
 
