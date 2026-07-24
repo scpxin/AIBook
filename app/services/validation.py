@@ -2,14 +2,10 @@
 
 REQUIRED_KEYS = {
     "idea": ["concept"],
-    "project_analysis": [],
     "world_origin": ["cosmology"],
     "protagonist": ["name"],
     "supporting": ["name"],
     "villains": [],
-    "power_system": ["tiers"],
-    "factions": ["factions"],
-    "timeline": ["events"],
     "master_outline": [],
     "volumes": ["volumes"],
     "chapter_plan": [],

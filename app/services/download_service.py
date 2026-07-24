@@ -1,13 +1,15 @@
 import json
+import logging
 import os
 import shutil
 import threading
 import time
-import urllib.parse
 import urllib.request
 import uuid
 
 from app.config import CONTENT_API, DIR_API, DOWNLOAD_DIR, HTTP_TIMEOUT, SESSION_TTL, UA
+
+logger = logging.getLogger('novel_creator.download')
 
 sessions: dict[str, dict] = {}
 sessions_lock = threading.Lock()
@@ -91,8 +93,8 @@ def _download_worker(sid: str):
                         f.write(full_text)
                     with open(os.path.join(book_dir, 'meta.json'), 'w', encoding='utf-8') as f:
                         json.dump({'book_id': book_id, 'title': s.get('title', ''), 'total': s['total'], 'dir': book_dir}, f, ensure_ascii=False)
-                except OSError:
-                    pass
+                except OSError as e:
+                    logger.warning(f"保存章节文件失败: {e}")
                 return
 
         if i < len(item_ids) - 1:
@@ -172,7 +174,7 @@ def get_file(session_id: str) -> tuple | None:
         with open(os.path.join(book_dir, 'meta.json'), 'w', encoding='utf-8') as f:
             json.dump({'book_id': book_id, 'title': title, 'saved_at': time.strftime('%Y-%m-%d %H:%M:%S')}, f, ensure_ascii=False)
     except Exception as e:
-        print(f"保存到磁盘失败: {e}")
+        logger.error(f"保存到磁盘失败: {e}")
     return (content_text, book_id)
 
 
