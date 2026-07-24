@@ -40,7 +40,8 @@ def init_db_v2():
             'v2_relation_maps', 'v2_story_systems', 'v2_power_systems', 'v2_factions',
             'v2_timelines', 'v2_volumes', 'v2_plot_nodes', 'v2_chapter_plans',
             'v2_scenes', 'v2_foreshadowings', 'v2_knowledge_states', 'v2_drafts',
-            'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states'
+            'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states',
+            'v2_outlines', 'v2_generation_templates'
         ]
         for table in v2_tables:
             try:
@@ -764,7 +765,8 @@ def delete_project_v2(project_id):
         'v2_relation_maps', 'v2_story_systems', 'v2_power_systems', 'v2_factions',
         'v2_timelines', 'v2_volumes', 'v2_plot_nodes', 'v2_chapter_plans',
         'v2_scenes', 'v2_foreshadowings', 'v2_knowledge_states', 'v2_drafts',
-        'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states'
+        'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states',
+        'v2_outlines', 'v2_generation_templates'
     ]
     now = _v2_now()
     with _v2_lock:
@@ -786,7 +788,8 @@ def hard_delete_project_v2(project_id):
         'v2_relation_maps', 'v2_story_systems', 'v2_power_systems', 'v2_factions',
         'v2_timelines', 'v2_volumes', 'v2_plot_nodes', 'v2_chapter_plans',
         'v2_scenes', 'v2_foreshadowings', 'v2_knowledge_states', 'v2_drafts',
-        'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states'
+        'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states',
+        'v2_outlines', 'v2_generation_templates'
     ]
     with _v2_lock:
         conn = _v2_db()
