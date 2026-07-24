@@ -90,9 +90,6 @@ const emit = defineEmits<{ complete: [data: any] }>()
 const moduleLabel = computed(() => {
   const map: Record<string, string> = {
     polish: '润色优化',
-    content_parsing: '内容解析',
-    knowledge_update: '知识库更新',
-    consistency_check: '一致性检查',
     parse: '内容解析',
     consistency: '一致性检查',
   }
@@ -132,9 +129,6 @@ watch([form, result], () => { scheduleSave() }, { deep: true })
 const contentLabel = computed(() => {
   const map: Record<string, string> = {
     polish: '待润色内容',
-    content_parsing: '待解析正文',
-    knowledge_update: '正文内容（用于更新知识库）',
-    consistency_check: '待检查正文',
     parse: '待解析正文',
     consistency: '待检查正文',
   }
@@ -143,7 +137,7 @@ const contentLabel = computed(() => {
 
 const contentPlaceholder = computed(() => {
   if (props.moduleType === 'polish') return '粘贴需要润色的正文内容...'
-  if (props.moduleType === 'parse' || props.moduleType === 'parse') return '粘贴需要解析的正文内容...'
+  if (props.moduleType === 'parse') return '粘贴需要解析的正文内容...'
   return '粘贴或输入正文内容...'
 })
 
@@ -225,11 +219,10 @@ async function runModule() {
         }
         break
       }
-      case 'consistency':
       case 'consistency': {
         const allData = await v2Api.getAllModuleData(props.projectId).catch(() => null)
         const modules = allData?.modules || {}
-        const knowledgeState = modules['consistency'] || modules['consistency'] || null
+        const knowledgeState = modules['consistency'] || null
         const chars = modules['characters']
         const characters = Array.isArray(chars) ? chars : (chars ? [
           chars.protagonist,
