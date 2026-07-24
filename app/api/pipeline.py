@@ -215,197 +215,55 @@ def _now_iso_str():
 @router.post("/{project_id}/data/{module_name}")
 
 def save_module_data(project_id: str, module_name: str, data: Any = Body(...)):
-    """保存模块的V2数据"""
+    """保存模块的V2数据（统一走 DataBridge）"""
     from app.services.pipeline import LEGACY_MODULE_MAP
+    from novel_creator import DataBridge
     # 归一化旧模块名
     resolved = LEGACY_MODULE_MAP.get(module_name)
     if resolved is not None:
         module_name = resolved
 
-    save_map = {
-        "idea": lambda pid, d: database_v2.save_pipeline_state(pid, "idea", d),
-        "project": lambda pid, d: database_v2.save_pipeline_state(pid, "project", d),
-        "world": _save_world_with_subs,
-        "characters": lambda pid, d: _save_characters_batch(pid, d),
-        "architecture": lambda pid, d: database_v2.save_pipeline_state(pid, "architecture", d),
-        "relation_map": lambda pid, d: database_v2.save_relation_map(pid, d),
-        "outline": lambda pid, d: database_v2.save_pipeline_state(pid, "outline", d),
-        "volumes": _save_volumes_batch,
-        "chapter_plan": _save_chapter_plan_with_subs,
-        "draft": lambda pid, d: _save_draft_generation(pid, d),
-        "parse": lambda pid, d: database_v2.save_pipeline_state(pid, "parse", d),
-        "polish": lambda pid, d: database_v2.save_pipeline_state(pid, "polish", d),
-        "consistency": database_v2.save_consistency_report,
-    }
     _ensure_v2_project_exists(project_id)
-    save_fn = save_map.get(module_name)
-    if not save_fn:
-        known_modules = list(save_map.keys())
-        logger.warning(f"保存到未知模块 '{module_name}' (已知模块: {known_modules})")
-        database_v2.save_pipeline_state(project_id, module_name, data)
-        return {"success": True, "module": module_name, "project_id": project_id, "warning": "模块名未在流水线中注册"}
-    save_fn(project_id, data)
 
-    # 自动存模板（AI生成完成后的副作用，不阻塞主流程，不处理模板复用场景）
-    if isinstance(data, dict) and not data.get('_apply_from_template'):
+    db_modules = {"world", "characters", "relation_map", "architecture", "volumes",
+                  "chapter_plan", "draft", "consistency"}
+    if module_name in db_modules:
         try:
-            from app.services.template_service import auto_save_template
-            auto_save_template(
-                project_id=project_id,
-                module_key=module_name,
-                module_data=data.get('module_data', data),
-                input_context=data.get('input_context', {}),
-            )
+            DataBridge.write(project_id, module_name, data)
+            _mark_saved_and_template(project_id, module_name, data)
+            return {"success": True, "module": module_name, "project_id": project_id}
         except Exception as e:
-            logger.warning(f"自动存模板失败（不影响保存）: {e}")
+            logger.error(f"DataBridge写入 {module_name} 失败（回退pipeline_state）: {e}")
 
-    # Mark module as done in pipeline_state
+    # pipeline_state 模块 (idea/project/outline/parse/polish)
+    database_v2.save_pipeline_state(project_id, module_name, data)
+    _auto_save_template_if_needed(project_id, module_name, data)
+    return {"success": True, "module": module_name, "project_id": project_id}
+
+
+def _mark_saved_and_template(project_id, module_name, data):
+    """DataBridge模块保存后：标记done + 自动存模板"""
     try:
         database_v2.mark_module_done(project_id, module_name)
     except Exception as e:
         logger.warning(f"mark_module_done failed: {e}")
-    return {"success": True, "module": module_name, "project_id": project_id}
+    _auto_save_template_if_needed(project_id, module_name, data)
 
 
-def _save_draft_generation(project_id: str, data):
-    """保存正文草稿 — 支持批量格式 {chapters: {1: {title, content, char_count}}} 或单章格式"""
-    # 批量格式：frontend sends {chapters: {"1": {"title":"...", "content":"...", "char_count":3000}, ...}}
-    chapters = data.get('chapters') if isinstance(data, dict) else None
-    if isinstance(chapters, dict) and chapters:
-        database_v2.save_drafts_batch(project_id, chapters)
-    elif isinstance(chapters, list) and chapters:
-        for ch in chapters:
-            database_v2.save_draft(project_id, str(ch.get('chapter_no', ch.get('chapter_id', ''))), {
-                "content_raw": ch.get("content", ""),
-                "word_count_raw": int(ch.get("word_count", 0) or 0),
-                "skeleton": ch.get("skeleton", ""),
-                "style_note": ch.get("style_note", ""),
-            })
-    elif isinstance(data, dict) and data.get('chapter_no'):
-        # 单章格式
-        database_v2.save_draft(project_id, str(data['chapter_no']), {
-            "content_raw": data.get("content", ""),
-            "word_count_raw": len(data.get("content", "")),
-            "skeleton": data.get("skeleton", ""),
-            "style_note": data.get("style_note", ""),
-        })
-    elif isinstance(data, dict) and data.get('module_data'):
-        # 嵌套在 module_data 中的格式
-        inner = data['module_data']
-        inner_chapters = inner.get('chapters')
-        if isinstance(inner_chapters, dict) and inner_chapters:
-            database_v2.save_drafts_batch(project_id, inner_chapters)
-
-
-def _save_volumes_batch(project_id: str, data):
-    """批量保存卷纲(支持list/dict格式)"""
-    if isinstance(data, list):
-        for i, vol in enumerate(data):
-            no = str(vol.get("volume_no", vol.get("volume_id", str(i + 1))))
-            database_v2.save_volume(project_id, no, vol)
-    elif isinstance(data, dict):
-        items = data.get("module_data") or data.get("volumes")
-        if isinstance(items, list):
-            for i, vol in enumerate(items):
-                no = str(vol.get("volume_no", vol.get("volume_id", str(i + 1))))
-                database_v2.save_volume(project_id, no, vol)
-        elif data.get("volume_no"):
-            database_v2.save_volume(project_id, str(data["volume_no"]), data)
-
-
-def _save_chapter_plans_batch(project_id: str, data):
-    """批量保存章节规划(支持list/dict格式)"""
-    if isinstance(data, list):
-        for i, cp in enumerate(data):
-            no = str(cp.get("chapter_no", cp.get("chapter_id", str(i + 1))))
-            database_v2.save_chapter_plan(project_id, no, cp)
+def _auto_save_template_if_needed(project_id, module_name, data):
+    """自动存模板（AI生成完成后的副作用，不阻塞主流程）"""
+    if not isinstance(data, dict) or data.get('_apply_from_template'):
         return
-    if isinstance(data, dict):
-        items = data.get("module_data") or data.get("chapterPlans") or data.get("chapter_plans") or data.get("chapter_assignments")
-        if isinstance(items, list):
-            for i, cp in enumerate(items):
-                no = str(cp.get("chapter_no", cp.get("chapter_id", str(i + 1))))
-                database_v2.save_chapter_plan(project_id, no, cp)
-            return
-        if data.get("chapter_no"):
-            database_v2.save_chapter_plan(project_id, str(data["chapter_no"]), data)
-            return
-    # 兜底: 将dict整体保存为pipeline_state
-    database_v2.save_pipeline_state(project_id, "chapter_plan", data if isinstance(data, dict) else {})
-
-
-def _save_chapter_outline(project_id: str, data):
-    """保存章节细纲(支持list或dict格式)"""
-    if isinstance(data, list):
-        database_v2.save_pipeline_state(project_id, "chapter_outline", {"outlines": data})
-    elif isinstance(data, dict) and "module_data" in data:
-        inner = data["module_data"]
-        if isinstance(inner, list):
-            database_v2.save_pipeline_state(project_id, "chapter_outline", {"outlines": inner})
-        else:
-            database_v2.save_pipeline_state(project_id, "chapter_outline", inner)
-    elif isinstance(data, dict):
-        database_v2.save_pipeline_state(project_id, "chapter_outline", data)
-    else:
-        database_v2.save_pipeline_state(project_id, "chapter_outline", {"outlines": []})
-
-
-def _save_world_with_subs(project_id: str, data):
-    """保存世界观数据（含力量体系+势力子字段）"""
-    world_data = data if isinstance(data, dict) else {}
-    database_v2.save_world(project_id, world_data)
-    # 子字段通过 DataBridge 的 world write 自然持久化
-
-
-def _save_chapter_plan_with_subs(project_id: str, data):
-    """保存章节规划数据（含细纲+场景设计子字段）"""
-    if isinstance(data, dict):
-        cp_data = data.get("chapterPlans", data.get("chapters", data))
-        if "outlines" in data or "chapterOutlines" in data:
-            outlines = data.get("outlines", data.get("chapterOutlines", {}))
-            database_v2.save_pipeline_state(project_id, "chapter_outline", outlines)
-        if "sceneDesigns" in data or "scenes" in data:
-            scenes = data.get("sceneDesigns", data.get("scenes", {}))
-            database_v2.save_pipeline_state(project_id, "scene_design", scenes)
-        _save_chapter_plans_batch(project_id, cp_data)
-    else:
-        _save_chapter_plans_batch(project_id, data)
-
-
-def _save_characters_batch(project_id: str, data):
-    """批量保存角色(支持{protagonist, supporting, villains}结构或list或单条)"""
-    if isinstance(data, list):
-        for c in data:
-            cid = c.get("char_id", c.get("name", "c1"))
-            database_v2.save_character(project_id, cid, c)
-    elif isinstance(data, dict):
-        if "protagonist" in data or "supporting" in data or "villains" in data:
-            if data.get("protagonist"):
-                p = data["protagonist"] if isinstance(data["protagonist"], dict) else data["protagonist"]
-                pid_ = p.get("char_id", p.get("name", "protagonist"))
-                p_with_role = dict(p, role_type="protagonist") if isinstance(p, dict) else p
-                database_v2.save_character(project_id, pid_, p_with_role)
-            for i, c in enumerate(data.get("supporting", [])):
-                if isinstance(c, dict):
-                    c = dict(c, role_type="supporting")
-                cid = c.get("char_id", c.get("name", f"sup_{i+1}")) if isinstance(c, dict) else f"sup_{i+1}"
-                database_v2.save_character(project_id, cid, c)
-            villains_data = data.get("villains", [])
-            if isinstance(villains_data, dict):
-                v = villains_data
-                vid_ = v.get("char_id", v.get("name", v.get("main_character", "villain_1")))
-                database_v2.save_character(project_id, vid_, dict(v, role_type="antagonist"))
-            elif isinstance(villains_data, list):
-                for i, c in enumerate(villains_data):
-                    if isinstance(c, dict):
-                        c = dict(c, role_type="antagonist")
-                    cid = c.get("char_id", c.get("name", f"ant_{i+1}")) if isinstance(c, dict) else f"ant_{i+1}"
-                    database_v2.save_character(project_id, cid, c)
-        elif data.get("char_id") or data.get("name"):
-            cid = data.get("char_id", data.get("name", "c1"))
-            database_v2.save_character(project_id, cid, data)
-
-
+    try:
+        from app.services.template_service import auto_save_template
+        auto_save_template(
+            project_id=project_id,
+            module_key=module_name,
+            module_data=data.get('module_data', data),
+            input_context=data.get('input_context', {}),
+        )
+    except Exception as e:
+        logger.warning(f"自动存模板失败（不影响保存）: {e}")
 
 
 def _restructure_characters(characters) -> dict:

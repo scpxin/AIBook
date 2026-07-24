@@ -53,8 +53,10 @@ class DataBridge:
         "outline":      "_read_outline",
         "volumes":      "_read_volumes",
         "chapter_plan": "_read_chapter_plan",
+        "chapter_outline": "_read_chapter_outline",
         "draft":        "_read_draft",
         "parse":        "_read_parse",
+        "polish":       "_read_polish",
         "consistency":  "_read_consistency",
     }
 
@@ -537,6 +539,14 @@ class DataBridge:
             "SELECT * FROM v2_consistency_reports WHERE project_id=? ORDER BY id DESC",
             (project_id,)).fetchall()
         return [_deserialize_row(r) for r in rows]
+
+    @staticmethod
+    def _read_polish(project_id, chapter_no=None):
+        return None
+
+    @staticmethod
+    def _read_chapter_outline(project_id, chapter_no=None):
+        return DataBridge._read_chapter_plan(project_id, chapter_no)
 
 
 # ========== 工具函数 ==========

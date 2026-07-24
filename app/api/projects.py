@@ -100,14 +100,14 @@ def _save_module_data(project_id: str, module_name: str, data: any):
     if resolved is not None:
         module_name = resolved
 
-    db_modules = {"world", "characters", "relation_map", "volumes", "chapter_plan", "draft", "consistency"}
+    db_modules = {"world", "characters", "relation_map", "architecture", "volumes", "chapter_plan", "draft", "consistency"}
     if module_name in db_modules:
         try:
             DataBridge.write(project_id, module_name,
                 data.get('module_data', data) if isinstance(data, dict) else data)
             return
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"DataBridge写入 {module_name} 失败（回退pipeline_state）: {e}")
     # 回退到 pipeline_state
     from novel_creator import database_v2
     database_v2.save_pipeline_state(project_id, module_name,

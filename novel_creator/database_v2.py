@@ -232,6 +232,8 @@ def get_world(project_id):
     d['civilization'] = _jd(d.get('civilization', '{}'), {})
     d['history'] = _jl(d.get('history', '[]'))
     d['world_foreshadows'] = _jl(d.get('world_foreshadows', '[]'))
+    d['power_system'] = _jd(d.get('power_system', '{}'), {})
+    d['factions'] = _jl(d.get('factions', '[]'))
     return d
 
 
