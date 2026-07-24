@@ -370,7 +370,6 @@ class ChapterOutlineService:
             return {"saved": True}, None
         except Exception as e:
             return None, str(e)
-            return None, str(e)
 
 
 

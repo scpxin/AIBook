@@ -447,7 +447,7 @@ class ConsistencyService:
     def get_report(project_id: str, chapter_no: str = None) -> tuple:
         """获取最近检查报告"""
         try:
-            reports = database_v2.get_ai_generations(project_id, 'consistency_check')
+            reports = database_v2.get_ai_generations(project_id, 'consistency')
             if chapter_no:
                 reports = [r for r in (reports or []) if r.get('chapter_no') == chapter_no]
             return {"reports": reports or [], "count": len(reports or [])}, None
