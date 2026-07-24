@@ -188,7 +188,7 @@ async function generatePlotNodes() {
 async function generateVolumes() {
   generating.value = true; error.value = ''; gen.begin()
   try {
-    const result = await genStoryVolumes(props.projectId, story, 3) as any
+    const result = await genStoryVolumes(props.projectId, 3, story) as any
     if (result?.volumes) {
       story.volumes = result.volumes
     }
