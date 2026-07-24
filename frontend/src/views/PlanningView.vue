@@ -8,7 +8,7 @@
     <div class="sub-tabs">
       <button :class="{ active: activeSubTab === 'volumes' }" @click="activeSubTab = 'volumes'">卷纲</button>
       <button :class="{ active: activeSubTab === 'chapter_plan' }" @click="activeSubTab = 'chapter_plan'">章节规划</button>
-      <button :class="{ active: activeSubTab === 'chapter_plan' }" @click="activeSubTab = 'chapter_plan'">章节细纲</button>
+      <button :class="{ active: activeSubTab === 'chapter_outline' }" @click="activeSubTab = 'chapter_outline'">章节细纲</button>
       <button :class="{ active: activeSubTab === 'scene_design' }" @click="activeSubTab = 'scene_design'">场景设计</button>
     </div>
     <div v-if="activeSubTab === 'volumes'" class="sub-pane">
@@ -48,7 +48,7 @@
       </div>
     </div>
 
-    <div v-else-if="moduleKey === 'chapter_plan'" class="sub-pane">
+    <div v-else-if="activeSubTab === 'chapter_plan'" class="sub-pane">
       <h4>章节规划</h4>
       <p class="tip">规划每章标题、字数目标、节奏钩子</p>
       <div class="form-group">
@@ -88,7 +88,7 @@
       </div>
     </div>
 
-    <div v-else-if="moduleKey === 'chapter_plan'" class="sub-pane">
+    <div v-else-if="activeSubTab === 'chapter_outline'" class="sub-pane">
       <h4>章节细纲</h4>
       <p class="tip">为每个章节写出场景、情绪、核心动作的详细大纲</p>
       <div class="form-group">
@@ -104,7 +104,7 @@
           <option value="fine">细纲(每章8-15句)</option>
         </select>
       </div>
-      <div v-if="moduleKey === 'chapter_plan'" class="form-group">
+      <div class="form-group">
         <label>章节总数</label>
         <input v-model.number="form.totalChapters" type="number" min="1" max="1000" />
       </div>
@@ -248,7 +248,7 @@ const planningData = () => {
    const key = activeSubTab.value
    if (key === 'volumes') return { volumes: volumeList.value, form: form.value }
    if (key === 'chapter_plan') return { chapterPlans: chapterPlans.value, form: form.value }
-   if (key === 'chapter_plan') return { chapterOutlines: chapterOutlines.value, form: form.value }
+   if (key === 'chapter_outline') return { chapterOutlines: chapterOutlines.value, form: form.value }
    if (key === 'scene_design') return { sceneDesigns: sceneDesigns.value, form: sceneForm }
    return { volumes: volumeList.value, chapterPlans: chapterPlans.value, chapterOutlines: chapterOutlines.value, form: form.value }
 }
@@ -273,7 +273,7 @@ onMounted(async () => {
       if (Array.isArray(raw)) {
         if (activeSubTab.value === 'volumes') { volumeList.value = raw; return }
         if (activeSubTab.value === 'chapter_plan') { chapterPlans.value = raw; return }
-        if (activeSubTab.value === 'chapter_plan') { chapterOutlines.value = raw; return }
+        if (activeSubTab.value === 'chapter_outline') { chapterOutlines.value = raw; return }
       }
       if (raw.form || raw.volumes || raw.chapterPlans || raw.chapterOutlines) {
         if (raw.form) Object.assign(form.value, raw.form)
