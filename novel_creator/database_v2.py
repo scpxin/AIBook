@@ -339,9 +339,9 @@ def save_power_system(*args, **kwargs):
     return None
 
 def get_power_system(*args, **kwargs):
-    """[DEPRECATED] 力量体系 — 数据已合并，请通过 DataBridge 写入"""
+    """[DEPRECATED] 力量体系 — 数据已合并，请通过 DataBridge 读取"""
     import warnings
-    warnings.warn('use DataBridge.write(project_id, "world", ...)', DeprecationWarning, stacklevel=2)
+    warnings.warn('use DataBridge.read(project_id, "world")', DeprecationWarning, stacklevel=2)
     return None
 
 def save_faction(*args, **kwargs):
@@ -351,9 +351,9 @@ def save_faction(*args, **kwargs):
     return None
 
 def get_factions(*args, **kwargs):
-    """[DEPRECATED] 势力 — 数据已合并，请通过 DataBridge 写入"""
+    """[DEPRECATED] 势力 — 数据已合并，请通过 DataBridge 读取"""
     import warnings
-    warnings.warn('use DataBridge.write(project_id, "world", ...)', DeprecationWarning, stacklevel=2)
+    warnings.warn('use DataBridge.read(project_id, "world")', DeprecationWarning, stacklevel=2)
     return None
 
 def save_timeline(*args, **kwargs):
@@ -363,9 +363,9 @@ def save_timeline(*args, **kwargs):
     return None
 
 def get_timeline(*args, **kwargs):
-    """[DEPRECATED] 时间线 — 数据已合并，请通过 DataBridge 写入"""
+    """[DEPRECATED] 时间线 — 数据已合并，请通过 DataBridge 读取"""
     import warnings
-    warnings.warn('use DataBridge.write(project_id, "architecture", ...)', DeprecationWarning, stacklevel=2)
+    warnings.warn('use DataBridge.read(project_id, "architecture")', DeprecationWarning, stacklevel=2)
     return None
 
 # ========== 卷纲/剧情节点/章节/场景 CRUD ==========
@@ -423,9 +423,9 @@ def save_plot_node(*args, **kwargs):
     return None
 
 def get_plot_nodes(*args, **kwargs):
-    """[DEPRECATED] 剧情节点 — 数据已合并，请通过 DataBridge 写入"""
+    """[DEPRECATED] 剧情节点 — 数据已合并，请通过 DataBridge 读取"""
     import warnings
-    warnings.warn('use DataBridge.write(project_id, "architecture", ...)', DeprecationWarning, stacklevel=2)
+    warnings.warn('use DataBridge.read(project_id, "architecture")', DeprecationWarning, stacklevel=2)
     return None
 
 def save_chapter_plan(project_id, chapter_no, data):
@@ -476,7 +476,8 @@ def get_chapter_plans(project_id):
     for row in rows:
         d = dict(row)
         for key in ['plot_nodes_covered', 'timeline_events', 'locations',
-                     'foreshadows_to_add', 'foreshadows_to_recycle', 'emotion_curve', 'scenes']:
+                     'foreshadows_to_add', 'foreshadows_to_recycle', 'emotion_curve', 'scenes',
+                     'scene_designs']:
             d[key] = _jl(d.get(key, '[]'))
         d['knowledge_update'] = _jd(d.get('knowledge_update', '{}'), {})
         result.append(d)
@@ -490,9 +491,9 @@ def save_scene(*args, **kwargs):
     return None
 
 def get_scenes(*args, **kwargs):
-    """[DEPRECATED] 场景设计 — 数据已合并，请通过 DataBridge 写入"""
+    """[DEPRECATED] 场景设计 — 数据已合并，请通过 DataBridge 读取"""
     import warnings
-    warnings.warn('use DataBridge.write(project_id, "chapter_plan", ...)', DeprecationWarning, stacklevel=2)
+    warnings.warn('use DataBridge.read(project_id, "chapter_plan")', DeprecationWarning, stacklevel=2)
     return None
 
 # ========== 伏笔 CRUD ==========
@@ -532,7 +533,7 @@ def get_foreshadows(project_id, status=None):
             rows = conn.execute("SELECT * FROM v2_foreshadowings WHERE project_id=?  ORDER BY id",
                               (project_id,)).fetchall()
         conn.close()
-    return [dict(r) for r in rows]
+    return [_deserialize_row(r) for r in rows]
 
 def get_consistency_reports(project_id, limit=20):
     with _v2_lock:
@@ -541,7 +542,7 @@ def get_consistency_reports(project_id, limit=20):
             "SELECT * FROM v2_consistency_reports WHERE project_id=? ORDER BY created_at DESC LIMIT ?",
             (project_id, limit)).fetchall()
         conn.close()
-    return [dict(r) for r in rows]
+    return [_deserialize_row(r) for r in rows]
 
 
 
@@ -626,6 +627,12 @@ def save_draft(project_id, chapter_no, data):
                 word_count_raw, word_count_final, polish_status, foreshadow_added,
                 continuity_check, version, created_at, updated_at)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(project_id, chapter_no) DO UPDATE SET
+                content=excluded.content, content_raw=excluded.content_raw,
+                word_count_raw=excluded.word_count_raw, word_count_final=excluded.word_count_final,
+                polish_status=excluded.polish_status, foreshadow_added=excluded.foreshadow_added,
+                continuity_check=excluded.continuity_check, version=excluded.version,
+                updated_at=excluded.updated_at
         """, (project_id, chapter_no, data.get('scene_id', ''),
               data.get('content', ''), data.get('content_raw', ''),
               word_count_raw, word_count_final,
