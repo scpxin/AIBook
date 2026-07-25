@@ -302,7 +302,6 @@ def compatibility_check(project_id: str, body: dict):
     if not detail:
         return {"success": True, "results": [], "message": "项目数据为空，无法执行兼容性检查"}
 
-    detail.get("project_overview", "")
     wordcount_plan = detail.get("wordcount_plan", {})
 
     # 1. 字数检查

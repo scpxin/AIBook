@@ -91,7 +91,7 @@ def project_save_v2(body: dict):
     return result
 
 
-def _save_module_data(project_id: str, module_name: str, data: any):
+def _save_module_data(project_id: str, module_name: str, data: dict):
     """根据模块名选择正确的保存方式（统一走 DataBridge）"""
     from app.services.pipeline import LEGACY_MODULE_MAP
     from novel_creator import DataBridge
