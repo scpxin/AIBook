@@ -1,5 +1,4 @@
 import { computed } from 'vue'
-import { usePipelineStore } from '../stores/pipeline'
 import { getAllModuleData } from '../api/v2'
 
 export interface ChapterOption {
@@ -9,7 +8,6 @@ export interface ChapterOption {
 }
 
 export function useChapters(projectId: string) {
-  const pipeline = usePipelineStore()
 
   async function fetchChapters(): Promise<ChapterOption[]> {
     try {

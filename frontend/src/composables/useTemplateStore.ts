@@ -275,13 +275,6 @@ export function useTemplateStore() {
       if (facs.length) ctx.factions = facs
     }
 
-    if (moduleKey === 'power_system') {
-      // power_system merged into world: update world context's powerSystem field
-      if (outputData.systemType || outputData.intro) {
-        ctx.powerSystem = outputData.intro || outputData.systemType || ''
-      }
-    }
-
     if (moduleKey === 'architecture') {
       const nodes = outputData.plot_nodes || outputData.key_events
       if (Array.isArray(nodes)) {
