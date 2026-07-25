@@ -14,7 +14,6 @@ __all__ = [
     "INSPIRATION_THEME", "INSPIRATION_THEME_STYLE",
     "INSPIRATION_TITLE", "INSPIRATION_TITLE_STYLE",
     "OUTLINE_CREATE", "OUTLINE_CREATE_STYLE",
-    "PLOT_ANALYSIS", "STYLE_ANALYSIS",
     "WORLD_BUILDING", "WORLD_BUILDING_STYLE",
 ]
 
@@ -654,27 +653,6 @@ CHAPTER_CONTINUATION_STYLE = """=== 风格约束（续写必须与开篇风格�
 
 === 上一章结尾章钩（续写时需保持这些设定的连贯性） ===
 {prev_chapter_hook}"""
-
-
-PLOT_ANALYSIS = """你是一位专业的小说编辑。请分析以下章节内容。
-
-第{chapter_number}章《{title}》
-
-{content}
-
-请输出严格的JSON格式分析结果：
-- hooks: 剧情钩子分析(悬念/情感/冲突/认知)
-- foreshadowing: 伏笔分析
-- conflict: 冲突分析(类型/各方/强度)
-- emotional_arc: 情感曲线描述
-- plot_points: ["关键情节点1", "关键情节点2"]
-- pacing: 节奏评分(1-100)
-- engagement: 吸引力评分(1-100)
-- coherence: 连贯性评分(1-100)
-- overall: 综合评分(1-100)
-- suggestions: ["改进建议1", "改进建议2"]
-
-只输出JSON，不要其他内容。"""
 
 
 INSPIRATION_TITLE = """你是一位富有创意的小说策划。请根据以下信息，生成6个书名建议。

@@ -602,8 +602,6 @@ class NovelGenerator:
                                   style_profile=None, world_summary="", prev_chapter_title="", prev_chapter_tail="",
                                   use_craft=False):
         """生成单章细纲（注入局部上下文 + 世界观）"""
-        import json
-
         if isinstance(characters_info, list):
             chars_text = "\n".join([f"- {c.get('name', '未知')}: {c.get('personality', '')}" for c in characters_info[:10]])
         else:
@@ -775,8 +773,6 @@ class NovelGenerator:
                                          style_profile=None, world_summary="", prev_chapter_title="",
                                          prev_chapter_tail="", use_craft=False):
         """流式生成单章细纲"""
-        import json
-
         if isinstance(characters_info, list):
             chars_text = "\n".join([f"- {c.get('name', '未知')}: {c.get('personality', '')}" for c in characters_info[:10]])
         else:
