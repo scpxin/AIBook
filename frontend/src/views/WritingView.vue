@@ -401,16 +401,16 @@ onMounted(async () => {
             }
             const currentId = String(chapters.value[currentChapterIdx.value]?.id || '')
             const currentMatch = drafts.find((d: any) => String(d.chapter_no) === currentId)
-            if (currentMatch?.content || currentMatch?.content_raw) {
-              draftContent.value = currentMatch.content || currentMatch.content_raw
+            if (currentMatch?.content || currentMatch?.contentRaw) {
+              draftContent.value = currentMatch.content || currentMatch.contentRaw
             }
             for (const d of drafts) {
               const idx = findChapterIdx(d)
-              if (idx >= 0 && (d.content || d.content_raw)) {
+              if (idx >= 0 && (d.content || d.contentRaw)) {
                 chapters.value[idx] = {
                   ...chapters.value[idx],
-                  content: d.content || d.content_raw,
-                  wordCount: (d.content || d.content_raw || '').length,
+                  content: d.content || d.contentRaw,
+                  wordCount: (d.content || d.contentRaw || '').length,
                 }
               }
             }

@@ -1,5 +1,6 @@
 """设置API — 模型配置的持久化读写"""
 import json
+import logging
 import urllib.error
 import urllib.request
 
@@ -9,6 +10,7 @@ from app.models.v2_schemas import SettingsSaveModelsRequest
 from app.services.settings_service import get_settings, save_models
 
 router = APIRouter(prefix="/api/v2/settings", tags=["设置"])
+logger = logging.getLogger('novel_creator.api.settings')
 
 
 def _ai_call(endpoint: str, api_key: str, model: str, messages: list, options: dict = None):
@@ -41,6 +43,7 @@ def _ai_call(endpoint: str, api_key: str, model: str, messages: list, options: d
     except urllib.error.HTTPError as e:
         return None, f"HTTP {e.code}: {e.reason}"
     except Exception as e:
+        logger.exception("Failed to call AI API for settings test")
         return None, str(e)[:300]
 
 
@@ -85,4 +88,5 @@ def test_connection(body: dict = Body(...)):
         else:
             return {"ok": True, "model": model_id, "response": (result or '')[:100]}
     except Exception as e:
+        logger.exception("Failed to test AI connection")
         return {"ok": False, "error": str(e)[:300]}

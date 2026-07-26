@@ -50,7 +50,7 @@ export const useCharacterStore = defineStore('character', () => {
     loading.value = true
     error.value = ''
     try {
-      const r = await generateSupporting(pid, protagonist.value, count)
+      const r = await generateSupporting(pid, protagonist.value!, count)
       supporting.value = r.characters
     } catch (e: any) {
       error.value = e.message
@@ -63,7 +63,7 @@ export const useCharacterStore = defineStore('character', () => {
     loading.value = true
     error.value = ''
     try {
-      const r = await generateAntagonists(pid, protagonist.value, world)
+      const r = await generateAntagonists(pid, protagonist.value!, world)
       antagonists.value = (r as any).antagonists || []
     } catch (e: any) {
       error.value = e.message

@@ -100,35 +100,39 @@ def save_idea(project_id, data):
     """保存或更新灵感"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_ideas (project_id, user_input, genre_hint, reference_works, candidates,
-                selected_concept, core_selling_points, target_audience, risks,
-                sustainability_estimate, total_score, status, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id) DO UPDATE SET
-                user_input=excluded.user_input, genre_hint=excluded.genre_hint,
-                reference_works=excluded.reference_works, candidates=excluded.candidates,
-                selected_concept=excluded.selected_concept, core_selling_points=excluded.core_selling_points,
-                target_audience=excluded.target_audience, risks=excluded.risks,
-                sustainability_estimate=excluded.sustainability_estimate, total_score=excluded.total_score,
-                status=excluded.status, updated_at=excluded.updated_at
-        """, (project_id, data.get('user_input', ''), data.get('genre_hint', ''),
-              _j(data.get('reference_works', [])), _j(data.get('candidates', [])),
-              data.get('selected_concept', ''), _j(data.get('core_selling_points', [])),
-              _j(data.get('target_audience', {})), _j(data.get('risks', [])),
-              data.get('sustainability_estimate', ''), data.get('total_score', 0),
-              data.get('status', 'draft'), now, now))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            conn.execute("""
+                INSERT INTO v2_ideas (project_id, user_input, genre_hint, reference_works, candidates,
+                    selected_concept, core_selling_points, target_audience, risks,
+                    sustainability_estimate, total_score, status, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(project_id) DO UPDATE SET
+                    user_input=excluded.user_input, genre_hint=excluded.genre_hint,
+                    reference_works=excluded.reference_works, candidates=excluded.candidates,
+                    selected_concept=excluded.selected_concept, core_selling_points=excluded.core_selling_points,
+                    target_audience=excluded.target_audience, risks=excluded.risks,
+                    sustainability_estimate=excluded.sustainability_estimate, total_score=excluded.total_score,
+                    status=excluded.status, updated_at=excluded.updated_at
+            """, (project_id, data.get('user_input', ''), data.get('genre_hint', ''),
+                  _j(data.get('reference_works', [])), _j(data.get('candidates', [])),
+                  data.get('selected_concept', ''), _j(data.get('core_selling_points', [])),
+                  _j(data.get('target_audience', {})), _j(data.get('risks', [])),
+                  data.get('sustainability_estimate', ''), data.get('total_score', 0),
+                  data.get('status', 'draft'), now, now))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_idea(project_id):
     """获取项目灵感"""
     with _v2_lock:
         conn = _v2_db()
-        row = conn.execute("SELECT * FROM v2_ideas WHERE project_id=? ORDER BY id DESC LIMIT 1", (project_id,)).fetchone()
-        conn.close()
+        try:
+            row = conn.execute("SELECT * FROM v2_ideas WHERE project_id=? ORDER BY id DESC LIMIT 1", (project_id,)).fetchone()
+        finally:
+            conn.close()
     if not row:
         return None
     d = dict(row)
@@ -146,40 +150,44 @@ def save_project_detail(project_id, data):
     """保存项目定位详情"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_projects (project_id, idea_id, platform_choice, project_overview,
-                novel_position, platform_config, audience, commercial, style, pace,
-                innovation, content_boundary, wordcount_plan, update_plan, risks,
-                derived_fields, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id) DO UPDATE SET
-                idea_id=excluded.idea_id, platform_choice=excluded.platform_choice,
-                project_overview=excluded.project_overview, novel_position=excluded.novel_position,
-                platform_config=excluded.platform_config, audience=excluded.audience,
-                commercial=excluded.commercial, style=excluded.style, pace=excluded.pace,
-                innovation=excluded.innovation, content_boundary=excluded.content_boundary,
-                wordcount_plan=excluded.wordcount_plan, update_plan=excluded.update_plan,
-                risks=excluded.risks, derived_fields=excluded.derived_fields,
-                updated_at=excluded.updated_at
-        """, (project_id, data.get('idea_id', 0), data.get('platform_choice', 'tomato'),
-              data.get('project_overview', ''), _j(data.get('novel_position', {})),
-              _j(data.get('platform_config', {})), _j(data.get('audience', {})),
-              _j(data.get('commercial', {})), _j(data.get('style', {})),
-              _j(data.get('pace', {})), _j(data.get('innovation', [])),
-              _j(data.get('content_boundary', [])), _j(data.get('wordcount_plan', {})),
-              _j(data.get('update_plan', {})), _j(data.get('risks', [])),
-              _j(data.get('derived_fields', {})), now, now))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            conn.execute("""
+                INSERT INTO v2_projects (project_id, idea_id, platform_choice, project_overview,
+                    novel_position, platform_config, audience, commercial, style, pace,
+                    innovation, content_boundary, wordcount_plan, update_plan, risks,
+                    derived_fields, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(project_id) DO UPDATE SET
+                    idea_id=excluded.idea_id, platform_choice=excluded.platform_choice,
+                    project_overview=excluded.project_overview, novel_position=excluded.novel_position,
+                    platform_config=excluded.platform_config, audience=excluded.audience,
+                    commercial=excluded.commercial, style=excluded.style, pace=excluded.pace,
+                    innovation=excluded.innovation, content_boundary=excluded.content_boundary,
+                    wordcount_plan=excluded.wordcount_plan, update_plan=excluded.update_plan,
+                    risks=excluded.risks, derived_fields=excluded.derived_fields,
+                    updated_at=excluded.updated_at
+            """, (project_id, data.get('idea_id', 0), data.get('platform_choice', 'tomato'),
+                  data.get('project_overview', ''), _j(data.get('novel_position', {})),
+                  _j(data.get('platform_config', {})), _j(data.get('audience', {})),
+                  _j(data.get('commercial', {})), _j(data.get('style', {})),
+                  _j(data.get('pace', {})), _j(data.get('innovation', [])),
+                  _j(data.get('content_boundary', [])), _j(data.get('wordcount_plan', {})),
+                  _j(data.get('update_plan', {})), _j(data.get('risks', [])),
+                  _j(data.get('derived_fields', {})), now, now))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_project_detail(project_id):
     """获取项目定位详情"""
     with _v2_lock:
         conn = _v2_db()
-        row = conn.execute("SELECT * FROM v2_projects WHERE project_id=?", (project_id,)).fetchone()
-        conn.close()
+        try:
+            row = conn.execute("SELECT * FROM v2_projects WHERE project_id=?", (project_id,)).fetchone()
+        finally:
+            conn.close()
     if not row:
         return None
     d = dict(row)
@@ -197,33 +205,37 @@ def save_world(project_id, data):
     """保存世界观"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_world_buildings (project_id, origin, rules, structure, civilization,
-                history, doc_path, world_foreshadows, power_system, factions, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id) DO UPDATE SET
-                origin=excluded.origin, rules=excluded.rules, structure=excluded.structure,
-                civilization=excluded.civilization, history=excluded.history,
-                doc_path=excluded.doc_path, world_foreshadows=excluded.world_foreshadows,
-                power_system=excluded.power_system, factions=excluded.factions,
-                updated_at=excluded.updated_at
-        """, (project_id, _j(data.get('origin', {})), _j(data.get('rules', [])),
-              _j(data.get('structure', {})), _j(data.get('civilization', {})),
-              _j(data.get('history', [])), data.get('doc_path', ''),
-              _j(data.get('world_foreshadows', [])),
-              _j(data.get('power_system', {})), _j(data.get('factions', [])),
-              now, now))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            conn.execute("""
+                INSERT INTO v2_world_buildings (project_id, origin, rules, structure, civilization,
+                    history, doc_path, world_foreshadows, power_system, factions, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(project_id) DO UPDATE SET
+                    origin=excluded.origin, rules=excluded.rules, structure=excluded.structure,
+                    civilization=excluded.civilization, history=excluded.history,
+                    doc_path=excluded.doc_path, world_foreshadows=excluded.world_foreshadows,
+                    power_system=excluded.power_system, factions=excluded.factions,
+                    updated_at=excluded.updated_at
+            """, (project_id, _j(data.get('origin', {})), _j(data.get('rules', [])),
+                  _j(data.get('structure', {})), _j(data.get('civilization', {})),
+                  _j(data.get('history', [])), data.get('doc_path', ''),
+                  _j(data.get('world_foreshadows', [])),
+                  _j(data.get('power_system', {})), _j(data.get('factions', [])),
+                  now, now))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_world(project_id):
     """获取世界观"""
     with _v2_lock:
         conn = _v2_db()
-        row = conn.execute("SELECT * FROM v2_world_buildings WHERE project_id=?", (project_id,)).fetchone()
-        conn.close()
+        try:
+            row = conn.execute("SELECT * FROM v2_world_buildings WHERE project_id=?", (project_id,)).fetchone()
+        finally:
+            conn.close()
     if not row:
         return None
     d = dict(row)
@@ -244,37 +256,41 @@ def save_character(project_id, char_id, data):
     """保存角色"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_characters (project_id, char_id, role_type, name, doc_path,
-                profile, appearance, personality, abilities, growth_route,
-                initial_relations, initial_psychology, initial_state, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id, char_id) DO UPDATE SET
-                role_type=excluded.role_type, name=excluded.name, doc_path=excluded.doc_path,
-                profile=excluded.profile, appearance=excluded.appearance,
-                personality=excluded.personality, abilities=excluded.abilities,
-                growth_route=excluded.growth_route, initial_relations=excluded.initial_relations,
-                initial_psychology=excluded.initial_psychology, initial_state=excluded.initial_state,
-                updated_at=excluded.updated_at
-        """, (project_id, char_id, data.get('role_type', 'supporting'),
-              data.get('name', ''), data.get('doc_path', ''),
-              _j(data.get('profile', {})), _j(data.get('appearance', {})),
-              _j(data.get('personality', {})), _j(data.get('abilities', {})),
-              _j(data.get('growth_route', [])), _j(data.get('initial_relations', [])),
-              _j(data.get('initial_psychology', {})), _j(data.get('initial_state', {})),
-              now, now))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            conn.execute("""
+                INSERT INTO v2_characters (project_id, char_id, role_type, name, doc_path,
+                    profile, appearance, personality, abilities, growth_route,
+                    initial_relations, initial_psychology, initial_state, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(project_id, char_id) DO UPDATE SET
+                    role_type=excluded.role_type, name=excluded.name, doc_path=excluded.doc_path,
+                    profile=excluded.profile, appearance=excluded.appearance,
+                    personality=excluded.personality, abilities=excluded.abilities,
+                    growth_route=excluded.growth_route, initial_relations=excluded.initial_relations,
+                    initial_psychology=excluded.initial_psychology, initial_state=excluded.initial_state,
+                    updated_at=excluded.updated_at
+            """, (project_id, char_id, data.get('role_type', 'supporting'),
+                  data.get('name', ''), data.get('doc_path', ''),
+                  _j(data.get('profile', {})), _j(data.get('appearance', {})),
+                  _j(data.get('personality', {})), _j(data.get('abilities', {})),
+                  _j(data.get('growth_route', [])), _j(data.get('initial_relations', [])),
+                  _j(data.get('initial_psychology', {})), _j(data.get('initial_state', {})),
+                  now, now))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_character(project_id, char_id):
     """获取单个角色"""
     with _v2_lock:
         conn = _v2_db()
-        row = conn.execute("SELECT * FROM v2_characters WHERE project_id=? AND char_id=?",
-                          (project_id, char_id)).fetchone()
-        conn.close()
+        try:
+            row = conn.execute("SELECT * FROM v2_characters WHERE project_id=? AND char_id=?",
+                              (project_id, char_id)).fetchone()
+        finally:
+            conn.close()
     return _parse_character(row) if row else None
 
 
@@ -282,9 +298,11 @@ def get_all_characters(project_id):
     """获取项目所有角色"""
     with _v2_lock:
         conn = _v2_db()
-        rows = conn.execute("SELECT * FROM v2_characters WHERE project_id=? ORDER BY id",
-                          (project_id,)).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute("SELECT * FROM v2_characters WHERE project_id=? ORDER BY id",
+                              (project_id,)).fetchall()
+        finally:
+            conn.close()
     return [_parse_character(r) for r in rows]
 
 
@@ -302,25 +320,29 @@ def save_relation_map(project_id, data):
     """保存关系网络"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_relation_maps (project_id, nodes, edges, role_groups, updated_at)
-            VALUES (?,?,?,?,?)
-            ON CONFLICT(project_id) DO UPDATE SET
-                nodes=excluded.nodes, edges=excluded.edges, role_groups=excluded.role_groups,
-                updated_at=excluded.updated_at
-        """, (project_id, _j(data.get('nodes', [])), _j(data.get('edges', [])),
-              _j(data.get('role_groups', {})), now))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            conn.execute("""
+                INSERT INTO v2_relation_maps (project_id, nodes, edges, role_groups, updated_at)
+                VALUES (?,?,?,?,?)
+                ON CONFLICT(project_id) DO UPDATE SET
+                    nodes=excluded.nodes, edges=excluded.edges, role_groups=excluded.role_groups,
+                    updated_at=excluded.updated_at
+            """, (project_id, _j(data.get('nodes', [])), _j(data.get('edges', [])),
+                  _j(data.get('role_groups', {})), now))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_relation_map(project_id):
     """获取关系网络"""
     with _v2_lock:
         conn = _v2_db()
-        row = conn.execute("SELECT * FROM v2_relation_maps WHERE project_id=?", (project_id,)).fetchone()
-        conn.close()
+        try:
+            row = conn.execute("SELECT * FROM v2_relation_maps WHERE project_id=?", (project_id,)).fetchone()
+        finally:
+            conn.close()
     if not row:
         return None
     d = dict(row)
@@ -375,36 +397,40 @@ def save_volume(project_id, volume_no, data):
     """保存卷纲"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_volumes (project_id, volume_no, name, target_words, chapter_count,
-                protagonist_start, protagonist_end, key_events, volume_foreshadows,
-                cliffhanger, consistency_status, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id, volume_no) DO UPDATE SET
-                name=excluded.name, target_words=excluded.target_words,
-                chapter_count=excluded.chapter_count, protagonist_start=excluded.protagonist_start,
-                protagonist_end=excluded.protagonist_end, key_events=excluded.key_events,
-                volume_foreshadows=excluded.volume_foreshadows,
-                cliffhanger=excluded.cliffhanger,
-                consistency_status=excluded.consistency_status,
-                updated_at=excluded.updated_at
-        """, (project_id, volume_no, data.get('name', ''),
-              data.get('target_words', 250000), data.get('chapter_count', 100),
-              _j(data.get('protagonist_start', {})), _j(data.get('protagonist_end', {})),
-              _j(data.get('key_events', [])), _j(data.get('volume_foreshadows', [])),
-              data.get('cliffhanger', ''), _j(data.get('consistency_status', {})),
-              now, now))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            conn.execute("""
+                INSERT INTO v2_volumes (project_id, volume_no, name, target_words, chapter_count,
+                    protagonist_start, protagonist_end, key_events, volume_foreshadows,
+                    cliffhanger, consistency_status, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(project_id, volume_no) DO UPDATE SET
+                    name=excluded.name, target_words=excluded.target_words,
+                    chapter_count=excluded.chapter_count, protagonist_start=excluded.protagonist_start,
+                    protagonist_end=excluded.protagonist_end, key_events=excluded.key_events,
+                    volume_foreshadows=excluded.volume_foreshadows,
+                    cliffhanger=excluded.cliffhanger,
+                    consistency_status=excluded.consistency_status,
+                    updated_at=excluded.updated_at
+            """, (project_id, volume_no, data.get('name', ''),
+                  data.get('target_words', 250000), data.get('chapter_count', 100),
+                  _j(data.get('protagonist_start', {})), _j(data.get('protagonist_end', {})),
+                  _j(data.get('key_events', [])), _j(data.get('volume_foreshadows', [])),
+                  data.get('cliffhanger', ''), _j(data.get('consistency_status', {})),
+                  now, now))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_volumes(project_id):
     with _v2_lock:
         conn = _v2_db()
-        rows = conn.execute("SELECT * FROM v2_volumes WHERE project_id=? ORDER BY volume_no",
-                          (project_id,)).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute("SELECT * FROM v2_volumes WHERE project_id=? ORDER BY volume_no",
+                              (project_id,)).fetchall()
+        finally:
+            conn.close()
     result = []
     for row in rows:
         d = dict(row)
@@ -433,46 +459,50 @@ def save_chapter_plan(project_id, chapter_no, data):
     """保存章节规划/细纲"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_chapter_plans (project_id, chapter_no, title, target_words,
-                plot_nodes_covered, timeline_events, hook_type, cliffhanger,
-                protagonist_level, locations, dialogue_ratio, pacing,
-                foreshadows_to_add, foreshadows_to_recycle, emotion_curve,
-                scenes, knowledge_update, scene_designs, status, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id, chapter_no) DO UPDATE SET
-                title=excluded.title, target_words=excluded.target_words,
-                plot_nodes_covered=excluded.plot_nodes_covered,
-                timeline_events=excluded.timeline_events, hook_type=excluded.hook_type,
-                cliffhanger=excluded.cliffhanger, protagonist_level=excluded.protagonist_level,
-                locations=excluded.locations, dialogue_ratio=excluded.dialogue_ratio,
-                pacing=excluded.pacing, foreshadows_to_add=excluded.foreshadows_to_add,
-                foreshadows_to_recycle=excluded.foreshadows_to_recycle,
-                emotion_curve=excluded.emotion_curve, scenes=excluded.scenes,
-                knowledge_update=excluded.knowledge_update,
-                scene_designs=excluded.scene_designs, status=excluded.status,
-                updated_at=excluded.updated_at
-        """, (project_id, chapter_no, data.get('title', ''),
-              data.get('target_words', 2000), _j(data.get('plot_nodes_covered', [])),
-              _j(data.get('timeline_events', [])), data.get('hook_type', ''),
-              data.get('cliffhanger', ''), data.get('protagonist_level', ''),
-              _j(data.get('locations', [])), data.get('dialogue_ratio', 0.4),
-              data.get('pacing', 'normal'), _j(data.get('foreshadows_to_add', [])),
-              _j(data.get('foreshadows_to_recycle', [])), _j(data.get('emotion_curve', [])),
-              _j(data.get('scenes', [])), _j(data.get('knowledge_update', {})),
-              _j(data.get('scene_designs', [])),
-              data.get('status', 'planned'), now, now))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            conn.execute("""
+                INSERT INTO v2_chapter_plans (project_id, chapter_no, title, target_words,
+                    plot_nodes_covered, timeline_events, hook_type, cliffhanger,
+                    protagonist_level, locations, dialogue_ratio, pacing,
+                    foreshadows_to_add, foreshadows_to_recycle, emotion_curve,
+                    scenes, knowledge_update, scene_designs, status, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(project_id, chapter_no) DO UPDATE SET
+                    title=excluded.title, target_words=excluded.target_words,
+                    plot_nodes_covered=excluded.plot_nodes_covered,
+                    timeline_events=excluded.timeline_events, hook_type=excluded.hook_type,
+                    cliffhanger=excluded.cliffhanger, protagonist_level=excluded.protagonist_level,
+                    locations=excluded.locations, dialogue_ratio=excluded.dialogue_ratio,
+                    pacing=excluded.pacing, foreshadows_to_add=excluded.foreshadows_to_add,
+                    foreshadows_to_recycle=excluded.foreshadows_to_recycle,
+                    emotion_curve=excluded.emotion_curve, scenes=excluded.scenes,
+                    knowledge_update=excluded.knowledge_update,
+                    scene_designs=excluded.scene_designs, status=excluded.status,
+                    updated_at=excluded.updated_at
+            """, (project_id, chapter_no, data.get('title', ''),
+                  data.get('target_words', 2000), _j(data.get('plot_nodes_covered', [])),
+                  _j(data.get('timeline_events', [])), data.get('hook_type', ''),
+                  data.get('cliffhanger', ''), data.get('protagonist_level', ''),
+                  _j(data.get('locations', [])), data.get('dialogue_ratio', 0.4),
+                  data.get('pacing', 'normal'), _j(data.get('foreshadows_to_add', [])),
+                  _j(data.get('foreshadows_to_recycle', [])), _j(data.get('emotion_curve', [])),
+                  _j(data.get('scenes', [])), _j(data.get('knowledge_update', {})),
+                  _j(data.get('scene_designs', [])),
+                  data.get('status', 'planned'), now, now))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_chapter_plans(project_id):
     with _v2_lock:
         conn = _v2_db()
-        rows = conn.execute("SELECT * FROM v2_chapter_plans WHERE project_id=?  ORDER BY chapter_no",
-                          (project_id,)).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute("SELECT * FROM v2_chapter_plans WHERE project_id=?  ORDER BY chapter_no",
+                              (project_id,)).fetchall()
+        finally:
+            conn.close()
     result = []
     for row in rows:
         d = dict(row)
@@ -503,46 +533,52 @@ def save_foreshadow(project_id, foreshadow_id, data):
     """保存伏笔"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_foreshadowings (project_id, foreshadow_id, source_type, source_id,
-                foreshadow_type, description, trigger_text, target_volume, target_chapter,
-                status, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id, foreshadow_id) DO UPDATE SET
-                source_type=excluded.source_type, source_id=excluded.source_id,
-                foreshadow_type=excluded.foreshadow_type, description=excluded.description,
-                trigger_text=excluded.trigger_text, target_volume=excluded.target_volume,
-                target_chapter=excluded.target_chapter, status=excluded.status,
-                updated_at=excluded.updated_at
-        """, (project_id, foreshadow_id, data.get('source_type', ''),
-              data.get('source_id', ''), data.get('foreshadow_type', ''),
-              data.get('description', ''), data.get('trigger_text', ''),
-              data.get('target_volume', 0), data.get('target_chapter', 0),
-              data.get('status', 'active'), now, now))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            conn.execute("""
+                INSERT INTO v2_foreshadowings (project_id, foreshadow_id, source_type, source_id,
+                    foreshadow_type, description, trigger_text, target_volume, target_chapter,
+                    status, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(project_id, foreshadow_id) DO UPDATE SET
+                    source_type=excluded.source_type, source_id=excluded.source_id,
+                    foreshadow_type=excluded.foreshadow_type, description=excluded.description,
+                    trigger_text=excluded.trigger_text, target_volume=excluded.target_volume,
+                    target_chapter=excluded.target_chapter, status=excluded.status,
+                    updated_at=excluded.updated_at
+            """, (project_id, foreshadow_id, data.get('source_type', ''),
+                  data.get('source_id', ''), data.get('foreshadow_type', ''),
+                  data.get('description', ''), data.get('trigger_text', ''),
+                  data.get('target_volume', 0), data.get('target_chapter', 0),
+                  data.get('status', 'active'), now, now))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_foreshadows(project_id, status=None):
     with _v2_lock:
         conn = _v2_db()
-        if status:
-            rows = conn.execute("SELECT * FROM v2_foreshadowings WHERE project_id=? AND status=? ORDER BY id",
-                              (project_id, status)).fetchall()
-        else:
-            rows = conn.execute("SELECT * FROM v2_foreshadowings WHERE project_id=?  ORDER BY id",
-                              (project_id,)).fetchall()
-        conn.close()
+        try:
+            if status:
+                rows = conn.execute("SELECT * FROM v2_foreshadowings WHERE project_id=? AND status=? ORDER BY id",
+                                  (project_id, status)).fetchall()
+            else:
+                rows = conn.execute("SELECT * FROM v2_foreshadowings WHERE project_id=?  ORDER BY id",
+                                  (project_id,)).fetchall()
+        finally:
+            conn.close()
     return [_deserialize_row(r) for r in rows]
 
 def get_consistency_reports(project_id, limit=20):
     with _v2_lock:
         conn = _v2_db()
-        rows = conn.execute(
-            "SELECT * FROM v2_consistency_reports WHERE project_id=? ORDER BY created_at DESC LIMIT ?",
-            (project_id, limit)).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM v2_consistency_reports WHERE project_id=? ORDER BY created_at DESC LIMIT ?",
+                (project_id, limit)).fetchall()
+        finally:
+            conn.close()
     return [_deserialize_row(r) for r in rows]
 
 
@@ -553,24 +589,26 @@ def save_knowledge_state(project_id, data):
     """保存知识库快照"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        conn.execute("""
-            INSERT INTO v2_knowledge_states (project_id, character_states, world_state,
-                plot_state, consistency_status, last_check_at, last_chapter_no,
-                created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id) DO UPDATE SET
-                character_states=excluded.character_states, world_state=excluded.world_state,
-                plot_state=excluded.plot_state, consistency_status=excluded.consistency_status,
-                last_check_at=excluded.last_check_at, last_chapter_no=excluded.last_chapter_no,
-                updated_at=excluded.updated_at
-        """, (project_id, _j(data.get('character_states', {})),
-              _j(data.get('world_state', {})), _j(data.get('plot_state', {})),
-              _j(data.get('consistency_status', {})),
-              data.get('last_check_at', ''), data.get('last_chapter_no', ''),
-              now, now))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            conn.execute("""
+                INSERT INTO v2_knowledge_states (project_id, character_states, world_state,
+                    plot_state, consistency_status, last_check_at, last_chapter_no,
+                    created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(project_id) DO UPDATE SET
+                    character_states=excluded.character_states, world_state=excluded.world_state,
+                    plot_state=excluded.plot_state, consistency_status=excluded.consistency_status,
+                    last_check_at=excluded.last_check_at, last_chapter_no=excluded.last_chapter_no,
+                    updated_at=excluded.updated_at
+            """, (project_id, _j(data.get('character_states', {})),
+                  _j(data.get('world_state', {})), _j(data.get('plot_state', {})),
+                  _j(data.get('consistency_status', {})),
+                  data.get('last_check_at', ''), data.get('last_chapter_no', ''),
+                  now, now))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 
@@ -579,20 +617,24 @@ def mark_module_done(project_id, module_name):
     """Mark a pipeline module as done (upsert)"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        existing = conn.execute("SELECT id FROM v2_pipeline_states WHERE project_id=? AND module_name=?", (project_id, module_name)).fetchone()
-        if existing:
-            conn.execute("UPDATE v2_pipeline_states SET status='done', completed_at=?, updated_at=? WHERE project_id=? AND module_name=?", (now, now, project_id, module_name))
-        else:
-            conn.execute("INSERT INTO v2_pipeline_states (project_id, module_name, status, completed_at, updated_at, data_json) VALUES (?,?,?,?,?,?)", (project_id, module_name, 'done', now, now, '{}'))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            existing = conn.execute("SELECT id FROM v2_pipeline_states WHERE project_id=? AND module_name=?", (project_id, module_name)).fetchone()
+            if existing:
+                conn.execute("UPDATE v2_pipeline_states SET status='done', completed_at=?, updated_at=? WHERE project_id=? AND module_name=?", (now, now, project_id, module_name))
+            else:
+                conn.execute("INSERT INTO v2_pipeline_states (project_id, module_name, status, completed_at, updated_at, data_json) VALUES (?,?,?,?,?,?)", (project_id, module_name, 'done', now, now, '{}'))
+            conn.commit()
+        finally:
+            conn.close()
 
 def get_knowledge_state(project_id):
     with _v2_lock:
         conn = _v2_db()
-        row = conn.execute("SELECT * FROM v2_knowledge_states WHERE project_id=?", (project_id,)).fetchone()
-        conn.close()
+        try:
+            row = conn.execute("SELECT * FROM v2_knowledge_states WHERE project_id=?", (project_id,)).fetchone()
+        finally:
+            conn.close()
     if not row:
         return None
     d = dict(row)
@@ -605,52 +647,58 @@ def save_consistency_report(project_id, data):
     """保存一致性检查报告"""
     with _v2_lock:
         conn = _v2_db()
-        conn.execute("""
-            INSERT INTO v2_consistency_reports (project_id, chapter_no, score,
-                items, summary, fixes, created_at)
-            VALUES (?,?,?,?,?,?,?)
-        """, (project_id, data.get('chapter_no', ''), data.get('score', 1.0),
-              _j(data.get('items', [])), data.get('summary', ''),
-              _j(data.get('fixes', [])), _v2_now()))
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute("""
+                INSERT INTO v2_consistency_reports (project_id, chapter_no, score,
+                    items, summary, fixes, created_at)
+                VALUES (?,?,?,?,?,?,?)
+            """, (project_id, data.get('chapter_no', ''), data.get('score', 1.0),
+                  _j(data.get('items', [])), data.get('summary', ''),
+                  _j(data.get('fixes', [])), _v2_now()))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def save_draft(project_id, chapter_no, data):
     """保存草稿"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        word_count_raw = data.get('word_count_raw', len(data.get('content_raw', '')))
-        word_count_final = data.get('word_count_final', len(data.get('content', '')))
-        conn.execute("""
-            INSERT INTO v2_drafts (project_id, chapter_no, scene_id, content, content_raw,
-                word_count_raw, word_count_final, polish_status, foreshadow_added,
-                continuity_check, version, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id, chapter_no) DO UPDATE SET
-                content=excluded.content, content_raw=excluded.content_raw,
-                word_count_raw=excluded.word_count_raw, word_count_final=excluded.word_count_final,
-                polish_status=excluded.polish_status, foreshadow_added=excluded.foreshadow_added,
-                continuity_check=excluded.continuity_check, version=excluded.version,
-                updated_at=excluded.updated_at
-        """, (project_id, chapter_no, data.get('scene_id', ''),
-              data.get('content', ''), data.get('content_raw', ''),
-              word_count_raw, word_count_final,
-              data.get('polish_status', 'draft'),
-              _j(data.get('foreshadow_added', [])),
-              _j(data.get('continuity_check', {})),
-              data.get('version', 1), now, now))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            word_count_raw = data.get('word_count_raw', len(data.get('content_raw', '')))
+            word_count_final = data.get('word_count_final', len(data.get('content', '')))
+            conn.execute("""
+                INSERT INTO v2_drafts (project_id, chapter_no, scene_id, content, content_raw,
+                    word_count_raw, word_count_final, polish_status, foreshadow_added,
+                    continuity_check, version, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(project_id, chapter_no) DO UPDATE SET
+                    content=excluded.content, content_raw=excluded.content_raw,
+                    word_count_raw=excluded.word_count_raw, word_count_final=excluded.word_count_final,
+                    polish_status=excluded.polish_status, foreshadow_added=excluded.foreshadow_added,
+                    continuity_check=excluded.continuity_check, version=excluded.version,
+                    updated_at=excluded.updated_at
+            """, (project_id, chapter_no, data.get('scene_id', ''),
+                  data.get('content', ''), data.get('content_raw', ''),
+                  word_count_raw, word_count_final,
+                  data.get('polish_status', 'draft'),
+                  _j(data.get('foreshadow_added', [])),
+                  _j(data.get('continuity_check', {})),
+                  data.get('version', 1), now, now))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_drafts(project_id):
     with _v2_lock:
         conn = _v2_db()
-        rows = conn.execute("SELECT * FROM v2_drafts WHERE project_id=?  ORDER BY chapter_no",
-                          (project_id,)).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute("SELECT * FROM v2_drafts WHERE project_id=?  ORDER BY chapter_no",
+                              (project_id,)).fetchall()
+        finally:
+            conn.close()
     result = []
     for row in rows:
         d = dict(row)
@@ -666,34 +714,38 @@ def log_ai_generation(project_id, data):
     """记录AI生成"""
     with _v2_lock:
         conn = _v2_db()
-        conn.execute("""
-            INSERT INTO v2_ai_generations (project_id, module_name, entity_type,
-                entity_id, prompt_hash, prompt_text, response_text, model_used,
-                tokens_input, tokens_output, duration_ms, status, error_message, created_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """, (project_id, data.get('module_name', ''), data.get('entity_type', ''),
-              data.get('entity_id', ''), data.get('prompt_hash', ''),
-              data.get('prompt_text', ''), data.get('response_text', ''),
-              data.get('model_used', ''), data.get('tokens_input', 0),
-              data.get('tokens_output', 0), data.get('duration_ms', 0),
-              data.get('status', 'success'), data.get('error_message', ''),
-              _v2_now()))
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute("""
+                INSERT INTO v2_ai_generations (project_id, module_name, entity_type,
+                    entity_id, prompt_hash, prompt_text, response_text, model_used,
+                    tokens_input, tokens_output, duration_ms, status, error_message, created_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (project_id, data.get('module_name', ''), data.get('entity_type', ''),
+                  data.get('entity_id', ''), data.get('prompt_hash', ''),
+                  data.get('prompt_text', ''), data.get('response_text', ''),
+                  data.get('model_used', ''), data.get('tokens_input', 0),
+                  data.get('tokens_output', 0), data.get('duration_ms', 0),
+                  data.get('status', 'success'), data.get('error_message', ''),
+                  _v2_now()))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_ai_generations(project_id, module_name=None, limit=100):
     with _v2_lock:
         conn = _v2_db()
-        if module_name:
-            rows = conn.execute(
-                "SELECT * FROM v2_ai_generations WHERE project_id=? AND module_name=? ORDER BY id DESC LIMIT ?",
-                (project_id, module_name, limit)).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT * FROM v2_ai_generations WHERE project_id=? ORDER BY id DESC LIMIT ?",
-                (project_id, limit)).fetchall()
-        conn.close()
+        try:
+            if module_name:
+                rows = conn.execute(
+                    "SELECT * FROM v2_ai_generations WHERE project_id=? AND module_name=? ORDER BY id DESC LIMIT ?",
+                    (project_id, module_name, limit)).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM v2_ai_generations WHERE project_id=? ORDER BY id DESC LIMIT ?",
+                    (project_id, limit)).fetchall()
+        finally:
+            conn.close()
     return [dict(r) for r in rows]
 
 
@@ -703,47 +755,51 @@ def save_pipeline_state(project_id, module_name, data):
     """保存或更新流水线模块状态(含完整数据JSON)"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        module_data = _j(data.get('module_data', data))
+        try:
+            now = _v2_now()
+            module_data = _j(data.get('module_data', data))
 
-        # 查询现有状态,保存数据时不意外覆盖 locked/done 等状态
-        existing = conn.execute(
-            "SELECT status FROM v2_pipeline_states WHERE project_id=? AND module_name=?",
-            (project_id, module_name)
-        ).fetchone()
+            # 查询现有状态,保存数据时不意外覆盖 locked/done 等状态
+            existing = conn.execute(
+                "SELECT status FROM v2_pipeline_states WHERE project_id=? AND module_name=?",
+                (project_id, module_name)
+            ).fetchone()
 
-        if 'status' in data:
-            new_status = data['status']
-        elif existing:
-            new_status = existing[0]
-        else:
-            new_status = 'pending'
+            if 'status' in data:
+                new_status = data['status']
+            elif existing:
+                new_status = existing[0]
+            else:
+                new_status = 'pending'
 
-        conn.execute("""
-            INSERT INTO v2_pipeline_states (project_id, module_name, status, retry_count,
-                error, consistency_score, started_at, completed_at, updated_at, data_json)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(project_id, module_name) DO UPDATE SET
-                status=excluded.status, retry_count=excluded.retry_count,
-                error=excluded.error, consistency_score=excluded.consistency_score,
-                started_at=excluded.started_at, completed_at=excluded.completed_at,
-                updated_at=excluded.updated_at, data_json=excluded.data_json
-        """, (project_id, module_name, new_status,
-              data.get('retry_count', 0), data.get('error', ''),
-              data.get('consistency_score', 0), data.get('started_at', ''),
-              data.get('completed_at', ''), now, module_data))
-        conn.commit()
-        conn.close()
+            conn.execute("""
+                INSERT INTO v2_pipeline_states (project_id, module_name, status, retry_count,
+                    error, consistency_score, started_at, completed_at, updated_at, data_json)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(project_id, module_name) DO UPDATE SET
+                    status=excluded.status, retry_count=excluded.retry_count,
+                    error=excluded.error, consistency_score=excluded.consistency_score,
+                    started_at=excluded.started_at, completed_at=excluded.completed_at,
+                    updated_at=excluded.updated_at, data_json=excluded.data_json
+            """, (project_id, module_name, new_status,
+                  data.get('retry_count', 0), data.get('error', ''),
+                  data.get('consistency_score', 0), data.get('started_at', ''),
+                  data.get('completed_at', ''), now, module_data))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_pipeline_module_data(project_id, module_name):
     """读取模块完整数据JSON"""
     with _v2_lock:
         conn = _v2_db()
-        row = conn.execute(
-            "SELECT data_json FROM v2_pipeline_states WHERE project_id=? AND module_name=?",
-            (project_id, module_name)).fetchone()
-        conn.close()
+        try:
+            row = conn.execute(
+                "SELECT data_json FROM v2_pipeline_states WHERE project_id=? AND module_name=?",
+                (project_id, module_name)).fetchone()
+        finally:
+            conn.close()
     if row and row[0]:
         return _jd(row[0], {})
     return None
@@ -753,8 +809,10 @@ def get_pipeline_state(project_id):
     """获取项目所有流水线模块状态"""
     with _v2_lock:
         conn = _v2_db()
-        rows = conn.execute("SELECT * FROM v2_pipeline_states WHERE project_id=?", (project_id,)).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute("SELECT * FROM v2_pipeline_states WHERE project_id=?", (project_id,)).fetchall()
+        finally:
+            conn.close()
     return [dict(r) for r in rows]
 
 
@@ -771,14 +829,16 @@ def delete_project_v2(project_id):
     now = _v2_now()
     with _v2_lock:
         conn = _v2_db()
-        for table in tables:
-            try:
-                conn.execute(f"UPDATE {table} SET deleted_at=? WHERE project_id=? AND deleted_at IS NULL", (now, project_id))
-            except Exception:
-                # 表可能没有 deleted_at 列，回退到硬删除
-                conn.execute(f"DELETE FROM {table} WHERE project_id=?", (project_id,))
-        conn.commit()
-        conn.close()
+        try:
+            for table in tables:
+                try:
+                    conn.execute(f"UPDATE {table} SET deleted_at=? WHERE project_id=? AND deleted_at IS NULL", (now, project_id))
+                except Exception:
+                    # 表可能没有 deleted_at 列，回退到硬删除
+                    conn.execute(f"DELETE FROM {table} WHERE project_id=?", (project_id,))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def hard_delete_project_v2(project_id):
@@ -805,8 +865,10 @@ def get_setting(key: str) -> str | None:
     """获取单个设置值"""
     with _v2_lock:
         conn = _v2_db()
-        row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
-        conn.close()
+        try:
+            row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+        finally:
+            conn.close()
     return row['value'] if row else None
 
 
@@ -814,21 +876,25 @@ def set_setting(key: str, value: str):
     """设置单个键值（若不存在则插入，存在则更新）"""
     with _v2_lock:
         conn = _v2_db()
-        conn.execute(
-            "INSERT INTO settings(key, value, updated_at) VALUES(?, ?, ?) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
-            (key, value, _v2_now())
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute(
+                "INSERT INTO settings(key, value, updated_at) VALUES(?, ?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+                (key, value, _v2_now())
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_all_settings() -> dict:
     """获取所有设置"""
     with _v2_lock:
         conn = _v2_db()
-        rows = conn.execute("SELECT key, value FROM settings").fetchall()
-        conn.close()
+        try:
+            rows = conn.execute("SELECT key, value FROM settings").fetchall()
+        finally:
+            conn.close()
     return {r['key']: r['value'] for r in rows}
 
 
@@ -858,11 +924,13 @@ def get_idea_templates(project_id: str) -> list:
     """获取项目的模板列表（按updated_at倒序）"""
     with _v2_lock:
         conn = _v2_db()
-        rows = conn.execute(
-            "SELECT * FROM idea_templates WHERE project_id=? ORDER BY updated_at DESC",
-            (project_id,)
-        ).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM idea_templates WHERE project_id=? ORDER BY updated_at DESC",
+                (project_id,)
+            ).fetchall()
+        finally:
+            conn.close()
     return [dict(r) for r in rows]
 
 
@@ -870,8 +938,10 @@ def get_idea_template(template_id: int) -> dict | None:
     """获取单个模板"""
     with _v2_lock:
         conn = _v2_db()
-        row = conn.execute("SELECT * FROM idea_templates WHERE id=?", (template_id,)).fetchone()
-        conn.close()
+        try:
+            row = conn.execute("SELECT * FROM idea_templates WHERE id=?", (template_id,)).fetchone()
+        finally:
+            conn.close()
     return dict(row) if row else None
 
 
@@ -886,10 +956,12 @@ def update_idea_template(template_id: int, **fields) -> dict:
     values = list(updates.values()) + [template_id]
     with _v2_lock:
         conn = _v2_db()
-        conn.execute(f"UPDATE idea_templates SET {set_clause} WHERE id=?", values)
-        conn.commit()
-        row = conn.execute("SELECT * FROM idea_templates WHERE id=?", (template_id,)).fetchone()
-        conn.close()
+        try:
+            conn.execute(f"UPDATE idea_templates SET {set_clause} WHERE id=?", values)
+            conn.commit()
+            row = conn.execute("SELECT * FROM idea_templates WHERE id=?", (template_id,)).fetchone()
+        finally:
+            conn.close()
     return dict(row) if row else None
 
 
@@ -897,9 +969,11 @@ def delete_idea_template(template_id: int) -> bool:
     """删除模板"""
     with _v2_lock:
         conn = _v2_db()
-        cur = conn.execute("DELETE FROM idea_templates WHERE id=?", (template_id,))
-        conn.commit()
-        conn.close()
+        try:
+            cur = conn.execute("DELETE FROM idea_templates WHERE id=?", (template_id,))
+            conn.commit()
+        finally:
+            conn.close()
     return cur.rowcount > 0
 
 
@@ -949,8 +1023,10 @@ def get_generation_template(template_id: int) -> dict | None:
     """获取单个生成模板"""
     with _v2_lock:
         conn = _v2_db()
-        row = conn.execute("SELECT * FROM v2_generation_templates WHERE id=?", (template_id,)).fetchone()
-        conn.close()
+        try:
+            row = conn.execute("SELECT * FROM v2_generation_templates WHERE id=?", (template_id,)).fetchone()
+        finally:
+            conn.close()
     return dict(row) if row else None
 
 
@@ -980,11 +1056,13 @@ def list_generation_templates(
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     with _v2_lock:
         conn = _v2_db()
-        rows = conn.execute(
-            f"SELECT * FROM v2_generation_templates {where} ORDER BY usage_count DESC, created_at DESC LIMIT ? OFFSET ?",
-            params + [limit, offset]
-        ).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute(
+                f"SELECT * FROM v2_generation_templates {where} ORDER BY usage_count DESC, created_at DESC LIMIT ? OFFSET ?",
+                params + [limit, offset]
+            ).fetchall()
+        finally:
+            conn.close()
     return [dict(r) for r in rows]
 
 
@@ -1015,9 +1093,11 @@ def delete_generation_template(template_id: int) -> bool:
     """删除生成模板"""
     with _v2_lock:
         conn = _v2_db()
-        cur = conn.execute("DELETE FROM v2_generation_templates WHERE id=?", (template_id,))
-        conn.commit()
-        conn.close()
+        try:
+            cur = conn.execute("DELETE FROM v2_generation_templates WHERE id=?", (template_id,))
+            conn.commit()
+        finally:
+            conn.close()
     return cur.rowcount > 0
 
 
@@ -1025,20 +1105,24 @@ def increment_template_usage(template_id: int):
     """增加模板复用次数"""
     with _v2_lock:
         conn = _v2_db()
-        conn.execute("UPDATE v2_generation_templates SET usage_count = usage_count + 1 WHERE id=?", (template_id,))
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute("UPDATE v2_generation_templates SET usage_count = usage_count + 1 WHERE id=?", (template_id,))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_compatibility_group_templates(compat_group: str) -> list:
     """获取同一兼容组的所有模板"""
     with _v2_lock:
         conn = _v2_db()
-        rows = conn.execute(
-            "SELECT * FROM v2_generation_templates WHERE compatibility_group=? ORDER BY module_key",
-            (compat_group,)
-        ).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM v2_generation_templates WHERE compatibility_group=? ORDER BY module_key",
+                (compat_group,)
+            ).fetchall()
+        finally:
+            conn.close()
     return [dict(r) for r in rows]
 
 
@@ -1046,11 +1130,13 @@ def get_project_templates(project_id: str) -> list:
     """获取指定项目的所有生成模板"""
     with _v2_lock:
         conn = _v2_db()
-        rows = conn.execute(
-            "SELECT * FROM v2_generation_templates WHERE source_project_id=? ORDER BY created_at DESC",
-            (project_id,)
-        ).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM v2_generation_templates WHERE source_project_id=? ORDER BY created_at DESC",
+                (project_id,)
+            ).fetchall()
+        finally:
+            conn.close()
     return [dict(r) for r in rows]
 
 
@@ -1058,30 +1144,32 @@ def save_drafts_batch(project_id, chapters_data):
     """批量保存草稿 — chapters_data格式: {"1": {"title":"...", "content":"...", "char_count":3000}, ...}"""
     with _v2_lock:
         conn = _v2_db()
-        now = _v2_now()
-        for ch_num, ch in chapters_data.items():
-            content = ch.get('content', '') or ch.get('content_raw', '')
-            word_count = ch.get('char_count', len(content))
-            existing = conn.execute(
-                "SELECT id FROM v2_drafts WHERE project_id=? AND chapter_no=?",
-                (project_id, str(ch_num))
-            ).fetchone()
-            if existing:
-                conn.execute("""
-                    UPDATE v2_drafts SET
-                        content=?, content_raw=?, word_count_raw=?, word_count_final=?,
-                        chapter_no=?, updated_at=?
-                    WHERE project_id=? AND chapter_no=?
-                """, (content, content, word_count, word_count,
-                      str(ch_num), now, project_id, str(ch_num)))
-            else:
-                conn.execute("""
-                    INSERT INTO v2_drafts (project_id, chapter_no, scene_id, content, content_raw,
-                        word_count_raw, word_count_final, polish_status, foreshadow_added,
-                        continuity_check, version, created_at, updated_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """, (project_id, str(ch_num), ch.get('scene_id', ''),
-                      content, content, word_count, word_count,
-                      'draft', '[]', '{}', 1, now, now))
-        conn.commit()
-        conn.close()
+        try:
+            now = _v2_now()
+            for ch_num, ch in chapters_data.items():
+                content = ch.get('content', '') or ch.get('content_raw', '')
+                word_count = ch.get('char_count', len(content))
+                existing = conn.execute(
+                    "SELECT id FROM v2_drafts WHERE project_id=? AND chapter_no=?",
+                    (project_id, str(ch_num))
+                ).fetchone()
+                if existing:
+                    conn.execute("""
+                        UPDATE v2_drafts SET
+                            content=?, content_raw=?, word_count_raw=?, word_count_final=?,
+                            chapter_no=?, updated_at=?
+                        WHERE project_id=? AND chapter_no=?
+                    """, (content, content, word_count, word_count,
+                          str(ch_num), now, project_id, str(ch_num)))
+                else:
+                    conn.execute("""
+                        INSERT INTO v2_drafts (project_id, chapter_no, scene_id, content, content_raw,
+                            word_count_raw, word_count_final, polish_status, foreshadow_added,
+                            continuity_check, version, created_at, updated_at)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """, (project_id, str(ch_num), ch.get('scene_id', ''),
+                          content, content, word_count, word_count,
+                          'draft', '[]', '{}', 1, now, now))
+            conn.commit()
+        finally:
+            conn.close()

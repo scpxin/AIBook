@@ -29,7 +29,7 @@ export const useStoryStore = defineStore('story', () => {
     loading.value = true
     error.value = ''
     try {
-      const r = await generateStoryVolumes(pid, masterStory.value, volumeCount)
+      const r = await generateStoryVolumes(pid, masterStory.value!, volumeCount)
       volumes.value = r.volumes
     } catch (e: any) {
       error.value = e.message
@@ -42,7 +42,7 @@ export const useStoryStore = defineStore('story', () => {
     loading.value = true
     error.value = ''
     try {
-      return await checkStoryConsistency(pid, masterStory.value, characters)
+      return await checkStoryConsistency(pid, masterStory.value!, characters)
     } catch (e: any) {
       error.value = e.message
       return null

@@ -4,6 +4,7 @@
 _v2_lock / _v2_db() / 多套路由映射, 统一为 DataBridge.read() / DataBridge.write()。
 """
 import json
+import logging
 import os
 import sqlite3
 import threading
@@ -15,6 +16,8 @@ DB_PATH = os.environ.get(
     'DB_PATH',
     os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'fanqie.db'),
 )
+
+logger = logging.getLogger('novel_creator.data_bridge')
 
 
 class DataBridge:
@@ -286,20 +289,25 @@ class DataBridge:
         conn = DataBridge._conn()
         now = _now()
         vols = data if isinstance(data, list) else data.get('volumes', data.get('items', []))
-        conn.execute("DELETE FROM v2_volumes WHERE project_id=?", (project_id,))
-        for i, v in enumerate(vols):
-            conn.execute("""
-                INSERT INTO v2_volumes (project_id, volume_no, name, target_words, chapter_count,
-                    protagonist_start, protagonist_end, key_events, volume_foreshadows,
-                    cliffhanger, consistency_status, created_at, updated_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, (project_id, i + 1, str(v.get('name', '')),
-                  v.get('target_words', 250000), v.get('chapter_count', 100),
-                  _j(v.get('protagonist_start', {})), _j(v.get('protagonist_end', {})),
-                  _j(v.get('key_events', [])), _j(v.get('volume_foreshadows', [])),
-                  str(v.get('cliffhanger', '')), _j(v.get('consistency_status', {})),
-                  now, now))
-        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            conn.execute("DELETE FROM v2_volumes WHERE project_id=?", (project_id,))
+            for i, v in enumerate(vols):
+                conn.execute("""
+                    INSERT INTO v2_volumes (project_id, volume_no, name, target_words, chapter_count,
+                        protagonist_start, protagonist_end, key_events, volume_foreshadows,
+                        cliffhanger, consistency_status, created_at, updated_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (project_id, i + 1, str(v.get('name', '')),
+                      v.get('target_words', 250000), v.get('chapter_count', 100),
+                      _j(v.get('protagonist_start', {})), _j(v.get('protagonist_end', {})),
+                      _j(v.get('key_events', [])), _j(v.get('volume_foreshadows', [])),
+                      str(v.get('cliffhanger', '')), _j(v.get('consistency_status', {})),
+                      now, now))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
     # ========== M8: 章节规划 (DELETE + INSERT, 章节数可变) ==========
 
@@ -308,33 +316,45 @@ class DataBridge:
         conn = DataBridge._conn()
         now = _now()
         items = data if isinstance(data, list) else data.get('chapters', data.get('chapter_assignments', data.get('items', [])))
-        conn.execute("DELETE FROM v2_chapter_plans WHERE project_id=?", (project_id,))
-        for i, c in enumerate(items):
-            ch_no = str(c.get('chapter_no', i + 1))
-            conn.execute("""
-                INSERT INTO v2_chapter_plans (project_id, chapter_no, title, target_words,
-                    plot_nodes_covered, timeline_events, hook_type, cliffhanger,
-                    protagonist_level, locations, dialogue_ratio, pacing,
-                    foreshadows_to_add, foreshadows_to_recycle, emotion_curve,
-                    scenes, knowledge_update, scene_designs, status, created_at, updated_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, (project_id, ch_no, str(c.get('title', '')),
-                  c.get('target_words', 2000), _j(c.get('plot_nodes_covered', [])),
-                  _j(c.get('timeline_events', [])), str(c.get('hook_type', '')),
-                  str(c.get('cliffhanger', '')), str(c.get('protagonist_level', '')),
-                  _j(c.get('locations', [])), c.get('dialogue_ratio', 0.4),
-                  str(c.get('pacing', 'normal')), _j(c.get('foreshadows_to_add', [])),
-                  _j(c.get('foreshadows_to_recycle', [])), _j(c.get('emotion_curve', [])),
-                  _j(c.get('scenes', [])), _j(c.get('knowledge_update', {})),
-                  _j(c.get('scene_designs', [])),
-                  str(c.get('status', 'planned')), now, now))
-        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            conn.execute("DELETE FROM v2_chapter_plans WHERE project_id=?", (project_id,))
+            for i, c in enumerate(items):
+                ch_no = str(c.get('chapter_no', i + 1))
+                conn.execute("""
+                    INSERT INTO v2_chapter_plans (project_id, chapter_no, title, target_words,
+                        plot_nodes_covered, timeline_events, hook_type, cliffhanger,
+                        protagonist_level, locations, dialogue_ratio, pacing,
+                        foreshadows_to_add, foreshadows_to_recycle, emotion_curve,
+                        scenes, knowledge_update, scene_designs, status, created_at, updated_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (project_id, ch_no, str(c.get('title', '')),
+                      c.get('target_words', 2000), _j(c.get('plot_nodes_covered', [])),
+                      _j(c.get('timeline_events', [])), str(c.get('hook_type', '')),
+                      str(c.get('cliffhanger', '')), str(c.get('protagonist_level', '')),
+                      _j(c.get('locations', [])), c.get('dialogue_ratio', 0.4),
+                      str(c.get('pacing', 'normal')), _j(c.get('foreshadows_to_add', [])),
+                      _j(c.get('foreshadows_to_recycle', [])), _j(c.get('emotion_curve', [])),
+                      _j(c.get('scenes', [])), _j(c.get('knowledge_update', {})),
+                      _j(c.get('scene_designs', [])),
+                      str(c.get('status', 'planned')), now, now))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
     # ========== M9: 章节细纲+场景 (DELETE + INSERT) ==========
 
     @staticmethod
     def _write_chapter_outline(project_id, data):
-        DataBridge._write_chapter_plan(project_id, data)
+        if isinstance(data, list):
+            return DataBridge._write_chapter_plan(project_id, data)
+        if isinstance(data, dict) and any(k in data for k in ('chapters', 'chapter_assignments', 'items')):
+            return DataBridge._write_chapter_plan(project_id, data)
+        logger.warning(
+            "chapter_outline data format mismatch: expected keys 'chapters'/'chapter_assignments'/'items', got: %s. Skipping write.",
+            list(data.keys())[:10] if isinstance(data, dict) else type(data).__name__
+        )
 
     # ========== M10: 正文 (按章 UPSERT) ==========
 

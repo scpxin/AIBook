@@ -9,11 +9,7 @@ M19: consistency   — 一致性检查(9项自动校验)
 """
 import json
 import logging
-import os
-import sys
 
-_current = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(_current, '..', '..', '..'))
 from app.services.service_utils import build_style_str
 from app.services.service_utils import get_default_generator as _get_default_generator
 from novel_creator import data_bridge, database_v2
@@ -140,6 +136,7 @@ class DraftService:
             DataBridge.write(project_id, "draft", {str(chapter_no): data})
             return {"saved": True}, None
         except Exception as e:
+            logger.exception("Failed to save draft")
             return None, str(e)
 
 
@@ -261,6 +258,7 @@ class KnowledgeService:
 
             return {"updated": True}, None
         except Exception as e:
+            logger.exception("Failed to update knowledge base")
             return None, str(e)
 
     @staticmethod
@@ -272,6 +270,7 @@ class KnowledgeService:
                 return {"character_states": {}, "plot_state": {}, "world_state": {}}, None
             return state, None
         except Exception as e:
+            logger.exception("Failed to get knowledge snapshot")
             return None, str(e)
 
     @staticmethod
@@ -281,6 +280,7 @@ class KnowledgeService:
             foreshadows = database_v2.get_foreshadows(project_id, status=status)
             return {"foreshadows": foreshadows or [], "count": len(foreshadows or [])}, None
         except Exception as e:
+            logger.exception("Failed to get foreshadows")
             return None, str(e)
 
 
@@ -389,6 +389,7 @@ class ConsistencyService:
                 "message": "AI一致性分析完成"
             }, None
         except Exception as e:
+            logger.exception("Failed to run world consistency check")
             return None, str(e)
 
     @staticmethod
@@ -441,6 +442,7 @@ class ConsistencyService:
                 "message": "AI一致性分析完成"
             }, None
         except Exception as e:
+            logger.exception("Failed to run character consistency check")
             return None, str(e)
 
     @staticmethod
@@ -452,6 +454,7 @@ class ConsistencyService:
                 reports = [r for r in (reports or []) if r.get('chapter_no') == chapter_no]
             return {"reports": reports or [], "count": len(reports or [])}, None
         except Exception as e:
+            logger.exception("Failed to get consistency report")
             return None, str(e)
 
 

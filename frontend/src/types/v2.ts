@@ -125,16 +125,18 @@ export interface WorldOrigin {
   chaosOrder: string
 }
 
+export interface WorldStructure {
+  dimensions?: WorldLayer[]
+  realms?: Record<string, unknown>[]
+  landmarkLocations?: LandmarkLocation[]
+  spatialRules?: string
+}
+
 export interface WorldBuilding {
   origin?: WorldOrigin | string
   rules?: WorldRule[]
-  structure?: {
-    dimensions?: WorldLayer[]
-    realms?: any[]
-    landmarkLocations?: LandmarkLocation[]
-    spatialRules?: string
-  }
-  civilization?: Record<string, any>
+  structure?: WorldStructure
+  civilization?: Record<string, unknown>
   history?: {
     timelineEvents?: HistoryEvent[]
     ancientMysteries?: string[]
@@ -142,7 +144,7 @@ export interface WorldBuilding {
     declineCycles?: string
   }
   docPath?: string
-  worldForeshadows?: any
+  worldForeshadows?: Record<string, unknown>
 }
 
 export interface WorldConsistencyCheck {
@@ -619,4 +621,15 @@ export interface ModuleInfo {
   dependencies: string[]
   isParallel: boolean
   isIterative: boolean
+}
+
+export interface GenerationTemplateData {
+  [key: string]: unknown
+}
+
+export interface ProjectDimension {
+  name?: string
+  score?: number
+  analysis?: string
+  [key: string]: unknown
 }

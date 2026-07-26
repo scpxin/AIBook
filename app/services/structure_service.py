@@ -11,11 +11,7 @@ M13: chapter_outline — 章节细纲(逐章展开)
 """
 import json
 import logging
-import os
-import sys
 
-_current = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(_current, '..', '..', '..'))
 from app.services.service_utils import build_style_str, get_default_generator
 from novel_creator import data_bridge
 
@@ -71,6 +67,7 @@ class MasterOutlineService:
             DataBridge.write(project_id, "architecture", existing)
             return {"saved": True}, None
         except Exception as e:
+            logger.exception("Failed to save master outline")
             return None, str(e)
 
 
@@ -177,6 +174,7 @@ JSON结构:
             DataBridge.write(project_id, "volumes", existing_vols)
             return {"saved": True}, None
         except Exception as e:
+            logger.exception("Failed to save volume")
             return None, str(e)
 
 
@@ -276,6 +274,7 @@ class ChapterPlanService:
             DataBridge.write(project_id, "chapter_plan", existing)
             return {"saved": True}, None
         except Exception as e:
+            logger.exception("Failed to save chapter plan")
             return None, str(e)
 
 
@@ -369,6 +368,7 @@ class ChapterOutlineService:
                 DataBridge.write(project_id, "chapter_plan", existing)
             return {"saved": True}, None
         except Exception as e:
+            logger.exception("Failed to save chapter outline")
             return None, str(e)
 
 

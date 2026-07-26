@@ -56,11 +56,7 @@ def run_migration(args):
         return 1
 
     try:
-        # 确保能正确导入 novel_creator 模块
-        _script_dir = os.path.dirname(os.path.abspath(__file__))
-        if _script_dir not in sys.path:
-            sys.path.insert(0, _script_dir)
-        from database_v2 import init_db_v2
+        from novel_creator.database_v2 import init_db_v2
 
         conn = get_connection()
         before_tables = get_existing_v2_tables(conn)

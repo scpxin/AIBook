@@ -17,7 +17,7 @@
       <button @click="openSettings" class="btn-config-ai">立即配置</button>
     </div>
     <div class="v2-header">
-      <h2>AI创作V2 — 19模块流水线</h2>
+      <h2>AI创作V2 — 13模块流水线</h2>
       <div class="header-actions">
         <button @click="goToProjects" class="btn-projects" title="管理所有项目">
           📚 项目
@@ -114,17 +114,14 @@
 
         <div class="module-content">
           <Transition name="module-fade" mode="out-in">
-            <IdeaView v-if="currentModule === 'idea'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-            <ProjectView v-else-if="currentModule === 'project'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-            <WorldView v-else-if="currentModule === 'world'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-            <CharacterView v-else-if="currentModule === 'characters'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-            <ArchitectureView v-else-if="currentModule === 'architecture'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-            <OutlineView v-else-if="currentModule === 'outline'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-            <PlanningView v-else-if="['volumes', 'chapter_plan'].includes(currentModule)" :key="currentModule + projectId" :project-id="projectId" :current-module="currentModule" @complete="onModuleComplete" />
-            <DraftInlineView v-else-if="currentModule === 'draft'" :key="currentModule + projectId" :project-id="projectId" @complete="onModuleComplete" />
-            <ContentView v-else-if="currentModule === 'parse'" :key="currentModule + '_parse' + projectId" :project-id="projectId" module-type="parse" title="内容解析" desc="对正文进行结构化解析，提取场景、对白、情绪等要素，并更新知识库" action-label="解析内容" @complete="onModuleComplete" />
-            <ContentView v-else-if="currentModule === 'polish'" :key="currentModule + '_polish' + projectId" :project-id="projectId" module-type="polish" title="润色优化" desc="对正文进行AI润色，提升文采、修正语病、增强表现力" action-label="开始润色" @complete="onModuleComplete" />
-            <ContentView v-else-if="currentModule === 'consistency'" :key="currentModule + '_consistency' + projectId" :project-id="projectId" module-type="consistency" title="一致性检查" desc="检查正文与前期设定的矛盾冲突：人物、世界观、剧情连贯性" action-label="运行检查" @complete="onModuleComplete" />
+            <component
+              v-if="currentModuleComponent"
+              :is="currentModuleComponent"
+              :key="currentModule + projectId"
+              :project-id="projectId"
+              v-bind="currentModuleExtraProps"
+              @complete="onModuleComplete"
+            />
             <div v-else class="module-placeholder" :key="currentModule">
               <h3>{{ currentModuleInfo?.display_name || currentModule }}</h3>
               <p>该模块视图正在建设中...</p>
@@ -145,7 +142,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch, provide } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, provide, type Component } from 'vue'
 import { useNetworkStatus } from '../composables/useNetworkStatus'
 import { flushAllSaves } from '../composables/useSaveRegistry'
 import { useModuleSaveStore } from '../stores/moduleSave'
@@ -182,6 +179,28 @@ import { useTemplateStore } from '../composables/useTemplateStore'
 import type { GenerationTemplate } from '../composables/useTemplateStore'
 import AppConfirmDialog from '../components/AppConfirmDialog.vue'
 import AppErrorBar from '../components/AppErrorBar.vue'
+
+const CONTENT_VIEW_CONFIGS: Record<string, { title: string; desc: string; actionLabel: string }> = {
+  parse: { title: '内容解析', desc: '对正文进行结构化解析，提取场景、对白、情绪等要素，并更新知识库', actionLabel: '解析内容' },
+  polish: { title: '润色优化', desc: '对正文进行AI润色，提升文采、修正语病、增强表现力', actionLabel: '开始润色' },
+  consistency: { title: '一致性检查', desc: '检查正文与前期设定的矛盾冲突：人物、世界观、剧情连贯性', actionLabel: '运行检查' },
+}
+
+const MODULE_COMPONENT_MAP: Record<string, Component> = {
+  idea: IdeaView,
+  project: ProjectView,
+  world: WorldView,
+  characters: CharacterView,
+  architecture: ArchitectureView,
+  outline: OutlineView,
+  volumes: PlanningView,
+  chapter_plan: PlanningView,
+  draft: DraftInlineView,
+  parse: ContentView,
+  polish: ContentView,
+  consistency: ContentView,
+}
+
 
 const route = useRoute()
 const router = useRouter()
@@ -227,6 +246,16 @@ const currentModule = computed(() => {
 
 const currentModuleInfo = computed(() => {
   return modules.value.find(m => m.name === currentModule.value)
+})
+
+const currentModuleComponent = computed(() => MODULE_COMPONENT_MAP[currentModule.value] || null)
+
+const currentModuleExtraProps = computed(() => {
+  const mod = currentModule.value
+  if (['volumes', 'chapter_plan'].includes(mod)) return { currentModule: mod }
+  const cv = CONTENT_VIEW_CONFIGS[mod]
+  if (cv) return { moduleType: mod, ...cv }
+  return {}
 })
 
 const progressPct = computed(() => pipeline.progressPct)

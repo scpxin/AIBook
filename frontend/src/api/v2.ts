@@ -1,9 +1,10 @@
 // V2 API Service Layer — 所有19模块的API函数
 import { apiPost, apiGet, apiPostLong, apiStream, apiPut, apiDelete } from './client'
 import type {
-  IdeaCandidate, IdeaScore, IdeaUpgrade, RiskAnalysis, IdeaTemplate,
+  IdeaCandidate, IdeaScore, IdeaUpgrade, RiskAnalysis, IdeaTemplate, DerivedFields,
   PlatformCompatibility,
-  WorldBuilding, WorldOrigin, WorldRule, WorldConsistencyCheck,
+  WorldBuilding, WorldStructure, WorldOrigin, WorldRule, WorldConsistencyCheck,
+  CivilizationDimension,
   Character, RelationMap, CharacterConsistencyCheck,
   StoryMaster, VolumeOutline,
   PowerSystem, Faction, Timeline, MasterOutline,
@@ -11,7 +12,7 @@ import type {
   SceneSkeleton, Draft, DraftStreamChunk,
   PolishResult, ContentParseResult,
   KnowledgeState, ConsistencyReport,
-  PipelineProgress, ModuleInfo,
+  PipelineProgress, ModuleInfo, GenerationTemplateData, ProjectDimension,
 } from '../types/v2'
 
 // ========== M1: 灵感 ==========
@@ -34,7 +35,7 @@ export function upgradeIdeas(projectId: string, ideas: IdeaCandidate[]) {
   })
 }
 
-export function analyzeIdeaRisks(projectId: string, concept: string, extra?: any) {
+export function analyzeIdeaRisks(projectId: string, concept: string, extra?: Record<string, unknown>) {
   return apiPost<RiskAnalysis>('/api/v2/ideas/analyze-risks', {
     project_id: projectId, concept, extra: extra || {},
   })
@@ -61,7 +62,7 @@ export function deleteTemplate(id: string | number) {
 // ========== M2: 项目定位 ==========
 
 export function analyzeProjectBatch(projectId: string, idea: string, platform: string, batchIndex: number) {
-  return apiPost<{ dimensions: any[]; _batch_index: number; _total_batches: number }>(
+  return apiPost<{ dimensions: ProjectDimension[]; _batch_index: number; _total_batches: number }>(
     '/api/v2/projects/analyze-batch',
     { project_id: projectId, idea, platform, batch_index: batchIndex },
     120000
@@ -75,7 +76,7 @@ export function checkProjectCompatibility(projectId: string, idea: string, platf
 }
 
 export function deriveProjectFields(projectId: string, idea: string) {
-  return apiPost<any>('/api/v2/projects/derive-fields', {
+  return apiPost<DerivedFields>('/api/v2/projects/derive-fields', {
     project_id: projectId, idea,
   })
 }
@@ -88,37 +89,37 @@ export function generateWorldOrigin(projectId: string, idea: string, genre?: str
   }, 300000)
 }
 
-export function generateWorldRules(projectId: string, origin: any, powerSystem?: any) {
+export function generateWorldRules(projectId: string, origin: WorldOrigin, powerSystem?: PowerSystem) {
   return apiPost<{ rules: WorldRule[]; metaRule: string }>('/api/v2/world/rules', {
     project_id: projectId, origin, power_system: powerSystem,
   }, 300000)
 }
 
-export function generateWorldStructure(projectId: string, origin: any) {
-  return apiPost<any>('/api/v2/world/structure', {
+export function generateWorldStructure(projectId: string, origin: WorldOrigin) {
+  return apiPost<WorldStructure>('/api/v2/world/structure', {
     project_id: projectId, origin,
   }, 300000)
 }
 
-export function generateWorldCivilization(projectId: string, structure: any) {
+export function generateWorldCivilization(projectId: string, structure: WorldStructure) {
   return apiPost<any>('/api/v2/world/civilization', {
     project_id: projectId, structure,
   }, 300000)
 }
 
-export function generateWorldHistory(projectId: string, structure: any, civilization: any) {
+export function generateWorldHistory(projectId: string, structure: WorldStructure, civilization: CivilizationDimension) {
   return apiPost<any>('/api/v2/world/history', {
     project_id: projectId, structure, civilization,
   }, 300000)
 }
 
-export function checkWorldConsistency(projectId: string, worldData: any) {
+export function checkWorldConsistency(projectId: string, worldData: WorldBuilding) {
   return apiPost<WorldConsistencyCheck>('/api/v2/world/check-consistency', {
     project_id: projectId, world_data: worldData,
   })
 }
 
-export function saveWorld(projectId: string, worldData: any) {
+export function saveWorld(projectId: string, worldData: WorldBuilding) {
   return apiPost<{ saved: boolean }>('/api/v2/world/save', {
     project_id: projectId, world_data: worldData,
   })
@@ -126,19 +127,19 @@ export function saveWorld(projectId: string, worldData: any) {
 
 // ========== M4: 角色 ==========
 
-export function generateProtagonist(projectId: string, worldRules: any, storyConcept?: string) {
+export function generateProtagonist(projectId: string, worldRules: WorldRule[], storyConcept?: string) {
   return apiPost<Character>('/api/v2/characters/protagonist', {
     project_id: projectId, world_rules: worldRules, story_concept: storyConcept || '',
   }, 300000)
 }
 
-export function generateSupporting(projectId: string, protagonist: any, count?: number) {
+export function generateSupporting(projectId: string, protagonist: Character, count?: number) {
   return apiPost<{ characters: Character[] }>('/api/v2/characters/supporting', {
     project_id: projectId, protagonist, count: count || 5,
   }, 300000)
 }
 
-export function generateAntagonists(projectId: string, protagonist: any, world: any) {
+export function generateAntagonists(projectId: string, protagonist: Character, world: WorldBuilding) {
   return apiPost<any>('/api/v2/characters/antagonists', {
     project_id: projectId, protagonist, world,
   }, 300000)
@@ -158,19 +159,19 @@ export function checkCharacterConsistency(projectId: string, characters: Charact
 
 // ========== M5: 故事 ==========
 
-export function generateStoryMaster(projectId: string, protagonist: any, world: any, characters: Character[]) {
+export function generateStoryMaster(projectId: string, protagonist: Character, world: WorldBuilding, characters: Character[]) {
   return apiPost<StoryMaster>('/api/v2/story/master', {
     project_id: projectId, protagonist, world, characters,
   }, 300000)
 }
 
-export function generateStoryVolumes(projectId: string, masterStory: any, volumeCount?: number) {
+export function generateStoryVolumes(projectId: string, masterStory: Partial<StoryMaster>, volumeCount?: number) {
   return apiPost<{ volumes: VolumeOutline[] }>('/api/v2/story/volumes', {
     project_id: projectId, master_story: masterStory, volume_count: volumeCount || 5,
   }, 300000)
 }
 
-export function checkStoryConsistency(projectId: string, storyData: any, characters: Character[]) {
+export function checkStoryConsistency(projectId: string, storyData: Partial<StoryMaster>, characters: Character[]) {
   return apiPost<any>('/api/v2/story/check-consistency', {
     project_id: projectId, story_data: storyData, characters,
   })
@@ -178,13 +179,13 @@ export function checkStoryConsistency(projectId: string, storyData: any, charact
 
 // ========== M9: 全书大纲 ==========
 
-export function generateMasterOutline(projectId: string, storySystem: any) {
+export function generateMasterOutline(projectId: string, storySystem: Partial<StoryMaster>) {
   return apiPost<MasterOutline>('/api/v2/outline/master', {
     project_id: projectId, story_system: storySystem,
   }, 300000)
 }
 
-export function saveMasterOutline(projectId: string, data: any) {
+export function saveMasterOutline(projectId: string, data: Record<string, unknown>) {
   return apiPost<{ saved: boolean }>('/api/v2/outline/save', {
     project_id: projectId, data,
   })
@@ -192,19 +193,19 @@ export function saveMasterOutline(projectId: string, data: any) {
 
 // ========== M10: 卷纲 ==========
 
-export function generateVolume(projectId: string, volumeNo: number, masterOutline: any) {
+export function generateVolume(projectId: string, volumeNo: number, masterOutline: MasterOutline) {
   return apiPost<VolumeDetail>('/api/v2/volumes/generate', {
     project_id: projectId, volume_no: volumeNo, master_outline: masterOutline,
   }, 300000)
 }
 
-export function generateVolumes(projectId: string, count: number, masterOutline: any) {
+export function generateVolumes(projectId: string, count: number, masterOutline: MasterOutline) {
   return apiPost<any>('/api/v2/volumes/generate-batch', {
     project_id: projectId, count, master_outline: masterOutline,
   }, 300000)
 }
 
-export function saveVolume(projectId: string, volumeNo: number, data: any) {
+export function saveVolume(projectId: string, volumeNo: number, data: Record<string, unknown>) {
   return apiPost<{ saved: boolean }>('/api/v2/volumes/save', {
     project_id: projectId, volume_no: volumeNo, data,
   })
@@ -212,13 +213,13 @@ export function saveVolume(projectId: string, volumeNo: number, data: any) {
 
 // ========== M11: 剧情节点 ==========
 
-export function generatePlotNodes(projectId: string, chapterPlan: any, masterOutline: any) {
+export function generatePlotNodes(projectId: string, chapterPlan: ChapterPlan, masterOutline: MasterOutline) {
   return apiPost<{ events: PlotEventDetail[] }>('/api/v2/plot-nodes/generate', {
     project_id: projectId, chapter_plan: chapterPlan, master_outline: masterOutline,
   }, 300000)
 }
 
-export function savePlotNode(projectId: string, eventId: string, data: any) {
+export function savePlotNode(projectId: string, eventId: string, data: Record<string, unknown>) {
   return apiPost<{ saved: boolean }>('/api/v2/plot-nodes/save', {
     project_id: projectId, event_id: eventId, data,
   })
@@ -226,14 +227,14 @@ export function savePlotNode(projectId: string, eventId: string, data: any) {
 
 // ========== M12: 章节规划 ==========
 
-export function planChapters(projectId: string, masterOutline: any, plotEvents: any[], targetWordcount?: number) {
+export function planChapters(projectId: string, masterOutline: MasterOutline, plotEvents: PlotEventDetail[], targetWordcount?: number) {
   return apiPost<any>('/api/v2/chapters/plan', {
     project_id: projectId, master_outline: masterOutline, plot_events: plotEvents,
     target_wordcount: targetWordcount || 2000,
   }, 300000)
 }
 
-export function saveChapterPlan(projectId: string, chapterNo: number | string, data: any) {
+export function saveChapterPlan(projectId: string, chapterNo: number | string, data: Record<string, unknown>) {
   return apiPost<{ saved: boolean }>('/api/v2/chapters/plan-save', {
     project_id: projectId, chapter_no: chapterNo, data,
   })
@@ -241,19 +242,19 @@ export function saveChapterPlan(projectId: string, chapterNo: number | string, d
 
 // ========== M13: 章节细纲 ==========
 
-export function generateChapterOutline(projectId: string, chapterNo: number | string, chapterPlan: any) {
+export function generateChapterOutline(projectId: string, chapterNo: number | string, chapterPlan: ChapterPlan) {
   return apiPost<ChapterOutline>('/api/v2/chapters/outline', {
     project_id: projectId, chapter_no: chapterNo, chapter_plan: chapterPlan,
   }, 300000)
 }
 
-export function generateChapterOutlines(projectId: string, totalChapters: number, chapterPlan: any) {
+export function generateChapterOutlines(projectId: string, totalChapters: number, chapterPlan: ChapterPlan) {
   return apiPost<any>('/api/v2/chapters/outline-batch', {
     project_id: projectId, total_chapters: totalChapters, chapter_plan: chapterPlan,
   }, 300000)
 }
 
-export function saveChapterOutline(projectId: string, chapterNo: number | string, data: any) {
+export function saveChapterOutline(projectId: string, chapterNo: number | string, data: Record<string, unknown>) {
   return apiPost<{ saved: boolean }>('/api/v2/chapters/outline-save', {
     project_id: projectId, chapter_no: chapterNo, data,
   })
@@ -261,13 +262,13 @@ export function saveChapterOutline(projectId: string, chapterNo: number | string
 
 // ========== M14: 场景设计 ==========
 
-export function designScenes(projectId: string, chapterOutline: any) {
+export function designScenes(projectId: string, chapterOutline: Partial<ChapterOutline>) {
   return apiPost<{ scenes: SceneSkeleton[] }>('/api/v2/scenes/design', {
     project_id: projectId, chapter_outline: chapterOutline,
   }, 180000)
 }
 
-export function saveScene(projectId: string, sceneId: string, data: any) {
+export function saveScene(projectId: string, sceneId: string, data: Record<string, unknown>) {
   return apiPost<{ saved: boolean }>('/api/v2/scenes/save', {
     project_id: projectId, scene_id: sceneId, data,
   })
@@ -278,7 +279,7 @@ export function saveScene(projectId: string, sceneId: string, data: any) {
 export function generateDraft(
   projectId: string,
   chapterNo: string,
-  sceneSkeleton: any,
+  sceneSkeleton: SceneSkeleton,
   onChunk?: (text: string) => void,
   onDone?: () => void,
   onError?: (err: string) => void
@@ -323,7 +324,7 @@ export function polishContent(projectId: string, content: string, focus?: string
 
 // ========== M17: 内容解析 ==========
 
-export function parseContent(projectId: string, chapterNo: string, content: string, existing_characters?: any[]) {
+export function parseContent(projectId: string, chapterNo: string, content: string, existing_characters?: Character[]) {
   return apiPost<ContentParseResult>('/api/v2/content/parse', {
     project_id: projectId, chapter_no: chapterNo, content, existing_characters,
   })
@@ -331,7 +332,7 @@ export function parseContent(projectId: string, chapterNo: string, content: stri
 
 // ========== M18: 知识库 ==========
 
-export function updateKnowledge(projectId: string, chapterNo: string, parseResult: any) {
+export function updateKnowledge(projectId: string, chapterNo: string, parseResult: ContentParseResult) {
   return apiPost<{ updated: boolean }>('/api/v2/knowledge/update', {
     project_id: projectId, chapter_no: chapterNo, parse_result: parseResult,
   })
@@ -353,10 +354,10 @@ export function checkConsistency(
   projectId: string,
   chapterNo: string,
   content?: string,
-  knowledgeState?: any,
+  knowledgeState?: KnowledgeState,
   characters?: Character[],
-  world?: any,
-  powerSystem?: any
+  world?: WorldBuilding,
+  powerSystem?: PowerSystem
 ) {
   return apiPost<ConsistencyReport>('/api/v2/consistency/check', {
     project_id: projectId, chapter_no: chapterNo, content,
@@ -392,32 +393,32 @@ export function updateModuleStatus(projectId: string, moduleName: string, status
 }
 
 export function getModuleData(projectId: string, moduleName: string) {
-  return apiGet<{ module: string; data: any }>(`/api/v2/pipeline/${projectId}/data/${moduleName}`)
+  return apiGet<{ module: string; data: Record<string, any> }>(`/api/v2/pipeline/${projectId}/data/${moduleName}`)
 }
 
-export function saveModuleData(projectId: string, moduleName: string, data: any) {
+export function saveModuleData(projectId: string, moduleName: string, data: Record<string, any>) {
   return apiPost<{ success: boolean }>(`/api/v2/pipeline/${projectId}/data/${moduleName}`, data)
+}
+
+export function getAllModuleData(projectId: string) {
+  return apiGet<{ project_id: string; modules: Record<string, any> }>(`/api/v2/pipeline/${projectId}/data`)
 }
 
 import { useModuleSaveStore } from '../stores/moduleSave'
 
 export { useModuleSaveStore }
 
-export async function saveModuleDataTracked(projectId: string, moduleName: string, data: any): Promise<boolean> {
+export async function saveModuleDataTracked(projectId: string, moduleName: string, data: Record<string, unknown>): Promise<boolean> {
   const store = useModuleSaveStore()
   store.markSaving(projectId, moduleName)
   try {
     await saveModuleData(projectId, moduleName, data)
     store.markSaved(projectId, moduleName)
     return true
-  } catch (e: any) {
-    store.markError(projectId, moduleName, e?.message || '保存失败')
+  } catch (e: unknown) {
+    store.markError(projectId, moduleName, (e as Error)?.message || '保存失败')
     throw e
   }
-}
-
-export function getAllModuleData(projectId: string) {
-  return apiGet<{ project_id: string; modules: Record<string, any> }>(`/api/v2/pipeline/${projectId}/data`)
 }
 
 export async function confirmIdea(projectId: string, ideaId: string, version: number = 1) {
@@ -433,7 +434,7 @@ export async function characterConsistencyCheck(projectId: string) {
 }
 
 export function getDrafts(projectId: string) {
-  return apiGet<any[]>(`/api/v2/pipeline/${projectId}/data/draft`)
+  return apiGet<Draft[]>(`/api/v2/pipeline/${projectId}/data/draft`)
 }
 
 export function testModelConnection(endpoint: string, apiKey: string, model: string) {
@@ -455,9 +456,9 @@ export interface GenerationTemplate {
   target_audience: string
   source_project_id: string
   input_fingerprint: string
-  output_data: any
-  input_context: any
-  entity_refs: any
+  output_data: GenerationTemplateData
+  input_context: Record<string, unknown>
+  entity_refs: Record<string, unknown>
   compatibility_group: string
   usage_count: number
   quality_rating: number
@@ -484,9 +485,9 @@ export function getGenerationTemplate(id: number) {
 export function createGenerationTemplate(data: {
   name: string
   module_key: string
-  output_data: any
-  input_context?: any
-  entity_refs?: any
+  output_data: GenerationTemplateData
+  input_context?: Record<string, unknown>
+  entity_refs?: Record<string, unknown>
   compatibility_group?: string
   source_project_id?: string
   genre?: string
@@ -532,7 +533,7 @@ export function applyGenerationTemplate(templateId: number, projectId: string) {
   return apiPost<{
     success: boolean
     module: string
-    data: any
+    data: Record<string, unknown>
     applied_as: string
   }>(`/api/v2/generation-templates/${templateId}/apply`, { project_id: projectId })
 }
@@ -544,8 +545,8 @@ export function rateGenerationTemplate(id: number, rating: number) {
 export function autoSaveGenerationTemplate(data: {
   project_id: string
   module_key: string
-  module_data: any
-  input_context?: any
+  module_data: Record<string, unknown>
+  input_context?: Record<string, unknown>
   compatibility_group?: string
 }) {
   return apiPost<{ ok: boolean; template_id?: number; auto_saved: boolean }>(

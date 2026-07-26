@@ -8,11 +8,7 @@ M5: story       — 故事体系(总纲/卷纲/一致性)
 """
 import json
 import logging
-import os
-import sys
 
-_current = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(_current, '..', '..', '..'))
 from app.services.service_utils import build_style_str, get_default_generator
 from novel_creator import data_bridge
 
@@ -610,6 +606,7 @@ key必须与上述完全一致。只返回JSON,不要markdown代码块。"""
             })
             return {"saved": True, "project_id": project_id}, None
         except Exception as e:
+            logger.exception("Failed to save world data")
             return None, str(e)
 
 

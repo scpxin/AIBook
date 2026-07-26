@@ -3,14 +3,10 @@
 提供19模块流水线的状态查询、进度跟踪和模块推进功能。
 """
 import logging
-import os
-import sys
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException
 
-_current = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(_current, '..', '..', '..'))
 from app.models.v2_schemas import (
     IdeaConfirmRequest,
     ModuleStatusUpdateRequest,
@@ -297,6 +293,7 @@ def compatibility_check(project_id: str, body: dict):
     try:
         detail = database_v2.get_project_detail(project_id)
     except Exception:
+        logger.warning(f"compatibility check: failed to load project detail for {project_id}")
         detail = None
 
     if not detail:

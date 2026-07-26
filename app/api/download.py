@@ -86,7 +86,10 @@ def search(q: str = ''):
     if not SEARCH_API:
         return JSONResponse(None, status_code=503)
     data = _http_get(SEARCH_API.format(urllib.parse.quote(q)))
-    result = json.loads(data)
+    try:
+        result = json.loads(data)
+    except json.JSONDecodeError:
+        return {"error": "搜索接口返回格式异常", "books": []}
     books = []
     for item in result.get('data', {}).get('ret_data', []):
         books.append({
@@ -105,7 +108,10 @@ def directory(book_id: str = ''):
     if not re.match(r'^\d{1,32}$', book_id):
         return {"error": "invalid book_id"}
     data = _http_get(DIR_API.format(book_id))
-    result = json.loads(data).get('data', {})
+    try:
+        result = json.loads(data).get('data', {})
+    except json.JSONDecodeError:
+        return {"error": "目录接口返回格式异常", "total": 0, "ids": []}
     ids = result.get('allItemIds', [])
     return {"total": len(ids), "ids": ids}
 
@@ -117,7 +123,10 @@ def content(item_id: str = ''):
     if not re.match(r'^\d{1,32}$', item_id):
         return {"error": "invalid item_id"}
     data = _http_get(CONTENT_API.format(item_id))
-    result = json.loads(data)
+    try:
+        result = json.loads(data)
+    except json.JSONDecodeError:
+        return {"error": "正文接口返回格式异常", "content": ""}
     if result.get('code') == 200:
         return {"content": result['data']['content']}
     else:

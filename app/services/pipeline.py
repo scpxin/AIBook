@@ -14,7 +14,6 @@
 """
 import logging
 import os
-import sys
 import threading
 import time
 from collections import OrderedDict
@@ -22,7 +21,6 @@ from collections.abc import Callable
 from enum import StrEnum
 from typing import Any
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from novel_creator.data_bridge import DataBridge
 
 logger = logging.getLogger('novel_creator.pipeline')
@@ -411,5 +409,6 @@ def validate_module_output(project_id: str, module_name: str, output: Any) -> tu
         try:
             return validator(project_id, output)
         except Exception as e:
+            logger.exception("Failed to validate module output")
             return False, f"模块输出验证失败: {e}"
     return True, ""

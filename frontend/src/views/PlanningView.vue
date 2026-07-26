@@ -268,7 +268,7 @@ watch([volumeList, chapterPlans, chapterOutlines, sceneDesigns, form], () => { s
 onMounted(async () => {
   try {
     const saved = await getModuleData(props.projectId, activeSubTab.value)
-    const raw = saved?.data
+    const raw = saved?.data as any
     if (raw) {
       if (Array.isArray(raw)) {
         if (activeSubTab.value === 'volumes') { volumeList.value = raw; return }

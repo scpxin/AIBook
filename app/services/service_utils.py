@@ -1,10 +1,4 @@
 """共享服务工具函数 — 避免重复代码"""
-import os
-import sys
-
-_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..')
-sys.path.insert(0, os.path.normpath(_BASE))
-
 from app.services.novel_generator import get_generator
 from app.services.settings_service import get_ai_config
 

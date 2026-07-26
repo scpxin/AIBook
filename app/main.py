@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import sqlite3
 import time
 from collections import defaultdict
 from threading import Lock
@@ -133,8 +134,8 @@ async def startup_event():
     try:
         from novel_creator.database_v2 import init_db_v2
         init_db_v2()
-    except Exception as e:
-        logging.error(f'V2数据库初始化失败: {e}', exc_info=True)
+    except (sqlite3.Error, Exception) as e:
+        logging.error(f'V2数据库初始化失败，服务将在无V2数据库模式下运行: {e}', exc_info=True)
     try:
         from app.services.template_service import seed_system_templates
         seed_system_templates()
@@ -153,5 +154,5 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     import uvicorn
-    print(f'番茄小说服务端 v2 (FastAPI) 已启动: http://0.0.0.0:{PORT}')
+    logging.info(f'番茄小说服务端 v2 (FastAPI) 已启动: http://0.0.0.0:{PORT}')
     uvicorn.run(app, host="0.0.0.0", port=PORT)
