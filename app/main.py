@@ -11,11 +11,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import download, projects, settings
 from app.api.design import router as design_router
+from app.api.download import router as download_router
 from app.api.execution import router as execution_router
 from app.api.generation_template import router as generation_template_router
 from app.api.pipeline import router as pipeline_router
+from app.api.projects import router as projects_router
+from app.api.settings import router as settings_router
 from app.api.structure import router as structure_router
 from app.api.template import router as template_router
 from app.config import DOWNLOAD_DIR, PORT, PROJECTS_DIR
@@ -113,9 +115,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-app.include_router(projects.router)
-app.include_router(download.router)
-app.include_router(settings.router)
+    app.include_router(projects_router)
+    app.include_router(download_router)
+    app.include_router(settings_router)
 app.include_router(template_router)
 app.include_router(generation_template_router)
 app.include_router(pipeline_router)

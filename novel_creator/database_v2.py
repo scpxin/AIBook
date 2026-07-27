@@ -4,6 +4,7 @@
 独立于 database.py,通过 init_db_v2() 在启动时创建。
 """
 import json
+import logging
 import os
 import sqlite3
 import threading
@@ -12,6 +13,8 @@ import time
 DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'fanqie.db'))
 V2_SCHEMA_VERSION = 1
 _v2_lock = threading.RLock()
+
+logger = logging.getLogger('novel_creator.database_v2')
 
 
 def _v2_now():
@@ -32,39 +35,41 @@ def init_db_v2():
     from .db_schema import V2_SCHEMA_DDL
     with _v2_lock:
         conn = _v2_db()
-        conn.executescript(V2_SCHEMA_DDL)
-
-        # 迁移: 添加 deleted_at 列(软删除支持)
-        v2_tables = [
-            'v2_ideas', 'v2_projects', 'v2_world_buildings', 'v2_characters',
-            'v2_relation_maps', 'v2_story_systems', 'v2_power_systems', 'v2_factions',
-            'v2_timelines', 'v2_volumes', 'v2_plot_nodes', 'v2_chapter_plans',
-            'v2_scenes', 'v2_foreshadowings', 'v2_knowledge_states', 'v2_drafts',
-            'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states',
-            'v2_outlines', 'v2_generation_templates'
-        ]
-        for table in v2_tables:
-            try:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN deleted_at TEXT DEFAULT NULL")
-            except Exception:
-                pass  # 列已存在
-
-        # 迁移: v2 schema 新增列 (power_system, factions, timeline_*, scene_designs)
-        from .db_schema import V2_SCHEMA_MIGRATIONS
-        for mig in V2_SCHEMA_MIGRATIONS:
-            try:
-                conn.execute(mig)
-            except Exception:
-                pass  # 列已存在
-
-        # 迁移: v2_ideas 添加 project_id UNIQUE 约束
         try:
-            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_v2_ideas_project_unique ON v2_ideas(project_id)")
-        except Exception:
-            pass
+            conn.executescript(V2_SCHEMA_DDL)
 
-        conn.commit()
-        conn.close()
+            # 迁移: 添加 deleted_at 列(软删除支持)
+            v2_tables = [
+                'v2_ideas', 'v2_projects', 'v2_world_buildings', 'v2_characters',
+                'v2_relation_maps', 'v2_story_systems', 'v2_power_systems', 'v2_factions',
+                'v2_timelines', 'v2_volumes', 'v2_plot_nodes', 'v2_chapter_plans',
+                'v2_scenes', 'v2_foreshadowings', 'v2_knowledge_states', 'v2_drafts',
+                'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states',
+                'v2_outlines', 'v2_generation_templates'
+            ]
+            for table in v2_tables:
+                try:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN deleted_at TEXT DEFAULT NULL")
+                except Exception:
+                    logger.debug("Migration skipped: ALTER TABLE %s ADD COLUMN deleted_at (column may already exist)", table)
+
+            # 迁移: v2 schema 新增列 (power_system, factions, timeline_*, scene_designs)
+            from .db_schema import V2_SCHEMA_MIGRATIONS
+            for mig in V2_SCHEMA_MIGRATIONS:
+                try:
+                    conn.execute(mig)
+                except Exception:
+                    logger.debug("Migration skipped: %s (column may already exist)", mig.strip()[:80])
+
+            # 迁移: v2_ideas 添加 project_id UNIQUE 约束
+            try:
+                conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_v2_ideas_project_unique ON v2_ideas(project_id)")
+            except Exception:
+                logger.debug("Migration skipped: CREATE UNIQUE INDEX idx_v2_ideas_project_unique (may already exist)")
+
+            conn.commit()
+        finally:
+            conn.close()
 
 
 # ========== V2 JSON 辅助 ==========
@@ -853,10 +858,12 @@ def hard_delete_project_v2(project_id):
     ]
     with _v2_lock:
         conn = _v2_db()
-        for table in tables:
-            conn.execute(f"DELETE FROM {table} WHERE project_id=?", (project_id,))
-        conn.commit()
-        conn.close()
+        try:
+            for table in tables:
+                conn.execute(f"DELETE FROM {table} WHERE project_id=?", (project_id,))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 # ── Settings (模型配置持久化) ──────────────────────────────────────
