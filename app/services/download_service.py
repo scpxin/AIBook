@@ -207,7 +207,7 @@ def list_downloads() -> list:
                         'dir': book_dir,
                     })
                 except (OSError, json.JSONDecodeError):
-                    pass
+                    logger.warning("Skipping corrupted download: %s", book_id)
             elif os.path.isfile(content_file):
                 size = os.path.getsize(content_file)
                 books.append({

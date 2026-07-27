@@ -189,14 +189,16 @@ def get_all_module_data(project_id: str):
 
 def _ensure_v2_project_exists(project_id, name=""):
     conn = _get_db_local()
-    now = _now_iso_str()
-    existing = conn.execute("SELECT project_id FROM v2_projects WHERE project_id=?", (project_id,)).fetchone()
-    if not existing:
-        conn.execute(
-            "INSERT INTO v2_projects (project_id, project_overview, created_at, updated_at) VALUES (?,?,?,?)",
-            (project_id, name or project_id, now, now))
-        conn.commit()
-    conn.close()
+    try:
+        now = _now_iso_str()
+        existing = conn.execute("SELECT project_id FROM v2_projects WHERE project_id=?", (project_id,)).fetchone()
+        if not existing:
+            conn.execute(
+                "INSERT INTO v2_projects (project_id, project_overview, created_at, updated_at) VALUES (?,?,?,?)",
+                (project_id, name or project_id, now, now))
+            conn.commit()
+    finally:
+        conn.close()
 
 def _get_db_local():
     import sqlite3
