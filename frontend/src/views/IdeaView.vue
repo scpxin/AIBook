@@ -141,9 +141,10 @@ import { setupConfirm } from '../composables/useConfirm'
 import { setupErrorBar } from '../composables/useErrorBar'
 import { useAutoSave } from '../composables/useAutoSave'
 import { useToastStore } from '../stores/toast'
+import logger from '../utils/logger'
 import TemplateDialog from '../components/TemplateDialog.vue'
 import TemplateManagePanel from '../components/TemplateManagePanel.vue'
-import type { IdeaTemplate } from '../types/v2'
+import type { IdeaTemplate, IdeaCandidate, IdeaUpgrade } from '../types/v2'
 
 const confirmDialog = setupConfirm()
 const errorBar = setupErrorBar()
@@ -249,7 +250,7 @@ async function generate() {
   gen.begin()
   try {
     await ideaStore.generateIdeas(props.projectId, form.prompt, form.genre)
-    candidates.value = ideaStore.ideas as any[] || []
+    candidates.value = ideaStore.ideas as IdeaCandidate[] || []
     selectedIdx.value = null
     upgrades.value = []
     riskAnalysis.value = null
@@ -269,7 +270,7 @@ async function onSelectCandidate(idx: number) {
   try {
     const candidate = candidates.value[idx]
     await ideaStore.upgradeIdea(candidate)
-    upgrades.value = ideaStore.upgradeVersions as any[] || []
+    upgrades.value = ideaStore.upgradeVersions as IdeaUpgrade[] || []
     riskAnalysisLoading.value = true
     try {
       riskAnalysis.value = await v2Api.analyzeIdeaRisks(props.projectId, candidate.title || candidate.description || '')
@@ -342,7 +343,7 @@ async function loadTemplates() {
     const res = await getTemplates(props.projectId)
     templates.value = res.templates
   } catch (_e) {
-    console.error('[IdeaView] loadTemplates failed:', _e)
+    logger.error('[IdeaView] loadTemplates failed:', _e)
     toast.error('加载模板列表失败，请检查网络')
   }
 }
@@ -430,7 +431,7 @@ onMounted(async () => {
       if (d.reference) form.reference = d.reference || ''
     }
   } catch (_e) {
-    console.error('[IdeaView] restore saved data failed:', _e)
+    logger.error('[IdeaView] restore saved data failed:', _e)
   }
   finally { pageLoading.value = false }
   loadTemplates()

@@ -94,6 +94,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useTemplateStore, type GenerationTemplate, type MatchResult } from '../composables/useTemplateStore'
+import logger from '../utils/logger'
 
 const props = defineProps<{
   moduleKey: string
@@ -138,7 +139,7 @@ async function loadTemplates() {
     incompatible.value = result.incompatible || []
     showTemplateList.value = true
   } catch (e) {
-    console.error('[TemplateSelector] match failed:', e)
+    logger.error('[TemplateSelector] match failed:', e)
   } finally {
     loading.value = false
   }
@@ -164,9 +165,13 @@ function isInCompatGroup(tpl: GenerationTemplate): boolean {
 }
 
 function getPreviewText(tpl: GenerationTemplate): string {
-  const data = tpl.output_data
-  if (!data) return '(空数据)'
-  if (typeof data === 'string') return data.slice(0, 80) + (data.length > 80 ? '...' : '')
+  const raw: unknown = tpl.output_data
+  if (!raw) return '(空数据)'
+
+  // Handle string data (edge case from templates that stored plain text)
+  if (typeof raw === 'string') return raw.slice(0, 80) + (raw.length > 80 ? '...' : '')
+
+  const data = raw as Record<string, unknown>
 
   // Extract a meaningful preview based on module
   if (data.description) return String(data.description).slice(0, 100)
@@ -198,7 +203,7 @@ async function applySelected() {
       emit('close')
     }
   } catch (e) {
-    console.error('[TemplateSelector] apply failed:', e)
+    logger.error('[TemplateSelector] apply failed:', e)
   }
 }
 </script>

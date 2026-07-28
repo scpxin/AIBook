@@ -42,7 +42,7 @@
           <pre>{{ result }}</pre>
         </div>
         <div v-else-if="typeof result === 'object'" class="result-tree">
-          <TreeNode v-for="(val, key) in topLevelKeys" :key="key" :node-key="String(key)" :node-value="(result as any)[key]" :depth="0" />
+          <TreeNode v-for="(val, key) in topLevelKeys" :key="key" :node-key="String(key)" :node-value="(result as Record<string, unknown>)[key]" :depth="0" />
         </div>
       </div>
       <div v-if="moduleType === 'polish' && polishedContent" class="diff-box">
@@ -76,6 +76,7 @@ import { useGeneration } from '../composables/useGeneration'
 import { useToastStore } from '../stores/toast'
 import TreeNode from '../components/TreeNode.vue'
 import { setupErrorBar } from '../composables/useErrorBar'
+import type { PolishResult } from '../types/v2'
 import { useChapters } from '../composables/useChapters'
 import { useAutoSave } from '../composables/useAutoSave'
 
@@ -197,7 +198,7 @@ async function runModule() {
       case 'polish': {
         const res = await v2Api.polishContent(pid, content, '整体优化')
         result.value = res
-        polishedContent.value = (res as any).polished_content || (res as any).polishedContent || content
+        polishedContent.value = (res as PolishResult).polishedContent || content
         toast.success('润色完成')
         break
       }
@@ -212,7 +213,7 @@ async function runModule() {
         // Also run knowledge update as part of parse
         try {
           const knowRes = await v2Api.updateKnowledge(pid, chapterNo, res)
-          knowledgeAdded.value = (knowRes as any).added || []
+          knowledgeAdded.value = (knowRes as Record<string, unknown>).added as string[] || []
           toast.success(`内容解析完成，知识库更新 ${knowledgeAdded.value.length} 条`)
         } catch (_e) {
           toast.success('内容解析完成')

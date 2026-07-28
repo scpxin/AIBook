@@ -26,8 +26,8 @@ export const usePipelineStore = defineStore('pipeline', () => {
     try {
       const r = await getPipelineModules()
       modules.value = r.modules
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e instanceof Error ? e.message : String(e) : String(e)
     }
   }
 
@@ -37,8 +37,8 @@ export const usePipelineStore = defineStore('pipeline', () => {
     try {
       currentProjectId.value = projectId
       progress.value = await getPipelineStatus(projectId)
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e instanceof Error ? e.message : String(e) : String(e)
     } finally {
       loading.value = false
     }
@@ -48,8 +48,8 @@ export const usePipelineStore = defineStore('pipeline', () => {
     try {
       const r = await getNextModule(projectId)
       return r
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
       return null
     }
   }
@@ -58,31 +58,31 @@ export const usePipelineStore = defineStore('pipeline', () => {
     try {
       const r = await getModuleData(projectId, moduleName)
       return r.data
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
       return null
     }
   }
 
   // 获取所有上游模块数据（联动）
-  async function fetchAllData(projectId: string): Promise<Record<string, any>> {
+  async function fetchAllData(projectId: string): Promise<Record<string, unknown>> {
     try {
       const r = await getAllModuleData(projectId)
-      return r.modules || {}
-    } catch (e: any) {
+      return (r.modules || {}) as Record<string, unknown>
+    } catch {
       return {}
     }
   }
 
   // 保存数据并推进流水线
-  async function saveAndAdvance(projectId: string, moduleName: string, data: any) {
+  async function saveAndAdvance(projectId: string, moduleName: string, data: Record<string, unknown>) {
     try {
       await saveModuleData(projectId, moduleName, data)
       updateModuleStatus(moduleName, 'done')
       await loadStatus(projectId)
       return true
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
       return false
     }
   }

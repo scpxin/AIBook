@@ -206,6 +206,7 @@ import { setupConfirm } from '../composables/useConfirm'
 import { setupErrorBar } from '../composables/useErrorBar'
 import * as v2Api from '../api/v2'
 import { useAutoSave } from '../composables/useAutoSave'
+import logger from '../utils/logger'
 
 const props = defineProps<{ projectId: string; currentModule: string }>()
 const emit = defineEmits<{ complete: [data: any] }>()
@@ -268,20 +269,21 @@ watch([volumeList, chapterPlans, chapterOutlines, sceneDesigns, form], () => { s
 onMounted(async () => {
   try {
     const saved = await getModuleData(props.projectId, activeSubTab.value)
-    const raw = saved?.data as any
+    const raw = saved?.data
     if (raw) {
       if (Array.isArray(raw)) {
-        if (activeSubTab.value === 'volumes') { volumeList.value = raw; return }
-        if (activeSubTab.value === 'chapter_plan') { chapterPlans.value = raw; return }
-        if (activeSubTab.value === 'chapter_outline') { chapterOutlines.value = raw; return }
+        if (activeSubTab.value === 'volumes') { volumeList.value = raw as unknown[]; return }
+        if (activeSubTab.value === 'chapter_plan') { chapterPlans.value = raw as unknown[]; return }
+        if (activeSubTab.value === 'chapter_outline') { chapterOutlines.value = raw as unknown[]; return }
       }
-      if (raw.form || raw.volumes || raw.chapterPlans || raw.chapterOutlines) {
-        if (raw.form) Object.assign(form.value, raw.form)
-        if (raw.volumes) volumeList.value = raw.volumes
-        if (raw.chapterPlans) chapterPlans.value = raw.chapterPlans
-        if (raw.chapterOutlines) chapterOutlines.value = raw.chapterOutlines
-        if (raw.sceneDesigns) sceneDesigns.value = raw.sceneDesigns
-        if (raw.upstreamData) upstreamData.value = raw.upstreamData
+      const r = raw as Record<string, unknown>
+      if (r.form || r.volumes || r.chapterPlans || r.chapterOutlines) {
+        if (r.form) Object.assign(form.value, r.form as Record<string, unknown>)
+        if (r.volumes) volumeList.value = r.volumes as unknown[]
+        if (r.chapterPlans) chapterPlans.value = r.chapterPlans as unknown[]
+        if (r.chapterOutlines) chapterOutlines.value = r.chapterOutlines as unknown[]
+        if (r.sceneDesigns) sceneDesigns.value = r.sceneDesigns as unknown[]
+        if (r.upstreamData) upstreamData.value = r.upstreamData as string
         return
       }
     }
@@ -340,8 +342,8 @@ async function generate() {
       const sa = modules['architecture'] || {}
       const outline = sa.outline || sa.story || {}
       const count = parseInt(form.value.volumeCount) || 5
-      const result = await v2Api.generateVolumes(props.projectId, count, outline).catch((e) => { console.error('[PlanningView] generateVolumes error:', e); return null }) as any
-      const items = result?.volumes || (Array.isArray(result) ? result : (result ? [result] : []))
+      const result = await v2Api.generateVolumes(props.projectId, count, outline).catch((e) => { logger.error('[PlanningView] generateVolumes error:', e); return null }) as Record<string, unknown>
+      const items = (result?.volumes as unknown[]) || (Array.isArray(result) ? result : (result ? [result] : []))
       volumeList.value = items
       if (!items.length) useOfflineMode()
       else await saveModuleData(props.projectId, 'volumes', { volumes: volumeList.value, form: form.value })
@@ -360,7 +362,8 @@ async function generate() {
       const chapterPlansData = modules['chapter_plan'] || {}
       const total = form.value.totalChapters || 10
       const result = await v2Api.generateChapterOutlines(props.projectId, total, chapterPlansData)
-      const items = (result as any).outlines || (result as any).chapters || (result as any).items || []
+      const raw = result as Record<string, unknown>
+      const items = (raw.outlines as unknown[]) || (raw.chapters as unknown[]) || (raw.items as unknown[]) || []
       chapterOutlines.value = items
       await saveModuleData(props.projectId, 'chapter_plan', { chapterOutlines: chapterOutlines.value, form: form.value })
     } else if (key === 'scene_design') {

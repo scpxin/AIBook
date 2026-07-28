@@ -26,13 +26,13 @@ import { useKnowledgeStore } from '../stores/knowledge'
 const props = defineProps<{ projectId: string }>()
 const knowledge = useKnowledgeStore()
 const expanded = ref(true)
-const issues = ref<any[]>([])
+const issues = ref<{ type: string; message: string; severity: string }[]>([])
 const checking = ref(false)
 
 watch(() => props.projectId, async (pid) => {
   if (pid) {
     await knowledge.loadConsistencyReports(pid)
-    issues.value = knowledge.latestReport?.issues || []
+    issues.value = deriveIssues(knowledge.latestReport)
   }
 }, { immediate: true })
 
@@ -40,10 +40,32 @@ async function runCheck() {
   checking.value = true
   try {
     await knowledge.executeConsistencyCheck(props.projectId)
-    issues.value = knowledge.latestReport?.issues || []
+    issues.value = deriveIssues(knowledge.latestReport)
   } finally {
     checking.value = false
   }
+}
+
+function deriveIssues(report: typeof knowledge.latestReport): { type: string; message: string; severity: string }[] {
+  if (!report) return []
+  const result: { type: string; message: string; severity: string }[] = []
+  for (const check of report.checks) {
+    for (const issue of (check.issues as { type?: string; message?: string; severity?: string }[])) {
+      result.push({
+        type: issue.type || check.dimension,
+        message: issue.message || '',
+        severity: issue.severity || 'info',
+      })
+    }
+  }
+  for (const ci of report.criticalIssues) {
+    result.push({
+      type: ci.dimension,
+      message: ci.description,
+      severity: ci.severity,
+    })
+  }
+  return result
 }
 </script>
 

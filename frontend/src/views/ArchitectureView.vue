@@ -136,18 +136,19 @@ async function generateStory() {
       ...(chars?.villains || chars?.data?.villains || [])
     ].filter(Boolean)
     const world = allData?.modules?.['world']
-    const result = await generateStoryMaster(props.projectId, protagonist, world, characters) as any
+    const result = await generateStoryMaster(props.projectId, protagonist, world, characters) as unknown as Record<string, unknown>
     if (result) {
-      if (result.oneLiner) story.oneLiner = result.oneLiner
-      if (result.theme) story.theme = result.theme
-      if (result.coreConflict) story.coreConflict = result.coreConflict
+      if (result.oneLiner) story.oneLiner = result.oneLiner as string
+      if (result.theme) story.theme = result.theme as string
+      if (result.coreConflict) story.coreConflict = result.coreConflict as string
       if (result.masterStory) {
-        if (result.masterStory.theme) story.theme = result.masterStory.theme
-        if (result.masterStory.volumes) story.volumes = result.masterStory.volumes
-        if (result.masterStory.plotEvents) story.plotEvents = result.masterStory.plotEvents
+        const ms = result.masterStory as Record<string, unknown>
+        if (ms.theme) story.theme = ms.theme as string
+        if (ms.volumes) story.volumes = ms.volumes as unknown[]
+        if (ms.plotEvents) story.plotEvents = ms.plotEvents as unknown[]
       }
-      if (result.volumes) story.volumes = result.volumes
-      if (result.plotEvents) story.plotEvents = result.plotEvents
+      if (result.volumes) story.volumes = result.volumes as unknown[]
+      if (result.plotEvents) story.plotEvents = result.plotEvents as unknown[]
     }
     gen.progress(1, '正在提取卷纲...')
     gen.progress(2, '正在整理剧情节点...')
@@ -176,9 +177,9 @@ async function generatePlotNodes() {
     }
     const result = await generateMasterOutline(props.projectId, storySystem)
     if (result) {
-      const r = result as any
-      if (r.plotEvents) story.plotEvents = r.plotEvents
-      else if (r.event_chain) story.plotEvents = r.event_chain.map((e: any) => ({ chapter: e.chapter_hint || 1, event: e.event || e.name || '' }))
+      const r = result as unknown as Record<string, unknown>
+      if (r.plotEvents) story.plotEvents = r.plotEvents as unknown[]
+      else if (r.event_chain) story.plotEvents = (r.event_chain as Record<string, unknown>[]).map((e: Record<string, unknown>) => ({ chapter: e.chapter_hint || 1, event: e.event || e.name || '' }))
     }
     gen.end()
   } catch (e: any) { errorBar.showError(e, () => generatePlotNodes()); gen.fail(e?.message || 'AI生成失败') }
@@ -188,7 +189,7 @@ async function generatePlotNodes() {
 async function generateVolumes() {
   generating.value = true; error.value = ''; gen.begin()
   try {
-    const result = await genStoryVolumes(props.projectId, 3, story) as any
+    const result = await genStoryVolumes(props.projectId, 3, story) as unknown as Record<string, unknown>
     if (result?.volumes) {
       story.volumes = result.volumes
     }

@@ -20,8 +20,8 @@ export const useIdeaStore = defineStore('idea', () => {
     try {
       const r = await generateIdeas(pid, userInput, genreHint, count)
       ideas.value = r.ideas
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
       throw e
     } finally {
       loading.value = false
@@ -34,8 +34,8 @@ export const useIdeaStore = defineStore('idea', () => {
     try {
       const r = await scoreIdeas(pid, ideaList || ideas.value)
       scores.value = r.scoredIdeas
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
       throw e
     } finally {
       loading.value = false
@@ -48,8 +48,8 @@ export const useIdeaStore = defineStore('idea', () => {
     try {
       const r = await upgradeIdeas(pid, topIdeas || ideas.value.slice(0, 3))
       upgradeVersions.value = r.upgraded
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
       throw e
     } finally {
       loading.value = false
@@ -61,8 +61,8 @@ export const useIdeaStore = defineStore('idea', () => {
     error.value = ''
     try {
       risks.value = await analyzeIdeaRisks(pid, concept)
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
       throw e
     } finally {
       loading.value = false
@@ -78,7 +78,7 @@ export const useIdeaStore = defineStore('idea', () => {
     return { candidates: ideas.value }
   }
 
-  async function upgradeIdeaLocal(candidate: any) {
+  async function upgradeIdeaLocal(candidate: IdeaCandidate) {
     const pid = projectId.value
     return upgrade(pid, [candidate])
   }

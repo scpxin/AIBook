@@ -16,7 +16,7 @@ export function useChapters(projectId: string) {
 
       const cp = modules['chapter_plan']
       if (cp) {
-        let list: any[] = []
+        let list: Record<string, unknown>[] = []
         if (Array.isArray(cp)) {
           list = cp
         } else if (Array.isArray(cp.chapter_plan)) {
@@ -27,20 +27,20 @@ export function useChapters(projectId: string) {
           list = cp.chapters
         }
         if (list.length > 0) {
-          return list.map((ch: any, i: number) => ({
-            value: ch.chapter_no ?? ch.chapterNo ?? ch.id ?? (i + 1),
-            label: ch.title || ch.chapter_title || `第${i + 1}章`,
-            title: ch.title || ch.chapter_title || '',
+          return list.map((ch: Record<string, unknown>, i: number) => ({
+            value: (ch.chapter_no ?? ch.chapterNo ?? ch.id ?? (i + 1)) as string | number,
+            label: String(ch.title || ch.chapter_title || `第${i + 1}章`),
+            title: String(ch.title || ch.chapter_title || ''),
           }))
         }
       }
 
       const drafts = modules['draft']
       if (Array.isArray(drafts) && drafts.length > 0) {
-        return drafts.map((d: any) => ({
-          value: d.chapter_no ?? d.chapterNo ?? d.id ?? 1,
-          label: d.title || `第${d.chapter_no ?? 1}章`,
-          title: d.title || '',
+        return drafts.map((d: Record<string, unknown>) => ({
+          value: (d.chapter_no ?? d.chapterNo ?? d.id ?? 1) as string | number,
+          label: String(d.title || `第${d.chapter_no ?? 1}章`),
+          title: String(d.title || ''),
         }))
       }
     } catch (_e) { /* fallback */ }

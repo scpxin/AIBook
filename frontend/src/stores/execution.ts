@@ -23,11 +23,11 @@ interface OutlineItemRaw {
   title?: string
   summary?: string
   chapter_summary?: string
-  scenes?: any[]
-  scene_list?: any[]
-  key_points?: any[]
-  plot_points?: any[]
-  characters?: any[]
+  scenes?: Record<string, unknown>[]
+  scene_list?: Record<string, unknown>[]
+  key_points?: Record<string, unknown>[]
+  plot_points?: Record<string, unknown>[]
+  characters?: Record<string, unknown>[]
 }
 
 export const useExecutionStore = defineStore('execution', () => {
@@ -41,14 +41,14 @@ export const useExecutionStore = defineStore('execution', () => {
   const loading = ref(false)
   const error = ref('')
 
-  async function generateDraftContent(pid: string, chapterNo: string, sceneSkeleton?: any, onChunk?: (text: string) => void) {
+  async function generateDraftContent(pid: string, chapterNo: string, sceneSkeleton?: SceneSkeleton, onChunk?: (text: string) => void) {
     isGenerating.value = true
     generationProgress.value = 0
     draftContent.value = ''
     projectId.value = pid
 
     return new Promise<void>((resolve, reject) => {
-      generateDraft(pid, chapterNo, sceneSkeleton,
+      generateDraft(pid, chapterNo, sceneSkeleton as SceneSkeleton,
         (text: string) => {
           draftContent.value += text
           generationProgress.value = draftContent.value.length
@@ -88,8 +88,8 @@ export const useExecutionStore = defineStore('execution', () => {
     error.value = ''
     try {
       polishResult.value = await polishContent(pid, content, focus)
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -100,8 +100,8 @@ export const useExecutionStore = defineStore('execution', () => {
     error.value = ''
     try {
       return await parseContent(pid, chapterNo, content)
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
       return null
     } finally {
       loading.value = false
@@ -113,8 +113,8 @@ export const useExecutionStore = defineStore('execution', () => {
     error.value = ''
     try {
       consistencyReport.value = await checkConsistency(pid, chapterNo, content, knowledgeState, characters, world)
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -126,8 +126,8 @@ export const useExecutionStore = defineStore('execution', () => {
     try {
       const r = await getConsistencyReport(pid, chapterNo)
       if (r.reports.length > 0) consistencyReport.value = r.reports[0]
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }

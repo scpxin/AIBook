@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Character, RelationMap, CharacterConsistencyCheck } from '../types/v2'
+import type { Character, RelationMap, CharacterConsistencyCheck, WorldRule, WorldBuilding } from '../types/v2'
 import {
   generateProtagonist, generateSupporting, generateAntagonists,
   generateRelations, checkCharacterConsistency, saveModuleData,
@@ -16,7 +16,7 @@ export const useCharacterStore = defineStore('character', () => {
   const loading = ref(false)
   const error = ref('')
 
-  async function generateProtagonistProfile(pid: string, worldRules: any, storyConcept?: string) {
+  async function generateProtagonistProfile(pid: string, worldRules: WorldRule[], storyConcept?: string) {
     loading.value = true
     error.value = ''
     projectId.value = pid
@@ -39,8 +39,8 @@ export const useCharacterStore = defineStore('character', () => {
       } else {
         protagonist.value = result
       }
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -52,21 +52,21 @@ export const useCharacterStore = defineStore('character', () => {
     try {
       const r = await generateSupporting(pid, protagonist.value!, count)
       supporting.value = r.characters
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
   }
 
-  async function generateAntagonistsList(pid: string, world: any) {
+  async function generateAntagonistsList(pid: string, world: WorldBuilding) {
     loading.value = true
     error.value = ''
     try {
       const r = await generateAntagonists(pid, protagonist.value!, world)
       antagonists.value = (r as any).antagonists || []
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -78,8 +78,8 @@ export const useCharacterStore = defineStore('character', () => {
     try {
       const allChars = [protagonist.value, ...supporting.value].filter(Boolean) as Character[]
       relationMap.value = await generateRelations(pid, allChars)
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -91,21 +91,21 @@ export const useCharacterStore = defineStore('character', () => {
     try {
       const allChars = [protagonist.value, ...supporting.value, ...antagonists.value].filter(Boolean) as Character[]
       consistency.value = await checkCharacterConsistency(pid, allChars)
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
   }
 
-  async function generateCharacters(pid: string, worldData?: any, storyConcept?: string, onProgress?: (step: number, msg: string) => void) {
+  async function generateCharacters(pid: string, worldData?: Record<string, unknown>, storyConcept?: string, onProgress?: (step: number, msg: string) => void) {
     loading.value = true
     try {
-      await generateProtagonistProfile(pid, worldData?.rules || worldData || {}, storyConcept)
+      await generateProtagonistProfile(pid, (worldData?.rules || worldData || {}) as WorldRule[], storyConcept)
       onProgress?.(1, '正在生成配角...')
       await generateSupportingChars(pid, 3)
       onProgress?.(2, '正在生成反派体系...')
-      await generateAntagonistsList(pid, worldData || {})
+      await generateAntagonistsList(pid, (worldData || {}) as WorldBuilding)
       onProgress?.(3, '正在生成角色关系...')
       await buildRelationMap(pid)
       onProgress?.(4, '角色生成完成')
@@ -120,11 +120,11 @@ export const useCharacterStore = defineStore('character', () => {
     }
   }
 
-  async function saveCharacters(pid: string, data: any) {
-    if (data.protagonist && protagonist.value) Object.assign(protagonist.value, data.protagonist)
-    if (data.supporting) supporting.value = data.supporting
-    if (data.villains) antagonists.value = data.villains
-    if (data.relations) relationMap.value = data.relations
+  async function saveCharacters(pid: string, data: Record<string, unknown>) {
+    if (data.protagonist && protagonist.value) Object.assign(protagonist.value, data.protagonist as Character)
+    if (data.supporting) supporting.value = data.supporting as Character[]
+    if (data.villains) antagonists.value = data.villains as Character[]
+    if (data.relations) relationMap.value = data.relations as RelationMap
     await saveModuleData(pid, 'characters', {
       protagonist: protagonist.value,
       supporting: supporting.value,

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { VolumeDetail, PlotEventDetail, ChapterPlan, ChapterOutline, SceneSkeleton } from '../types/v2'
+import type { VolumeDetail, PlotEventDetail, ChapterPlan, ChapterOutline, SceneSkeleton, MasterOutline } from '../types/v2'
 import {
   generateVolume, saveVolume, generatePlotNodes, savePlotNode,
   planChapters, saveChapterPlan, generateChapterOutline, saveChapterOutline,
@@ -17,7 +17,7 @@ export const usePlanningStore = defineStore('planning', () => {
   const loading = ref(false)
   const error = ref('')
 
-  async function generateVolumeDetail(pid: string, volumeNo: number, masterOutline: any) {
+  async function generateVolumeDetail(pid: string, volumeNo: number, masterOutline: MasterOutline) {
     loading.value = true
     error.value = ''
     projectId.value = pid
@@ -25,93 +25,93 @@ export const usePlanningStore = defineStore('planning', () => {
       const r = await generateVolume(pid, volumeNo, masterOutline)
       const existing = volumes.value.filter(v => v.volumeNo !== volumeNo)
       volumes.value = [...existing, r]
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
   }
 
-  async function saveVolumeDetail(pid: string, volumeNo: number, data: any) {
+  async function saveVolumeDetail(pid: string, volumeNo: number, data: Record<string, unknown>) {
     return saveVolume(pid, volumeNo, data)
   }
 
-  async function generateNodes(pid: string, chapterPlan: any, masterOutline: any) {
+  async function generateNodes(pid: string, chapterPlan: ChapterPlan, masterOutline: MasterOutline) {
     loading.value = true
     error.value = ''
     try {
       const r = await generatePlotNodes(pid, chapterPlan, masterOutline)
       plotNodes.value = r.events
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
   }
 
-  async function saveNode(pid: string, eventId: string, data: any) {
+  async function saveNode(pid: string, eventId: string, data: Record<string, unknown>) {
     return savePlotNode(pid, eventId, data)
   }
 
-  async function planChaptersForVolume(pid: string, masterOutline: any, events: any[], targetWordcount?: number) {
+  async function planChaptersForVolume(pid: string, masterOutline: MasterOutline, events: PlotEventDetail[], targetWordcount?: number) {
     loading.value = true
     error.value = ''
     try {
       const r = await planChapters(pid, masterOutline, events, targetWordcount)
       chapterPlans.value = r.chapterAssignments || []
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
   }
 
-  async function saveChapterPlanData(pid: string, chapterNo: number | string, data: any) {
+  async function saveChapterPlanData(pid: string, chapterNo: number | string, data: Record<string, unknown>) {
     return saveChapterPlan(pid, chapterNo, data)
   }
 
-  async function generateOutline(pid: string, chapterNo: number | string, chapterPlan: any) {
+  async function generateOutline(pid: string, chapterNo: number | string, chapterPlan: ChapterPlan) {
     loading.value = true
     error.value = ''
     try {
       const r = await generateChapterOutline(pid, chapterNo, chapterPlan)
       const existing = chapterOutlines.value.filter(c => c.chapterNo !== chapterNo)
       chapterOutlines.value = [...existing, r]
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
   }
 
-  async function saveOutline(pid: string, chapterNo: number | string, data: any) {
+  async function saveOutline(pid: string, chapterNo: number | string, data: Record<string, unknown>) {
     return saveChapterOutline(pid, chapterNo, data)
   }
 
-  async function designScenesForChapter(pid: string, chapterOutline: any) {
+  async function designScenesForChapter(pid: string, chapterOutline: Record<string, unknown>) {
     loading.value = true
     error.value = ''
     try {
       const r = await designScenes(pid, chapterOutline)
       scenes.value = r.scenes
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
   }
 
-  async function saveSceneData(pid: string, sceneId: string, data: any) {
+  async function saveSceneData(pid: string, sceneId: string, data: Record<string, unknown>) {
     return saveScene(pid, sceneId, data)
   }
 
   async function generatePlanning(pid: string) {
     loading.value = true
     try {
-      await generateVolumeDetail(pid, 1, {})
-      await generateNodes(pid, {}, {})
-      await planChaptersForVolume(pid, {}, [], 30000)
-      await generateOutline(pid, 1, {})
+      await generateVolumeDetail(pid, 1, {} as MasterOutline)
+      await generateNodes(pid, {} as ChapterPlan, {} as MasterOutline)
+      await planChaptersForVolume(pid, {} as MasterOutline, [], 30000)
+      await generateOutline(pid, 1, {} as ChapterPlan)
       return {
         volumes: volumes.value,
         plotNodes: plotNodes.value,
@@ -123,11 +123,11 @@ export const usePlanningStore = defineStore('planning', () => {
     }
   }
 
-  function savePlanning(pid: string, data: any) {
-    if (data.volumes) volumes.value = data.volumes
-    if (data.plotNodes) plotNodes.value = data.plotNodes
-    if (data.chapterPlans) chapterPlans.value = data.chapterPlans
-    if (data.chapterOutlines) chapterOutlines.value = data.chapterOutlines
+  function savePlanning(pid: string, data: Record<string, unknown>) {
+    if (data.volumes) volumes.value = data.volumes as VolumeDetail[]
+    if (data.plotNodes) plotNodes.value = data.plotNodes as PlotEventDetail[]
+    if (data.chapterPlans) chapterPlans.value = data.chapterPlans as ChapterPlan[]
+    if (data.chapterOutlines) chapterOutlines.value = data.chapterOutlines as ChapterOutline[]
   }
 
   return {

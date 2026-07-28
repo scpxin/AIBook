@@ -179,6 +179,7 @@ import { useTemplateStore } from '../composables/useTemplateStore'
 import type { GenerationTemplate } from '../composables/useTemplateStore'
 import AppConfirmDialog from '../components/AppConfirmDialog.vue'
 import AppErrorBar from '../components/AppErrorBar.vue'
+import logger from '../utils/logger'
 
 const CONTENT_VIEW_CONFIGS: Record<string, { title: string; desc: string; actionLabel: string }> = {
   parse: { title: '内容解析', desc: '对正文进行结构化解析，提取场景、对白、情绪等要素，并更新知识库', actionLabel: '解析内容' },
@@ -477,7 +478,7 @@ async function onModuleComplete(moduleData?: any) {
       await saveModuleData(projectId.value, currentModule.value, moduleData)
       moduleSavedMap.value[currentModule.value] = true
     } catch (_e) {
-      console.error('[CreateV2] save module data failed:', _e)
+      logger.error('[CreateV2] save module data failed:', _e)
       toast.error('保存模块数据失败')
       return
     }
@@ -512,7 +513,7 @@ async function onModuleComplete(moduleData?: any) {
         genre: currentProjectGenre.value,
         sub_genre: currentProjectSubGenre.value,
         tone: currentProjectTone.value,
-        world_type: (tplStore.sharedContext as any).worldType,
+        world_type: tplStore.sharedContext.value.worldType,
         target_audience: currentProjectAudience.value,
       }
       toast.action(`模块"${currentModuleInfo.value?.display_name || currentModule.value}"已完成`, {
@@ -528,7 +529,7 @@ async function onModuleComplete(moduleData?: any) {
     })
   } catch (e: any) {
     toast.error('更新模块状态失败，数据已保存但进度未同步')
-    console.error('[CreateV2] update module status failed:', e)
+    logger.error('[CreateV2] update module status failed:', e)
   }
   nextModule()
 }
@@ -562,7 +563,7 @@ const nonSkippableModules = ['idea', 'project', 'architecture', 'outline']
 
 const projectContextForTemplate = computed(() => ({
   genre: currentProjectGenre.value || '',
-  world_type: (tplStore.sharedContext as any).worldType || '',
+  world_type: tplStore.sharedContext.value.worldType || '',
   sub_genre: currentProjectSubGenre.value || '',
   tone: currentProjectTone.value || '',
   target_audience: currentProjectAudience.value || '',
@@ -684,7 +685,7 @@ async function saveProjectFull() {
        modules,
        pipeline: pipelineState,
        templateSelections: selectedTemplateModules.value,
-       sharedContext: tplStore.sharedContext || {},
+         sharedContext: tplStore.sharedContext.value as unknown as Record<string, unknown>,
      })
 
      // 归档哪些模块失败了
@@ -791,7 +792,7 @@ function startNewProject() {
       }
       existingProjects.value = projectStore.projectList || []
     } catch (_e) {
-      console.error('[CreateV2] preload existing projects failed:', _e)
+      logger.error('[CreateV2] preload existing projects failed:', _e)
     }
 
     try {
@@ -831,7 +832,7 @@ function startNewProject() {
       const facData = v2Data?.modules?.['world']?.factions
       if (facData) tplStore.updateSharedContext('factions', facData, projectId.value)
   } catch (_e) {
-    console.error('[CreateV2] restore module data failed:', _e)
+    logger.error('[CreateV2] restore module data failed:', _e)
   }
 
   const hasSeenOnboarding = localStorage.getItem('onboarding_seen_v2')
@@ -864,7 +865,7 @@ function startNewProject() {
         toast.success(`已应用模板: ${tpl.name}`)
       }
     } catch (_e) {
-      console.error('[CreateV2] applyTemplate failed:', _e)
+      logger.error('[CreateV2] applyTemplate failed:', _e)
       toast.error('应用模板失败')
     }
   }
@@ -902,7 +903,7 @@ async function loadProjectFromRoute() {
       }, pid)
     }
   } catch (e) {
-    console.error('[CreateV2] loadProjectFromRoute failed:', e)
+    logger.error('[CreateV2] loadProjectFromRoute failed:', e)
   } finally {
     pageLoading.value = false
   }
@@ -944,7 +945,7 @@ watch(projectId, async (newPid) => {
         if (v2Data?.name) projectName.value = v2Data.name
       }
     } catch (_e) {
-      console.error('[CreateV2] load module data failed:', _e)
+      logger.error('[CreateV2] load module data failed:', _e)
     }
   }
 })

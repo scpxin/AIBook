@@ -44,6 +44,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import type { GenerationTemplate } from '../composables/useTemplateStore'
+import logger from '../utils/logger'
 
 const props = defineProps<{
   projectId: string
@@ -93,7 +94,7 @@ async function saveTemplate() {
     }
     emit('close')
   } catch (e) {
-    console.error('[SaveAsTemplate] save failed:', e)
+    logger.error('[SaveAsTemplate] save failed:', e)
   } finally {
     saving.value = false
   }

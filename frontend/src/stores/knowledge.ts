@@ -1,16 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { KnowledgeState, ConsistencyReport } from '../types/v2'
+import type { KnowledgeState, ConsistencyReport, ContentParseResult } from '../types/v2'
 import { getKnowledgeSnapshot, getForeshadows, updateKnowledge, worldConsistencyCheck, getConsistencyReport } from '../api/v2'
 
 export const useKnowledgeStore = defineStore('knowledge', () => {
   const projectId = ref('')
   const state = ref<KnowledgeState>({ characterStates: {}, worldState: {}, plotState: {} })
-  const foreshadows = ref<any[]>([])
-  const resolvedForeshadows = ref<any[]>([])
+  const foreshadows = ref<Record<string, unknown>[]>([])
+  const resolvedForeshadows = ref<Record<string, unknown>[]>([])
   const loading = ref(false)
   const error = ref('')
-  const consistencyReports = ref<any[]>([])
+  const consistencyReports = ref<ConsistencyReport[]>([])
 
   async function loadSnapshot(pid: string) {
     loading.value = true
@@ -18,8 +18,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     projectId.value = pid
     try {
       state.value = await getKnowledgeSnapshot(pid)
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -35,21 +35,21 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
       } else {
         foreshadows.value = r.foreshadows
       }
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
   }
 
-  async function update(pid: string, chapterNo: string, parseResult: any) {
+  async function update(pid: string, chapterNo: string, parseResult: ContentParseResult) {
     loading.value = true
     error.value = ''
     try {
       await updateKnowledge(pid, chapterNo, parseResult)
       await loadSnapshot(pid)
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -62,8 +62,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     try {
       const r = await getConsistencyReport(pid)
       consistencyReports.value = r.reports || []
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -74,8 +74,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     try {
       await worldConsistencyCheck(pid)
       await loadConsistencyReports(pid)
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }

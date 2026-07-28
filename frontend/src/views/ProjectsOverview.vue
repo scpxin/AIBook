@@ -129,6 +129,7 @@ import * as projectApi from '../api/project'
 import { setupConfirm } from '../composables/useConfirm'
 import { useToastStore } from '../stores/toast'
 import AppConfirmDialog from '../components/AppConfirmDialog.vue'
+import logger from '../utils/logger'
 
 const toast = useToastStore()
 
@@ -198,7 +199,7 @@ async function loadProjects() {
       }
     }
   } catch (e) {
-    console.error('[ProjectsOverview] load failed:', e)
+    logger.error('[ProjectsOverview] load failed:', e)
   } finally {
     loading.value = false
   }
@@ -272,7 +273,7 @@ async function exportProject(p: any) {
     a.click()
     URL.revokeObjectURL(url)
   } catch (e: any) {
-    console.error('[ProjectsOverview] export failed:', e)
+    logger.error('[ProjectsOverview] export failed:', e)
     toast.error('导出失败: ' + (e?.message || ''));
   } finally {
     exportingId.value = ''
@@ -300,7 +301,7 @@ async function cloneProject(p: any) {
     toast.success('项目已克隆')
     await loadProjects()
   } catch (e: any) {
-    console.error('[ProjectsOverview] clone failed:', e)
+    logger.error('[ProjectsOverview] clone failed:', e)
     toast.error('克隆失败: ' + (e?.message || ''))
   } finally {
     cloningId.value = ''

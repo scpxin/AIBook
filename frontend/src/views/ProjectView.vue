@@ -152,6 +152,7 @@ import { setupErrorBar } from '../composables/useErrorBar'
 import { useGeneration } from '../composables/useGeneration'
 import { useAutoSave } from '../composables/useAutoSave'
 import { useToastStore } from '../stores/toast'
+import logger from '../utils/logger'
 
 const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: any], goto: [module: string] }>()
@@ -323,7 +324,7 @@ async function checkCompatibility() {
       }
     }
   } catch (e) {
-    console.error('[ProjectView] compatibility check failed:', e)
+    logger.error('[ProjectView] compatibility check failed:', e)
     compatResults.value = compatResults.value.map((r: any) =>
       r.level === 'pending' ? r : { ...r, level: r.level, _lastError: '检查失败，显示上次结果' }
     )
@@ -353,13 +354,13 @@ function formatWordCount(words: number): string {
   return `${words} 字`
 }
 
-function mapResultToDimensions(result: any): any[] {
+function mapResultToDimensions(result: Record<string, unknown>): Record<string, unknown>[] {
   if (!result || typeof result !== 'object') return []
   return Object.entries(result)
     .filter(([_, v]) => v != null)
     .slice(0, 12)
     .map(([key, val]) => {
-      const obj = typeof val === 'object' ? val as any : { value: String(val) }
+      const obj = typeof val === 'object' ? val as Record<string, unknown> : { value: String(val) }
       return {
         key,
         name: formatDimName(key),

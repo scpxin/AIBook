@@ -38,7 +38,7 @@
             <p v-if="currentOutline.summary" class="outline-summary">{{ currentOutline.summary }}</p>
             <div v-for="(s, si) in currentOutline.scenes" :key="si" class="scene-outline">
               <span class="scene-label">场景{{ si + 1 }}:</span>
-              <span class="scene-text">{{ typeof s === 'string' ? s : ((s as any).title || (s as any).summary || JSON.stringify(s)) }}</span>
+              <span class="scene-text">{{ typeof s === 'string' ? s : ((s as Record<string, unknown>).title || (s as Record<string, unknown>).summary || JSON.stringify(s)) }}</span>
             </div>
             <div v-if="currentOutline.key_points?.length" class="outline-points">
               <span class="points-label">关键点：</span>
@@ -317,7 +317,7 @@ async function retryLoad() {
     if (projectId.value) {
       try {
         const chaptersData = await execution.getChaptersForWriting(projectId.value)
-        if (chaptersData?.length) { chapters.value = chaptersData as any; return }
+        if (chaptersData?.length) { chapters.value = chaptersData as typeof chapters.value; return }
       } catch (_e) { /* fallback to v2 */ }
       // Fallback: 从v2 pipeline chapter_plan加载
       const outlineData = await v2Api.getModuleData(projectId.value, 'chapter_plan')
@@ -371,7 +371,7 @@ onMounted(async () => {
     if (projectId.value) {
       try {
         const chaptersData = await execution.getChaptersForWriting(projectId.value)
-        chapters.value = chaptersData as any
+        chapters.value = chaptersData as typeof chapters.value
         try {
           const drafts = await execution.getDrafts(projectId.value)
           if (drafts?.length) {

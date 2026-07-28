@@ -182,7 +182,7 @@ async function generate() {
       word_count: parseInt(form.wordCount),
       growth_route: form.growthRoute,
     }
-    const r = await generateMasterOutline(props.projectId, storySystem) as any
+    const r = await generateMasterOutline(props.projectId, storySystem) as unknown as Record<string, unknown>
     if (r) {
       if (r.title) result.title = r.title
       if (r.theme) result.theme = r.theme

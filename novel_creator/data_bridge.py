@@ -306,7 +306,10 @@ class DataBridge:
                       now, now))
             conn.commit()
         except Exception:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             raise
 
     # ========== M8: 章节规划 (DELETE + INSERT, 章节数可变) ==========
@@ -340,7 +343,10 @@ class DataBridge:
                       str(c.get('status', 'planned')), now, now))
             conn.commit()
         except Exception:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             raise
 
     # ========== M9: 章节细纲+场景 (DELETE + INSERT) ==========

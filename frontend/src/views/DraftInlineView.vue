@@ -59,6 +59,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { saveDraft, getDrafts, getAllModuleData, saveModuleData } from '../api/v2'
+import type { SceneSkeleton } from '../types/v2'
 import { useExecutionStore } from '../stores/execution'
 import { useGeneration } from '../composables/useGeneration'
 import { setupConfirm } from '../composables/useConfirm'
@@ -66,6 +67,7 @@ import { setupErrorBar } from '../composables/useErrorBar'
 import { useChapters } from '../composables/useChapters'
 import { useAutoSave } from '../composables/useAutoSave'
 import { useToastStore } from '../stores/toast'
+import logger from '../utils/logger'
 
 const props = defineProps<{ projectId: string }>()
 const emit = defineEmits<{ complete: [data: any] }>()
@@ -119,7 +121,7 @@ async function generate() {
     await executionStore.generateDraftContent(
       props.projectId,
       String(form.chapterNo),
-      { skeleton: form.skeleton, style_note: form.styleNote, word_count: 3000 },
+      { skeleton: form.skeleton, style_note: form.styleNote, word_count: 3000 } as unknown as SceneSkeleton,
     )
     content.value = executionStore.draftContent
     streamingContent.value = executionStore.draftContent
@@ -221,10 +223,10 @@ onMounted(async () => {
       }
     } catch (_e) { /* ignore */ }
     try {
-      const drafts = await getDrafts(props.projectId) as any[]
-      const found = drafts?.find((d: any) => String(d.chapter_no) === String(form.chapterNo))
+      const drafts = await getDrafts(props.projectId) as unknown as Record<string, unknown>[]
+      const found = drafts?.find((d) => String(d.chapter_no) === String(form.chapterNo))
       if (found?.content) {
-        content.value = found.content
+        content.value = String(found.content)
       } else {
         // Restore from localStorage backup if available
         const backup = localStorage.getItem(`draft_backup_${props.projectId}_${form.chapterNo}`)
@@ -233,7 +235,7 @@ onMounted(async () => {
         }
       }
     } catch (e) {
-      console.error('[DraftInlineView] load drafts error:', e)
+      logger.error('[DraftInlineView] load drafts error:', e)
     }
     try {
       const allData = await getAllModuleData(props.projectId)

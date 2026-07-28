@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { StoryMaster, VolumeOutline } from '../types/v2'
+import type { StoryMaster, VolumeOutline, Character, WorldBuilding } from '../types/v2'
 import { generateStoryMaster, generateStoryVolumes, checkStoryConsistency } from '../api/v2'
 
 export const useStoryStore = defineStore('story', () => {
@@ -11,15 +11,15 @@ export const useStoryStore = defineStore('story', () => {
   const loading = ref(false)
   const error = ref('')
 
-  async function generateMaster(pid: string, protagonist: any, world: any, characters: any[]) {
+  async function generateMaster(pid: string, protagonist: Character, world: WorldBuilding, characters: Character[]) {
     loading.value = true
     error.value = ''
     projectId.value = pid
     try {
       masterStory.value = await generateStoryMaster(pid, protagonist, world, characters)
       theme.value = masterStory.value?.theme || ''
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -31,37 +31,37 @@ export const useStoryStore = defineStore('story', () => {
     try {
       const r = await generateStoryVolumes(pid, masterStory.value!, volumeCount)
       volumes.value = r.volumes
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
   }
 
-  async function checkConsistency(pid: string, characters: any[]) {
+  async function checkConsistency(pid: string, characters: Character[]) {
     loading.value = true
     error.value = ''
     try {
       return await checkStoryConsistency(pid, masterStory.value!, characters)
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e)
       return null
     } finally {
       loading.value = false
     }
   }
 
-  async function generateStory(pid: string, protagonist?: any, world?: any, characters?: any[]) {
+  async function generateStory(pid: string, protagonist?: Character, world?: WorldBuilding, characters?: Character[]) {
     loading.value = true
     try {
-      await generateMaster(pid, protagonist || {}, world || {}, characters || [])
+      await generateMaster(pid, (protagonist || {}) as Character, (world || {}) as WorldBuilding, (characters || []) as Character[])
       await generateVolumesList(pid, 3)
       return {
         masterStory: masterStory.value,
         volumes: volumes.value,
         summary: theme.value,
         theme: theme.value,
-        plotEvents: volumes.value?.flatMap((v: any) => v.plotEvents || []) || [],
+        plotEvents: volumes.value?.flatMap((v: Record<string, unknown>) => (v.plotEvents as Record<string, unknown>[]) || []) || [],
       }
     } finally {
       loading.value = false

@@ -302,7 +302,9 @@ export function generateDraft(
           } else if (msg.type === 'error') {
             onError?.(msg.message || '生成失败')
           }
-        } catch {}
+        } catch (e) {
+          console.error('[SSE parse error]', e)
+        }
       }
     }
   }, onDone, onError)

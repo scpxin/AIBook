@@ -15,9 +15,9 @@ export interface GenerationTemplate {
   target_audience: string
   source_project_id: string
   input_fingerprint: string
-  output_data: any
-  input_context: any
-  entity_refs: any
+  output_data: Record<string, unknown>
+  input_context: Record<string, unknown>
+  entity_refs: Record<string, unknown>
   compatibility_group: string
   usage_count: number
   quality_rating: number
@@ -89,8 +89,8 @@ export function useTemplateStore() {
       const res = await apiGet<{ templates: GenerationTemplate[] }>('/api/v2/generation-templates/', params)
       allTemplates.value = res.templates || []
       return allTemplates.value
-    } catch (e: any) {
-      error.value = e.message || '获取模板失败'
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e) || '获取模板失败'
       return []
     } finally {
       loading.value = false
@@ -109,8 +109,8 @@ export function useTemplateStore() {
   async function createTemplate(data: {
     name: string
     module_key: string
-    output_data: any
-    input_context?: any
+    output_data: Record<string, unknown>
+    input_context?: Record<string, unknown>
     genre?: string
     sub_genre?: string
     tone?: string
@@ -178,7 +178,7 @@ export function useTemplateStore() {
     const res = await apiPost<{
       success: boolean
       module: string
-      data: any
+      data: Record<string, unknown>
       applied_as: string
     }>(`/api/v2/generation-templates/${templateId}/apply`, {
       project_id: projectId,
@@ -193,8 +193,8 @@ export function useTemplateStore() {
   async function autoSaveTemplate(data: {
     project_id: string
     module_key: string
-    module_data: any
-    input_context?: any
+    module_data: Record<string, unknown>
+    input_context?: Record<string, unknown>
     compatibility_group?: string
   }) {
     try {
@@ -227,14 +227,14 @@ export function useTemplateStore() {
     }
   }
 
-  function updateSharedContext(moduleKey: string, outputData: any, projectId: string = '') {
+  function updateSharedContext(moduleKey: string, outputData: Record<string, unknown>, projectId: string = '') {
     const ctx = getContext(projectId)
     if (!outputData || typeof outputData !== 'object') return
 
     if (moduleKey === 'world') {
-      const wb = outputData.world_building || outputData
+      const wb = (outputData.world_building || outputData) as Record<string, unknown>
       if (wb.world_type || wb.worldType) {
-        ctx.worldType = wb.world_type || wb.worldType
+        ctx.worldType = String(wb.world_type || wb.worldType)
       }
       if (wb.locations || wb.territories) {
         const locs = wb.locations || wb.territories
@@ -279,7 +279,7 @@ export function useTemplateStore() {
       const nodes = outputData.plot_nodes || outputData.key_events
       if (Array.isArray(nodes)) {
         ctx.plotNodes = nodes
-          .map((p: any) => (typeof p === 'object' ? (p.name || p.event) : p))
+          .map((p: Record<string, unknown>) => (typeof p === 'object' ? (p.name || p.event) : p))
           .filter(Boolean) as string[]
       }
     }

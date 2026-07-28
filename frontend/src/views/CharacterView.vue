@@ -84,7 +84,7 @@
 
       <div v-if="activeTab === 'relations'" class="tab-pane">
         <h3>关系网络</h3>
-        <RelationGraph :characters="allCharacters" :relations="relations as any" />
+        <RelationGraph :characters="allCharacters" :relations="relations" />
       </div>
     </div>
 
@@ -265,7 +265,7 @@ async function generate() {
     Object.assign(protagonist, result.protagonist || {})
     supportingChars.value = result.supporting || []
     villains.value = result.villains || []
-    relations.value = (result.relations as any) || []
+    relations.value = (result.relations as unknown as unknown[]) || []
     generationSuccess = true
     const charData = { protagonist: { ...protagonist }, supporting: supportingChars.value, villains: villains.value, relations: relations.value }
     try {

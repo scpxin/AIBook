@@ -51,13 +51,13 @@ export const useDownloadStore = defineStore('download', () => {
           bookCounts.value[b.book_id] = d.total + ' 章'
         }).catch(() => {})
       })
-    } catch (e: any) {
-      searchError.value = e.message
+    } catch (e: unknown) {
+      searchError.value = e instanceof Error ? e.message : String(e)
     }
     searchLoading.value = false
   }
 
-  function selectBook(b: any) {
+  function selectBook(b: { book_id: string; book_name?: string; title?: string; author?: string }) {
     selectedBook.value = {
       book_id: b.book_id,
       title: b.title || b.book_name,
@@ -88,9 +88,9 @@ export const useDownloadStore = defineStore('download', () => {
       const d = await downloadApi.downloadStart(selectedBook.value.book_id, selectedBook.value.title)
       dlSessionId.value = d.session_id
       pollDownload()
-    } catch (e: any) {
+    } catch (e: unknown) {
       dlState.value = 'idle'
-      useToastStore().error('启动下载失败: ' + e.message)
+      useToastStore().error('启动下载失败: ' + (e instanceof Error ? e.message : String(e)))
     }
   }
 

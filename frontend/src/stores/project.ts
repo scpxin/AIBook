@@ -6,10 +6,10 @@ import * as projectApi from '../api/project'
 export interface V2ProjectData {
   id?: string
   name: string
-  modules?: Record<string, any>
-  pipeline: any
+  modules?: Record<string, unknown>
+  pipeline: Record<string, unknown>
   templateSelections?: Record<string, string>
-  sharedContext?: Record<string, any>
+  sharedContext?: Record<string, unknown>
   updatedAt?: string
 }
 
@@ -18,7 +18,7 @@ export const useProjectStore = defineStore('project', () => {
   const selectedProjectId = ref('')
   const projectName = ref('')
   const projectList = ref<Project[]>([])
-  const v2ProjectMeta = ref<Record<string, any>>({})
+  const v2ProjectMeta = ref<Record<string, unknown>>({})
   const projectUpdatedAt = ref<string>('')
 
   async function loadList() {
