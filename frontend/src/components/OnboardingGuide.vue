@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div v-if="modelValue" class="onboarding-overlay" @click.self="close">
       <div class="onboarding-card">
-        <button class="close-btn" @click="close" aria-label="关闭">×</button>
+        <button type="button" class="close-btn" @click="close" aria-label="关闭">×</button>
         <div class="step-indicator">
           <span
             v-for="(_, idx) in steps"
@@ -17,14 +17,14 @@
           {{ steps[currentStep].tip }}
         </div>
         <div class="nav-buttons">
-          <button
+          <button type="button"
             v-if="currentStep > 0"
             class="btn-prev"
             @click="currentStep--"
           >
             上一步
           </button>
-          <button
+          <button type="button"
             class="btn-next"
             @click="handleNext"
           >

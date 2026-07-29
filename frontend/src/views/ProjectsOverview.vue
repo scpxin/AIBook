@@ -7,7 +7,7 @@
     </div>
 
     <div class="po-actions">
-      <button class="po-btn po-btn-primary" @click="startNewProject">
+      <button type="button" class="po-btn po-btn-primary" @click="startNewProject">
         <span class="po-btn-icon">+</span>
         新建项目
       </button>
@@ -19,7 +19,7 @@
           class="po-search-input"
         />
       </div>
-      <button class="po-btn" @click="loadProjects" :disabled="loading">
+      <button type="button" class="po-btn" @click="loadProjects" :disabled="loading">
         ↻ 刷新
       </button>
       <select v-model="sortBy" class="po-select">
@@ -34,7 +34,7 @@
      <div v-else-if="!v2Projects.length && !otherProjects.length" class="po-empty">
        <div class="po-empty-icon">📚</div>
        <p>暂无项目</p>
-       <button class="po-btn po-btn-primary" @click="startNewProject">创建第一个项目</button>
+       <button type="button" class="po-btn po-btn-primary" @click="startNewProject">创建第一个项目</button>
      </div>
 
      <div v-else class="po-content">
@@ -53,7 +53,7 @@
              </div>
              <div v-if="failedDetails.has(p.id)" class="po-card-error">
                <span class="po-error-text">详情加载失败</span>
-               <button class="po-retry-btn" @click="retryLoadDetail(p)">重试</button>
+               <button type="button" class="po-retry-btn" @click="retryLoadDetail(p)">重试</button>
              </div>
              <div v-else class="po-card-meta">
                <span class="po-meta-item">
@@ -75,17 +75,17 @@
               → {{ p.target }}
             </div>
               <div class="po-card-actions">
-                <button class="po-card-btn po-card-btn-open" @click="openProject(p)">继续创作</button>
-                <button v-if="p.tags === 'v2' || p.tags?.includes('v2')" class="po-card-btn po-card-btn-write" @click="goToWriting(p)">写作</button>
-                 <button class="po-card-btn po-card-btn-export" @click="exportProject(p)" :disabled="exportingId === p.id" title="导出JSON">
+                <button type="button" class="po-card-btn po-card-btn-open" @click="openProject(p)">继续创作</button>
+                <button type="button" v-if="p.tags === 'v2' || p.tags?.includes('v2')" class="po-card-btn po-card-btn-write" @click="goToWriting(p)">写作</button>
+                 <button type="button" class="po-card-btn po-card-btn-export" @click="exportProject(p)" :disabled="exportingId === p.id" title="导出JSON">
                    <span v-if="exportingId === p.id" class="po-btn-spinner"></span>
                    <span v-else>导出</span>
                  </button>
-                 <button class="po-card-btn po-card-btn-clone" @click="cloneProject(p)" :disabled="cloningId === p.id" title="克隆项目">
+                 <button type="button" class="po-card-btn po-card-btn-clone" @click="cloneProject(p)" :disabled="cloningId === p.id" title="克隆项目">
                    <span v-if="cloningId === p.id" class="po-btn-spinner"></span>
                    <span v-else>克隆</span>
                  </button>
-                <button class="po-card-btn po-card-btn-del" @click="confirmDelete(p)">删除</button>
+                <button type="button" class="po-card-btn po-card-btn-del" @click="confirmDelete(p)">删除</button>
               </div>
           </div>
         </div>
@@ -111,8 +111,8 @@
               </span>
             </div>
             <div class="po-card-actions">
-              <button class="po-card-btn po-card-btn-open" @click="openProject(p)">查看</button>
-              <button class="po-card-btn po-card-btn-del" @click="confirmDelete(p)">删除</button>
+              <button type="button" class="po-card-btn po-card-btn-open" @click="openProject(p)">查看</button>
+              <button type="button" class="po-card-btn po-card-btn-del" @click="confirmDelete(p)">删除</button>
             </div>
           </div>
         </div>

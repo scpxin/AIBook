@@ -69,6 +69,7 @@ import { ref, computed, onMounted } from 'vue'
 import * as v2Api from '../api/v2'
 import { useToastStore } from '../stores/toast'
 import { setupErrorBar } from '../composables/useErrorBar'
+import type { VolumeOutline, ChapterPlan, ChapterOutline, Draft } from '../types/v2'
 
 const props = defineProps<{ projectId: string }>()
 
@@ -83,16 +84,16 @@ const scope = ref('all')
 const preview = ref(false)
 const modulesData = ref<Record<string, any>>({})
 
-const volumes = ref<any[]>([])
-const chapterPlans = ref<any[]>([])
-const chapterOutlines = ref<any[]>([])
-const drafts = ref<any[]>([])
+const volumes = ref<VolumeOutline[]>([])
+const chapterPlans = ref<ChapterPlan[]>([])
+const chapterOutlines = ref<ChapterOutline[]>([])
+const drafts = ref<Draft[]>([])
 
 const hasAnyData = computed(() =>
   volumes.value.length > 0 ||
   chapterPlans.value.length > 0 ||
   chapterOutlines.value.length > 0 ||
-  drafts.value.some(d => !!(d.content || d.content_raw))
+  drafts.value.some(d => !!(d.content || d.contentRaw))
 )
 
 async function loadData() {
@@ -198,7 +199,7 @@ function generateContent(): string {
 
 const contentWarning = computed(() => {
   if (scope.value === 'all' || scope.value === 'draft') {
-    if (drafts.value.length > 0 && !drafts.value.some(d => !!(d.content || d.content_raw))) {
+    if (drafts.value.length > 0 && !drafts.value.some(d => !!(d.content || d.contentRaw))) {
       return '草稿中包含空章节，导出文件可能不完整'
     }
   }

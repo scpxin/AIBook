@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div class="ts-overlay" @click.self="$emit('close')">
       <div class="ts-modal">
-        <button class="ts-close" @click="$emit('close')">&times;</button>
+        <button type="button" class="ts-close" @click="$emit('close')">&times;</button>
 
         <div class="ts-header">
           <h3>选择模块数据</h3>
@@ -10,12 +10,12 @@
         </div>
 
         <div class="ts-options">
-          <button class="ts-option-btn" @click="selectAI">
+          <button type="button" class="ts-option-btn" @click="selectAI">
             <span class="ts-option-icon">🤖</span>
             <span class="ts-option-label">AI生成</span>
             <span class="ts-option-desc">使用大模型智能生成全新内容</span>
           </button>
-          <button class="ts-option-btn" @click="showTemplateList = true" :disabled="loading">
+          <button type="button" class="ts-option-btn" @click="showTemplateList = true" :disabled="loading">
             <span class="ts-option-icon">📋</span>
             <span class="ts-option-label">选择模板</span>
             <span class="ts-option-desc">复用已有AI生成结果，不消耗token</span>
@@ -46,7 +46,7 @@
                   <span class="ts-tag">{{ item.template.genre || '通用' }}</span>
                 </div>
                 <div class="ts-card-preview">{{ getPreviewText(item.template) }}</div>
-                <button class="ts-preview-btn" @click.stop="togglePreview(item.template)">
+                <button type="button" class="ts-preview-btn" @click.stop="togglePreview(item.template)">
                   {{ previewingId === item.template.id ? '收起' : '查看详情' }}
                 </button>
                 <div v-if="previewingId === item.template.id" class="ts-detail">
@@ -58,7 +58,7 @@
             <div v-if="incompatible.length > 0" class="ts-section">
               <h4 class="ts-section-title">
                 ❌ 不可用模板
-                <button class="ts-toggle-btn" @click="showIncompatible = !showIncompatible">
+                <button type="button" class="ts-toggle-btn" @click="showIncompatible = !showIncompatible">
                   {{ showIncompatible ? '收起' : '展开查看' }}
                 </button>
               </h4>
@@ -83,8 +83,8 @@
         </div>
 
         <div v-if="showTemplateList && selectedTemplateId" class="ts-actions">
-          <button class="ts-btn ts-btn-primary" @click="applySelected">使用此模板</button>
-          <button class="ts-btn" @click="selectedTemplateId = null">取消选择</button>
+          <button type="button" class="ts-btn ts-btn-primary" @click="applySelected">使用此模板</button>
+          <button type="button" class="ts-btn" @click="selectedTemplateId = null">取消选择</button>
         </div>
       </div>
     </div>

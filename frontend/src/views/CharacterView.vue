@@ -35,18 +35,18 @@
               <option :value="3">3个</option><option :value="5">5个</option><option :value="8">8个</option><option :value="12">12个</option>
             </select>
           </div>
-          <button @click="showAddForm = !showAddForm" class="btn-add">+ 手动添加角色</button>
+          <button type="button" @click="showAddForm = !showAddForm" class="btn-add">+ 手动添加角色</button>
         </div>
         <div v-if="showAddForm" class="add-char-form">
           <input v-model="newChar.name" placeholder="姓名" class="form-input-sm" />
           <input v-model="newChar.role" placeholder="角色定位" class="form-input-sm" />
           <input v-model="newChar.trait" placeholder="性格特点" class="form-input-sm" />
-          <button @click="addChar" class="btn-save" :disabled="!newChar.name">添加</button>
+          <button type="button" @click="addChar" class="btn-save" :disabled="!newChar.name">添加</button>
         </div>
         <div v-if="!supportingChars.length && !generating" class="empty-hint tab-pane">暂无配角，点击「AI生成角色」自动填充，或手动添加</div>
         <div class="char-grid">
           <div v-for="(c, idx) in supportingChars" :key="idx" class="char-card" :class="{ active: selectedChar === c }" tabindex="0" @click="selectedChar = c" @keydown.enter="selectedChar = c" v-keyboard-click>
-            <div class="char-name">{{ c.name }}<button @click.stop="deleteChar(idx)" class="btn-delete-sm" title="删除" aria-label="删除配角">×</button></div>
+            <div class="char-name">{{ c.name }}<button type="button" @click.stop="deleteChar(idx)" class="btn-delete-sm" title="删除" aria-label="删除配角">×</button></div>
             <div class="char-role">{{ c.role }}</div>
             <div class="char-trait">{{ c.trait }}</div>
           </div>
@@ -67,7 +67,7 @@
         <div v-if="!villains.length && !generating" class="empty-hint tab-pane">暂无反派，点击「AI生成角色」自动填充，或手动添加</div>
         <div class="villain-grid">
           <div v-for="(v, idx) in villains" :key="idx" class="villain-card" :class="{ active: selectedVillain === v }" tabindex="0" @click="selectedVillain = v" @keydown.enter="selectedVillain = v" v-keyboard-click>
-            <div class="villain-name">{{ v.name }} <span class="tier">{{ v.tier }}</span><button @click.stop="deleteVillain(idx)" class="btn-delete-sm" title="删除" aria-label="删除反派">x</button></div>
+            <div class="villain-name">{{ v.name }} <span class="tier">{{ v.tier }}</span><button type="button" @click.stop="deleteVillain(idx)" class="btn-delete-sm" title="删除" aria-label="删除反派">x</button></div>
             <div class="villain-motivation">{{ v.motivation }}</div>
           </div>
         </div>
@@ -95,11 +95,11 @@
     <div v-if="checkResultMsg" class="check-result-box">{{ checkResultMsg }}</div>
     </div>
      <div class="actions">
-       <button @click="generate" :disabled="generating" class="btn-primary">
+       <button type="button" @click="generate" :disabled="generating" class="btn-primary">
          <span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : 'AI生成角色' }}
        </button>
-       <button @click="checkConsistency" class="btn-secondary">一致性检查</button>
-       <button @click="confirm" class="btn-primary" :disabled="confirming">{{ confirming ? '保存中...' : '确认角色，下一步' }}</button>
+       <button type="button" @click="checkConsistency" class="btn-secondary">一致性检查</button>
+       <button type="button" @click="confirm" class="btn-primary" :disabled="confirming">{{ confirming ? '保存中...' : '确认角色，下一步' }}</button>
      </div>
   </div>
 </template>
@@ -107,6 +107,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useCharacterStore } from '../stores/character'
+import type { Character, WorldBuilding } from '../types/v2'
 import * as v2Api from '../api/v2'
 import RelationGraph from '../components/RelationGraph.vue'
 import { useGeneration } from '../composables/useGeneration'
@@ -136,7 +137,7 @@ const generating = ref(false)
 const confirming = ref(false)
 const error = ref('')
 const checkResultMsg = ref('')
-const selectedChar = ref<any>(null)
+const selectedChar = ref<Character | null>(null)
 const supportingCount = ref(5)
 const showAddForm = ref(false)
 const newChar = reactive({ name: '', role: '', trait: '' })
@@ -163,10 +164,10 @@ const villainDims = [
 ]
 
 const protagonist = reactive<any>({})
-const supportingChars = ref<any[]>([])
-const villains = ref<any[]>([])
-const relations = ref<any[]>([])
-const selectedVillain = ref<any>(null)
+const supportingChars = ref<Character[]>([])
+const villains = ref<Character[]>([])
+const relations = ref<Record<string, unknown>[]>([])
+const selectedVillain = ref<Character | null>(null)
 
 const allCharacters = computed(() => {
   const chars: any[] = []
@@ -206,9 +207,9 @@ function handleTabKeydown(dir: number, e: KeyboardEvent) {
   activeTab.value = tabs[next].key
 }
 
-const worldData = ref<any>(null)
+const worldData = ref<WorldBuilding | null>(null)
 const storyConcept = ref('')
-const projectContext = ref<any>(null)
+const projectContext = ref<Record<string, unknown> | null>(null)
 
 function enrichedStoryConcept(): string {
   const parts = [storyConcept.value]
@@ -226,7 +227,7 @@ function enrichedStoryConcept(): string {
 
 function addChar() {
   if (!newChar.name) return
-  supportingChars.value.push({ ...newChar })
+  supportingChars.value.push({ ...newChar } as unknown as Character)
   newChar.name = ''; newChar.role = ''; newChar.trait = ''
   showAddForm.value = false
 }
@@ -259,13 +260,13 @@ async function generate() {
   gen.begin(4, '正在生成主角...')
   try {
     const result = await charStore.generateCharacters(
-      props.projectId, worldData.value, enrichedStoryConcept() || undefined,
+      props.projectId, worldData.value as Record<string, unknown> | undefined, enrichedStoryConcept() || undefined,
       (step: number, msg: string) => gen.progress(step, msg),
     )
     Object.assign(protagonist, result.protagonist || {})
     supportingChars.value = result.supporting || []
     villains.value = result.villains || []
-    relations.value = (result.relations as unknown as unknown[]) || []
+    relations.value = (result.relations as unknown as Record<string, unknown>[]) || []
     generationSuccess = true
     const charData = { protagonist: { ...protagonist }, supporting: supportingChars.value, villains: villains.value, relations: relations.value }
     try {

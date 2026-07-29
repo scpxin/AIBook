@@ -9,7 +9,7 @@
         <h4>章节选择</h4>
         <div v-if="!chapters.length && loadError" class="empty-chapters empty-chapters-error">
           <p class="error-text">⚠ {{ loadError }}</p>
-          <button @click="retryLoad" class="btn-retry">重试</button>
+          <button type="button" @click="retryLoad" class="btn-retry">重试</button>
           <p class="empty-tip">请先在「创作V2」中生成章节规划</p>
         </div>
 
@@ -19,7 +19,7 @@
         </div>
 
         <div ref="chapterListRef" class="chapter-list">
-        <button v-for="(ch, idx) in chapters" :key="idx" class="chapter-item" :class="{ active: currentChapterIdx === idx }" @click="selectChapter(idx)">
+        <button type="button" v-for="(ch, idx) in chapters" :key="idx" class="chapter-item" :class="{ active: currentChapterIdx === idx }" @click="selectChapter(idx)">
           <span class="ch-num">第{{ idx + 1 }}章</span>
           <span class="ch-title">{{ ch.title }}</span>
           <span v-if="ch.wordCount" class="ch-progress">{{ ch.wordCount }}字</span>
@@ -58,24 +58,24 @@
         />
 
         <div class="writing-toolbar">
-          <button @click="generateDraft" :disabled="isGenerating" class="btn-generate">
+          <button type="button" @click="generateDraft" :disabled="isGenerating" class="btn-generate">
             {{ isGenerating ? '生成中...' : '生成正文' }}
           </button>
-          <button @click="polish" :disabled="isPolishing || !draftContent" class="btn-tool">润色</button>
-          <button @click="rewrite" :disabled="isGenerating || isRewriting || !draftContent" class="btn-tool">{{ isRewriting ? '重写中...' : '重写' }}</button>
-          <button @click="parse" :disabled="isParsing || !draftContent" class="btn-tool">解析</button>
-          <button @click="save" :disabled="isSaving || !draftContent" class="btn-save">保存</button>
+          <button type="button" @click="polish" :disabled="isPolishing || !draftContent" class="btn-tool">润色</button>
+          <button type="button" @click="rewrite" :disabled="isGenerating || isRewriting || !draftContent" class="btn-tool">{{ isRewriting ? '重写中...' : '重写' }}</button>
+          <button type="button" @click="parse" :disabled="isParsing || !draftContent" class="btn-tool">解析</button>
+          <button type="button" @click="save" :disabled="isSaving || !draftContent" class="btn-save">保存</button>
         </div>
 
         <div v-if="parseResult" class="parse-result-panel">
           <h4>解析结果</h4>
           <pre>{{ JSON.stringify(parseResult, null, 2) }}</pre>
-          <button @click="parseResult = null" class="btn-close">关闭</button>
+          <button type="button" @click="parseResult = null" class="btn-close">关闭</button>
         </div>
       </div>
 
       <div class="writing-side">
-        <button @click="returnToMainflow" class="btn-return">← 返回主流程</button>
+        <button type="button" @click="returnToMainflow" class="btn-return">← 返回主流程</button>
         <KnowledgePanel :project-id="projectId" />
         <ForeshadowPanel :project-id="projectId" />
         <ConsistencyPanel :project-id="projectId" />
@@ -96,6 +96,7 @@ import * as v2Api from '../api/v2'
 import { setupConfirm } from '../composables/useConfirm'
 import { setupErrorBar } from '../composables/useErrorBar'
 import { useToastStore } from '../stores/toast'
+import type { ContentParseResult } from '../types/v2'
 
 const route = useRoute()
 const router = useRouter()
@@ -116,7 +117,7 @@ const isSaving = ref(false)
 const isParsing = ref(false)
 const isRewriting = ref(false)
 const loadError = ref('')
-const parseResult = ref<any>(null)
+const parseResult = ref<ContentParseResult | null>(null)
 const chapterListRef = ref<HTMLElement | null>(null)
 const outlineCollapsed = ref(true)
 

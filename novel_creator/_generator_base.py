@@ -24,7 +24,7 @@ class _BaseGeneratorMixin:
             if result is not None:
                 if module_name:
                     try:
-                        from app.services.validation import validate_result
+                        from ._validator import validate_result
                         valid, val_err = validate_result(module_name, result)
                         if not valid and attempt < max_retries:
                             prompt = prompt + f"\n\n上次返回格式错误: {val_err}。请确保返回完整JSON。"

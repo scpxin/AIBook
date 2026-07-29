@@ -11,8 +11,8 @@
             <p v-if="options.detail" class="dialog-detail">{{ options.detail }}</p>
           </div>
           <div class="dialog-footer">
-            <button @click="onCancel" class="btn-cancel">{{ options.cancelText }}</button>
-            <button @click="onConfirm" :class="['btn-confirm', typeClass]">{{ options.confirmText }}</button>
+            <button type="button" @click="onCancel" class="btn-cancel">{{ options.cancelText }}</button>
+            <button type="button" @click="onConfirm" :class="['btn-confirm', typeClass]">{{ options.confirmText }}</button>
           </div>
         </div>
       </div>

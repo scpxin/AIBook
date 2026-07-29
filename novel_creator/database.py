@@ -1,4 +1,10 @@
-"""SQLite 数据库模块 - 章节存储、大纲管理、步骤摘要、项目管理、生成状态管理"""
+"""SQLite 数据库模块 - 章节存储、大纲管理、步骤摘要、项目管理、生成状态管理
+
+.. deprecated::
+    此模块已被 database_v2.py 和 data_bridge.py 完全取代。
+    仅因遗留测试 (tests/test_database.py) 引用而保留，仅供测试兼容。
+    新代码请使用 novel_creator.database_v2 或 novel_creator.data_bridge。
+"""
 import json
 import os
 import sqlite3
@@ -346,7 +352,7 @@ def list_projects(include_archived=False, include_deleted=False):
         d = dict(row)
         try:
             data = json.loads(d.get('data_json', '{}'))
-        except:
+        except (json.JSONDecodeError, TypeError):
             data = {}
         result.append({
             'id': d.get('id', ''),

@@ -97,25 +97,25 @@
                 <input v-model="s.name" class="form-input" placeholder="阶段名称" />
                 <input v-model="s.desc" class="form-input" placeholder="描述" />
                 <input v-model="s.abilities" class="form-input" placeholder="能力" />
-                <button @click="world.power_system.stages.splice(i, 1)" class="btn-sm danger">-</button>
+                <button type="button" @click="world.power_system.stages.splice(i, 1)" class="btn-sm danger">-</button>
               </div>
-              <button @click="world.power_system.stages.push({ name: '', desc: '', abilities: '' })" class="btn-sm">+ 添加阶段</button>
+              <button type="button" @click="world.power_system.stages.push({ name: '', desc: '', abilities: '' })" class="btn-sm">+ 添加阶段</button>
             </div>
             <div class="form-group">
               <label>核心规则</label>
               <div v-for="(r, i) in world.power_system.rules" :key="i" class="rule-row">
                 <input v-model="r.rule" class="form-input" placeholder="规则描述" />
-                <button @click="world.power_system.rules.splice(i, 1)" class="btn-sm danger">-</button>
+                <button type="button" @click="world.power_system.rules.splice(i, 1)" class="btn-sm danger">-</button>
               </div>
-              <button @click="world.power_system.rules.push({ rule: '' })" class="btn-sm">+ 添加规则</button>
+              <button type="button" @click="world.power_system.rules.push({ rule: '' })" class="btn-sm">+ 添加规则</button>
             </div>
             <div class="form-group">
               <label>特殊情况</label>
               <div v-for="(c, i) in world.power_system.specialCases" :key="i" class="rule-row">
                 <input v-model="c.case" class="form-input" placeholder="特殊情况描述" />
-                <button @click="world.power_system.specialCases.splice(i, 1)" class="btn-sm danger">-</button>
+                <button type="button" @click="world.power_system.specialCases.splice(i, 1)" class="btn-sm danger">-</button>
               </div>
-              <button @click="world.power_system.specialCases.push({ case: '' })" class="btn-sm">+ 添加特殊情况</button>
+              <button type="button" @click="world.power_system.specialCases.push({ case: '' })" class="btn-sm">+ 添加特殊情况</button>
             </div>
           </div>
 
@@ -124,7 +124,7 @@
             <div v-for="(f, idx) in world.factions" :key="idx" class="faction-card">
               <div class="faction-header">
                 <input v-model="f.groupName" class="form-input" placeholder="势力名称" />
-                <button @click="world.factions.splice(idx, 1)" class="btn-sm danger">删除</button>
+                <button type="button" @click="world.factions.splice(idx, 1)" class="btn-sm danger">删除</button>
               </div>
               <div class="form-group">
                 <label>信仰理念</label>
@@ -147,19 +147,19 @@
                 <textarea v-model="f.conflicts" class="form-textarea" rows="2" placeholder="与其他势力的关系、冲突或合作..." maxlength="3000" />
               </div>
             </div>
-            <button @click="world.factions.push({ groupName: '', beliefs: '', structure: '', history: '', keyMembers: '', conflicts: '' })" class="btn-sm">+ 添加势力</button>
+            <button type="button" @click="world.factions.push({ groupName: '', beliefs: '', structure: '', history: '', keyMembers: '', conflicts: '' })" class="btn-sm">+ 添加势力</button>
           </div>
         </div>
       </div>
     </div>
 
      <div class="actions">
-       <button @click="generate" :disabled="generating" class="btn-primary"><span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : 'AI生成世界观' }}</button>
-       <button @click="checkConsistency" class="btn-secondary">一致性检查</button>
-       <button @click="confirm" class="btn-primary" :disabled="confirming">{{ confirming ? '保存中...' : '确认设定，下一步' }}</button>
+       <button type="button" @click="generate" :disabled="generating" class="btn-primary"><span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : 'AI生成世界观' }}</button>
+       <button type="button" @click="checkConsistency" class="btn-secondary">一致性检查</button>
+       <button type="button" @click="confirm" class="btn-primary" :disabled="confirming">{{ confirming ? '保存中...' : '确认设定，下一步' }}</button>
      </div>
     <div v-if="error" class="error-box">{{ error }}</div>
-    <div v-if="loadError" class="load-error-box"><p>{{ loadError }}</p><button @click="reloadPage" class="btn-secondary">重试</button></div>
+    <div v-if="loadError" class="load-error-box"><p>{{ loadError }}</p><button type="button" @click="reloadPage" class="btn-secondary">重试</button></div>
     <div v-if="checkResult" class="check-result">
       <span :class="checkResult.passed ? 'pass' : 'fail'">{{ checkResult.message }}</span>
     </div>
@@ -206,7 +206,7 @@ const generating = ref(false)
 const confirming = ref(false)
 const error = ref('')
 const loadError = ref('')
-const checkResult = ref<any>(null)
+const checkResult = ref<Record<string, unknown> | null>(null)
 
 function reloadPage() { window.location.reload() }
 

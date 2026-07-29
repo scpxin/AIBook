@@ -20,10 +20,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onErrorCaptured } from 'vue'
 import TabBar from './components/TabBar.vue'
 import ModelConfig from './components/ModelConfig.vue'
 import ToastContainer from './components/ToastContainer.vue'
+import { useSettingsPanel } from './composables/useSettingsPanel'
 
-const showSettings = ref(false)
+const { showSettings } = useSettingsPanel()
+
+onErrorCaptured((err, instance, info) => {
+  console.error('[App Error]', err, info)
+  return false
+})
 </script>

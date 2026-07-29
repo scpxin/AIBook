@@ -9,6 +9,7 @@ export interface IdeaCandidate {
   genre: string
   differentiator: string
   referenceWorks: string[]
+  [key: string]: unknown
 }
 
 export interface IdeaScore {
@@ -30,6 +31,7 @@ export interface IdeaUpgrade {
   limitations: string[]
   foreshadowHints: string[]
   growthSystem: string
+  [key: string]: unknown
 }
 
 export interface RiskItem {
@@ -44,6 +46,7 @@ export interface RiskAnalysis {
   risks: RiskItem[]
   fatalIssues: string[]
   summary: string
+  [key: string]: unknown
 }
 
 // ========== M2: 项目定位 ==========
@@ -69,6 +72,7 @@ export interface PlatformCompatibility {
   pros: string[]
   cons: string[]
   adjustment: string
+  [key: string]: any
 }
 
 export interface DerivedFields {
@@ -256,6 +260,7 @@ export interface VolumeOutline {
   characterFocus: string[]
   cliffhanger: string
   arcContribution: string
+  [key: string]: any
 }
 
 export interface StoryMaster {
@@ -430,6 +435,7 @@ export interface SceneOutline {
   conflict: any
   outcome: string
   sensoryDetails: string
+  [key: string]: any
 }
 
 export interface ChapterOutline {
@@ -442,6 +448,7 @@ export interface ChapterOutline {
   dialogueBeats: any[]
   actionBeats: any[]
   transition: string
+  [key: string]: any
 }
 
 // ========== M14: 场景 ==========
@@ -623,13 +630,24 @@ export interface ModuleInfo {
   isIterative: boolean
 }
 
+export interface ForeshadowItem {
+  id: string | number
+  name: string
+  status: 'pending' | 'resolved'
+  setupChapter?: number
+  payoffChapter?: number
+  [key: string]: unknown
+}
+
 export interface GenerationTemplateData {
   [key: string]: unknown
 }
 
 export interface ProjectDimension {
+  key: string
   name?: string
   score?: number
   analysis?: string
+  values: Record<string, string>
   [key: string]: unknown
 }

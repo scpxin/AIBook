@@ -9,10 +9,20 @@ import os
 import sqlite3
 import threading
 import time
+from typing import Any
 
 DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'fanqie.db'))
 V2_SCHEMA_VERSION = 1
 _v2_lock = threading.RLock()
+
+V2_TABLES = frozenset([
+    'v2_ideas', 'v2_projects', 'v2_world_buildings', 'v2_characters',
+    'v2_relation_maps', 'v2_story_systems', 'v2_power_systems', 'v2_factions',
+    'v2_timelines', 'v2_volumes', 'v2_plot_nodes', 'v2_chapter_plans',
+    'v2_scenes', 'v2_foreshadowings', 'v2_knowledge_states', 'v2_drafts',
+    'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states',
+    'v2_outlines', 'v2_generation_templates',
+])
 
 logger = logging.getLogger('novel_creator.database_v2')
 
@@ -97,6 +107,22 @@ def _jl(s):
         return json.loads(s) if s else []
     except (json.JSONDecodeError, TypeError):
         return []
+
+
+def _deserialize_row(row):
+    """将 sqlite3.Row 转为 dict，JSON 字符串列自动反序列化"""
+    if not row:
+        return None
+    d = {}
+    for k, v in dict(row).items():
+        if isinstance(v, str) and len(v) > 0 and v[0] in ('{', '['):
+            try:
+                d[k] = json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                d[k] = v
+        else:
+            d[k] = v
+    return d
 
 
 # ========== 灵感 CRUD ==========
@@ -823,19 +849,14 @@ def get_pipeline_state(project_id):
 
 def delete_project_v2(project_id):
     """软删除项目所有V2数据（标记 deleted_at）"""
-    tables = [
-        'v2_ideas', 'v2_projects', 'v2_world_buildings', 'v2_characters',
-        'v2_relation_maps', 'v2_story_systems', 'v2_power_systems', 'v2_factions',
-        'v2_timelines', 'v2_volumes', 'v2_plot_nodes', 'v2_chapter_plans',
-        'v2_scenes', 'v2_foreshadowings', 'v2_knowledge_states', 'v2_drafts',
-        'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states',
-        'v2_outlines', 'v2_generation_templates'
-    ]
+    tables = list(V2_TABLES)
     now = _v2_now()
     with _v2_lock:
         conn = _v2_db()
         try:
             for table in tables:
+                if table not in V2_TABLES:
+                    continue
                 try:
                     conn.execute(f"UPDATE {table} SET deleted_at=? WHERE project_id=? AND deleted_at IS NULL", (now, project_id))
                 except Exception:
@@ -848,18 +869,13 @@ def delete_project_v2(project_id):
 
 def hard_delete_project_v2(project_id):
     """硬删除项目所有V2数据（用于30天后的垃圾回收）"""
-    tables = [
-        'v2_ideas', 'v2_projects', 'v2_world_buildings', 'v2_characters',
-        'v2_relation_maps', 'v2_story_systems', 'v2_power_systems', 'v2_factions',
-        'v2_timelines', 'v2_volumes', 'v2_plot_nodes', 'v2_chapter_plans',
-        'v2_scenes', 'v2_foreshadowings', 'v2_knowledge_states', 'v2_drafts',
-        'v2_consistency_reports', 'v2_ai_generations', 'v2_pipeline_states',
-        'v2_outlines', 'v2_generation_templates'
-    ]
+    tables = list(V2_TABLES)
     with _v2_lock:
         conn = _v2_db()
         try:
             for table in tables:
+                if table not in V2_TABLES:
+                    continue
                 conn.execute(f"DELETE FROM {table} WHERE project_id=?", (project_id,))
             conn.commit()
         finally:
@@ -921,8 +937,8 @@ def create_idea_template(project_id: str, name: str, genre: str, prompt: str,
             row = conn.execute("SELECT * FROM idea_templates WHERE id=?", (tid,)).fetchone()
             conn.commit()
             return dict(row)
-        except sqlite3.IntegrityError:
-            raise ValueError("模板名称已存在")
+        except sqlite3.IntegrityError as err:
+            raise ValueError("模板名称已存在") from err
         finally:
             conn.close()
 
@@ -989,9 +1005,9 @@ def delete_idea_template(template_id: int) -> bool:
 def save_generation_template(
     name: str,
     module_key: str,
-    output_data: any,
-    input_context: any = None,
-    entity_refs: any = None,
+    output_data: Any,
+    input_context: Any = None,
+    entity_refs: Any = None,
     compatibility_group: str = '',
     source_project_id: str = '',
     genre: str = '',

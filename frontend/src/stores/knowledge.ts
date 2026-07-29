@@ -1,13 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { KnowledgeState, ConsistencyReport, ContentParseResult } from '../types/v2'
+import type { ForeshadowItem, KnowledgeState, ConsistencyReport, ContentParseResult } from '../types/v2'
 import { getKnowledgeSnapshot, getForeshadows, updateKnowledge, worldConsistencyCheck, getConsistencyReport } from '../api/v2'
 
 export const useKnowledgeStore = defineStore('knowledge', () => {
   const projectId = ref('')
   const state = ref<KnowledgeState>({ characterStates: {}, worldState: {}, plotState: {} })
-  const foreshadows = ref<Record<string, unknown>[]>([])
-  const resolvedForeshadows = ref<Record<string, unknown>[]>([])
+  const foreshadows = ref<ForeshadowItem[]>([])
+  const resolvedForeshadows = ref<ForeshadowItem[]>([])
   const loading = ref(false)
   const error = ref('')
   const consistencyReports = ref<ConsistencyReport[]>([])

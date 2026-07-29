@@ -7,14 +7,15 @@ import {
   saveModuleData,
 } from '../api/v2'
 
+
 export const useWorldStore = defineStore('world', () => {
   const projectId = ref('')
   const origin = ref<WorldOrigin | any>({})
   const rules = ref<WorldRule[]>([])
   const metaRule = ref('')
-  const structure = ref<any>({})
-  const civilization = ref<any>({})
-  const history = ref<any>({})
+  const structure = ref<WorldStructure>({})
+  const civilization = ref<CivilizationDimension>({} as CivilizationDimension)
+  const history = ref<Record<string, unknown>>({})
   const consistencyCheck = ref<WorldConsistencyCheck | null>(null)
   const loading = ref(false)
   const error = ref('')
@@ -128,13 +129,11 @@ export const useWorldStore = defineStore('world', () => {
         return acc
       }, {}) : rules.value
       const normalizedHistory = (() => {
-        let h = history.value
-        if (!Array.isArray(h)) {
-          if (h && h.history && Array.isArray(h.history)) h = h.history
-          else if (typeof h === 'object') h = Object.entries(h).map(([k, v]) => ({ era: k, description: String(v) }))
-          else h = []
-        }
-        return h
+        const raw = history.value
+        if (Array.isArray(raw)) return raw as unknown[]
+        if (raw && raw.history && Array.isArray(raw.history)) return raw.history as unknown[]
+        if (typeof raw === 'object' && raw !== null) return Object.entries(raw).map(([k, v]) => ({ era: k, description: String(v) }))
+        return []
       })()
       return {
         origin: origin.value, rules: normalizedRules,

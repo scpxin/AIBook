@@ -115,9 +115,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-    app.include_router(projects_router)
-    app.include_router(download_router)
-    app.include_router(settings_router)
+app.include_router(projects_router)
+app.include_router(download_router)
+app.include_router(settings_router)
 app.include_router(template_router)
 app.include_router(generation_template_router)
 app.include_router(pipeline_router)

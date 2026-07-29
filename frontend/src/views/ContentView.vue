@@ -76,7 +76,7 @@ import { useGeneration } from '../composables/useGeneration'
 import { useToastStore } from '../stores/toast'
 import TreeNode from '../components/TreeNode.vue'
 import { setupErrorBar } from '../composables/useErrorBar'
-import type { PolishResult } from '../types/v2'
+import type { PolishResult, ContentParseResult, ConsistencyReport } from '../types/v2'
 import { useChapters } from '../composables/useChapters'
 import { useAutoSave } from '../composables/useAutoSave'
 
@@ -104,7 +104,7 @@ const pageLoading = ref(true)
 const form = reactive({ chapterNo: 1, content: '' })
 const loading = ref(false)
 const error = ref('')
-const result = ref<any>(null)
+const result = ref<ContentParseResult | PolishResult | ConsistencyReport | null>(null)
 const polishedContent = ref('')
 const knowledgeAdded = ref<string[]>([])
 const chapterOptions = ref<Array<{ value: number | string; label: string }>>([])

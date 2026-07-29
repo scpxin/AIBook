@@ -7,22 +7,22 @@
       <div class="loading-spinner"></div>
       <p>正在初始化创作流程...</p>
     </div>
-    <div v-else-if="modulesLoadError" class="error-page"><h3>创作流程加载失败</h3><p>{{ modulesLoadError }}</p><button @click="reloadPage" class="btn-primary">重试</button></div>
+    <div v-else-if="modulesLoadError" class="error-page"><h3>创作流程加载失败</h3><p>{{ modulesLoadError }}</p><button type="button" @click="reloadPage" class="btn-primary">重试</button></div>
     <div v-else style="display:flex;flex-direction:column;flex:1;min-height:0">
     <div v-if="!isOnline" class="offline-banner">
       <span>📡 网络已断开 — 仍可查看和编辑已保存内容，模板复用功能离线可用</span>
     </div>
     <div v-if="showAIGuard" class="ai-guard-banner">
       <span>请先配置大模型API后才能使用AI生成功能</span>
-      <button @click="openSettings" class="btn-config-ai">立即配置</button>
+      <button type="button" @click="openSettings" class="btn-config-ai">立即配置</button>
     </div>
     <div class="v2-header">
       <h2>AI创作V2 — 13模块流水线</h2>
       <div class="header-actions">
-        <button @click="goToProjects" class="btn-projects" title="管理所有项目">
+        <button type="button" @click="goToProjects" class="btn-projects" title="管理所有项目">
           📚 项目
         </button>
-        <button @click="handleNewProject" class="btn-new-project" title="新建项目">
+        <button type="button" @click="handleNewProject" class="btn-new-project" title="新建项目">
           + 新建
         </button>
         <select v-model="projectId" @change="switchProject" class="project-select">
@@ -33,18 +33,18 @@
         </select>
         <input v-model="projectName" placeholder="项目名称" class="project-name-input" maxlength="64" @input="validateProjectName" />
         <span v-if="projectNameError" class="project-name-error">{{ projectNameError }}</span>
-        <button @click="saveCurrentModule" :disabled="!hasUnsavedChanges() || isSavingModule()" class="btn btn-save-module" title="保存当前模块到数据库">
+        <button type="button" @click="saveCurrentModule" :disabled="!hasUnsavedChanges() || isSavingModule()" class="btn btn-save-module" title="保存当前模块到数据库">
           <span v-if="isSavingModule()" class="btn-spinner"></span>
           <span v-else>保存当前模块</span>
         </button>
-        <button @click="saveProjectFull" :disabled="saving" class="btn-save" title="保存所有模块数据">
+        <button type="button" @click="saveProjectFull" :disabled="saving" class="btn-save" title="保存所有模块数据">
           <span v-if="saving" class="btn-spinner"></span>
           <span v-else-if="saveSuccess" class="save-toast">已保存!</span>
           <span v-else>保存项目</span>
         </button>
-        <button @click="showExport = !showExport" class="btn-export">导出</button>
-        <button @click="showOnboarding = true" class="btn-help">查看引导</button>
-        <button
+        <button type="button" @click="showExport = !showExport" class="btn-export">导出</button>
+        <button type="button" @click="showOnboarding = true" class="btn-help">查看引导</button>
+        <button type="button"
           v-if="templateSupportedModules.includes(currentModule)"
           @click="openTemplateSelector"
           class="btn-template"
@@ -52,7 +52,7 @@
         >
           📋 模板
         </button>
-        <button @click="goToTemplates" class="btn-template" title="管理模板库" style="text-decoration:none">
+        <button type="button" @click="goToTemplates" class="btn-template" title="管理模板库" style="text-decoration:none">
           📚 模板库
         </button>
       </div>
@@ -61,7 +61,7 @@
     <TemplateSelector
       v-if="showTemplateSelector"
       :module-key="currentModule"
-      :module-display-name="currentModuleInfo?.display_name || currentModule"
+      :module-display-name="currentModuleInfo?.displayName || currentModule"
       :project-id="projectId"
       :project-context="projectContextForTemplate"
       :selected-templates="selectedTemplateModules"
@@ -76,7 +76,7 @@
       :module-key="currentModule"
       :module-data="currentTemplateData"
       :input-context="currentTemplateInputCtx"
-      :suggested-name="`${projectContextForTemplate.genre}-${currentModuleInfo?.display_name || currentModule}`"
+      :suggested-name="`${projectContextForTemplate.genre}-${currentModuleInfo?.displayName || currentModule}`"
       @close="showSaveAsTemplate = false"
       @saved="handleTemplateSaved"
     />
@@ -88,7 +88,7 @@
 
     <div v-if="restoreNotice" class="restore-notice">
       &#10003; {{ restoreNotice }}
-      <button @click="restoreNotice = ''" class="btn-dismiss">&times;</button>
+      <button type="button" @click="restoreNotice = ''" class="btn-dismiss">&times;</button>
     </div>
 
     <div class="v2-layout">
@@ -103,13 +103,13 @@
 
       <div class="v2-main">
         <div class="module-nav">
-          <button @click="prevModule" :disabled="!canGoPrev" class="btn-nav">← 上一步</button>
+          <button type="button" @click="prevModule" :disabled="!canGoPrev" class="btn-nav">← 上一步</button>
           <span class="module-title">
-            {{ currentModuleInfo?.display_name || currentModule }}
+            {{ currentModuleInfo?.displayName || currentModule }}
             <span v-if="moduleSavedMap[currentModule]" class="save-badge">已保存</span>
           </span>
-          <button @click="skipModule" :disabled="!canGoNext || nonSkippableModules.includes(currentModule)" class="btn-nav btn-skip" title="跳过当前模块">跳过</button>
-          <button @click="completeAndNext" :disabled="!canGoNext || !hasModuleData || completing" class="btn-nav btn-next">下一步 →</button>
+          <button type="button" @click="skipModule" :disabled="!canGoNext || nonSkippableModules.includes(currentModule)" class="btn-nav btn-skip" title="跳过当前模块">跳过</button>
+          <button type="button" @click="completeAndNext" :disabled="!canGoNext || !hasModuleData || completing" class="btn-nav btn-next">下一步 →</button>
         </div>
 
         <div class="module-content">
@@ -123,9 +123,9 @@
               @complete="onModuleComplete"
             />
             <div v-else class="module-placeholder" :key="currentModule">
-              <h3>{{ currentModuleInfo?.display_name || currentModule }}</h3>
+              <h3>{{ currentModuleInfo?.displayName || currentModule }}</h3>
               <p>该模块视图正在建设中...</p>
-              <button @click="onModuleComplete(currentModule)" class="btn-skip">跳过此模块</button>
+              <button type="button" @click="onModuleComplete(currentModule)" class="btn-skip">跳过此模块</button>
             </div>
           </Transition>
         </div>
@@ -177,8 +177,12 @@ import ContentView from './ContentView.vue'
 import OutlineView from './OutlineView.vue'
 import { useTemplateStore } from '../composables/useTemplateStore'
 import type { GenerationTemplate } from '../composables/useTemplateStore'
+import type { ModuleInfo, GenerationTemplateData } from '../types/v2'
+import type { Project } from '../api/client'
 import AppConfirmDialog from '../components/AppConfirmDialog.vue'
 import AppErrorBar from '../components/AppErrorBar.vue'
+import { useSettingsPanel } from '../composables/useSettingsPanel'
+import { useV2Init } from '../composables/useV2Init'
 import logger from '../utils/logger'
 
 const CONTENT_VIEW_CONFIGS: Record<string, { title: string; desc: string; actionLabel: string }> = {
@@ -228,8 +232,8 @@ setConfirmOverflowHandler((opts) => {
 const _isNewProject = route.query.new === '1'
 const projectId = ref(route.query.projectId as string || (_isNewProject ? generateId() : generateId()))
 const projectName = ref(_isNewProject ? (route.query.name as string || '新项目') : (route.query.projectId ? '' : '我的小说V2'))
-const modules = ref<any[]>([])
-const existingProjects = ref<any[]>([])
+const modules = ref<ModuleInfo[]>([])
+const existingProjects = ref<Project[]>([])
 const restoreNotice = ref('')
 const moduleSavedMap = ref<Record<string, boolean>>({})
 const showAIGuard = ref(false)
@@ -239,6 +243,7 @@ const pageLoading = ref(true)
 const saving = ref(false)
 const completing = ref(false)
 const { isAIConfigured } = useAIGuard()
+const { showSettings } = useSettingsPanel()
 
 const currentModule = computed(() => {
   const m = route.params.module as string
@@ -342,11 +347,11 @@ function hasUnsavedChanges(): boolean {
       await saveModuleData(projectId.value, moduleKey, pending)
       moduleSavedMap.value[moduleKey] = true
       moduleSaveStore.markSaved(projectId.value, moduleKey)
-      toast.success(`模块"${currentModuleInfo.value?.display_name || moduleKey}"已保存`)
+      toast.success(`模块"${currentModuleInfo.value?.displayName || moduleKey}"已保存`)
       return true
     } catch (e: any) {
       moduleSaveStore.markError(projectId.value, moduleKey, e?.message || '保存失败')
-      toast.error(`模块"${currentModuleInfo.value?.display_name || moduleKey}"保存失败: ${e?.message || ''}`)
+      toast.error(`模块"${currentModuleInfo.value?.displayName || moduleKey}"保存失败: ${e?.message || ''}`)
       return false
     }
   }
@@ -409,7 +414,7 @@ async function goToModule(moduleName: string) {
  }
 
 function openSettings() {
-  document.querySelector('.settings-btn')?.dispatchEvent(new Event('click'))
+  showSettings.value = true
 }
 
 async function prevModule() {
@@ -516,7 +521,7 @@ async function onModuleComplete(moduleData?: any) {
         world_type: tplStore.sharedContext.value.worldType,
         target_audience: currentProjectAudience.value,
       }
-      toast.action(`模块"${currentModuleInfo.value?.display_name || currentModule.value}"已完成`, {
+      toast.action(`模块"${currentModuleInfo.value?.displayName || currentModule.value}"已完成`, {
         label: '存为模板',
         handler: () => openSaveAsTemplate(moduleData, inputCtx),
       })
@@ -549,7 +554,7 @@ const { isOnline } = useNetworkStatus()
 const tplStore = useTemplateStore()
 const showTemplateSelector = ref(false)
 const showSaveAsTemplate = ref(false)
-const currentTemplateData = ref<any>(null)
+const currentTemplateData = ref<GenerationTemplateData | null>(null)
 const currentTemplateInputCtx = ref<Record<string, any>>({})
 const selectedTemplateModules = ref<Record<string, string>>({})
 
@@ -762,116 +767,16 @@ function startNewProject() {
     }
   }
 
-  onMounted(async () => {
-   pageLoading.value = true
-   try {
-     await pipeline.loadModules()
-   } catch (e: any) {
-     modulesLoadError.value = e?.message || '加载模块列表失败'
-     pageLoading.value = false
-     return
-   }
-   modules.value = pipeline.modules
-   // 5.1-1: Auto-project-state when entering without a project
-   if (!projectId.value) {
-     projectId.value = generateId()
-     projectName.value = '我的小说'
-   }
-     await pipeline.loadStatus(projectId.value)
-     tplStore.activateProject(projectId.value)
+  const { init } = useV2Init({
+    projectId, projectName, modules, existingProjects, pageLoading, modulesLoadError,
+    restoreNotice, allModulesData, currentProjectGenre, currentProjectAudience,
+    currentProjectSubGenre, currentProjectTone, showOnboarding,
+    pendingModuleData, moduleSavedMap, selectedTemplateModules,
+    pipeline, projectStore, tplStore, toast, route,
+    currentModule: currentModule as any, generateId, handleBeforeUnload, _isNewProject,
+  })
 
-    const doneCount = Object.values(pipeline.progress?.modules || {}).filter((m: any) => m.status === 'done').length
-   if (doneCount > 0) {
-     restoreNotice.value = `已从上次进度恢复：已完成 ${doneCount} / ${modules.value.length} 个模块（当前：${pipeline.currentModule}）`
-   }
-
-    try {
-      // 确保项目列表已加载
-      if (!projectStore.projectList || projectStore.projectList.length === 0) {
-        await projectStore.loadList()
-      }
-      existingProjects.value = projectStore.projectList || []
-    } catch (_e) {
-      logger.error('[CreateV2] preload existing projects failed:', _e)
-    }
-
-    try {
-       const v2Data = await loadV2Project(projectId.value)
-       projectName.value = v2Data?.name || projectName.value || '未命名项目'
-       allModulesData.value = v2Data?.modules || {}
-       if (!v2Data?.name && (!projectName.value || projectName.value === '我的小说V2' || projectName.value === '我的小说' || projectName.value === '新项目')) {
-         const ida = v2Data?.modules?.['idea']
-         if (ida) {
-           const sel = ida.confirmedCandidate || (ida.selectedIdx != null ? ida.candidates?.[ida.selectedIdx] : null)
-           if (sel?.title || sel?.concept) {
-             projectName.value = (sel.title || sel.concept || '').slice(0, 64)
-           }
-         }
-       }
-      // Restore project context for template matching
-      const ideaData = v2Data?.modules?.['idea']
-      if (ideaData) {
-        currentProjectGenre.value = ideaData.genre || ideaData.genreHint || ''
-        currentProjectAudience.value = ideaData.target_audience || ''
-      }
-      const projData = v2Data?.modules?.['project']
-      if (projData) {
-        currentProjectSubGenre.value = projData.sub_genre || projData.subGenre || ''
-        currentProjectTone.value = projData.tone || projData.style || ''
-      }
-      const worldData = v2Data?.modules?.['world']
-      if (worldData) {
-        const wbData = worldData.world_building || worldData
-        tplStore.updateSharedContext('world', {
-           world_type: wbData.world_type || wbData.worldType || '',
-           locations: wbData.locations || wbData.territories || [],
-        }, projectId.value)
-      }
-      const charData = v2Data?.modules?.['characters']
-     if (charData) tplStore.updateSharedContext('characters', charData, projectId.value)
-      const facData = v2Data?.modules?.['world']?.factions
-      if (facData) tplStore.updateSharedContext('factions', facData, projectId.value)
-  } catch (_e) {
-    logger.error('[CreateV2] restore module data failed:', _e)
-  }
-
-  const hasSeenOnboarding = localStorage.getItem('onboarding_seen_v2')
-  const hasExistingProgress = Object.values(pipeline.progress?.modules || {}).some((m: any) => m.status === 'done')
-  if (!hasSeenOnboarding && !hasExistingProgress) {
-    showOnboarding.value = true
-    localStorage.setItem('onboarding_seen_v2', '1')
-  }
-
-  // P3-4: prompt for name when entering create-v2 directly without a project name
-  if (_isNewProject && !route.query.name && projectName.value === '新项目') {
-    const name = window.prompt('请输入项目名称：', '')
-    if (name && name.trim()) {
-      projectName.value = name.trim().slice(0, 64)
-    }
-  }
-
-  window.addEventListener('beforeunload', handleBeforeUnload)
-
-  // Handle applyTemplate from TemplateLibrary
-  const applyTemplateId = route.query.applyTemplate as string
-  if (applyTemplateId) {
-    try {
-      const tpl = await tplStore.getTemplate(Number(applyTemplateId))
-      if (tpl && tpl.output_data) {
-        pendingModuleData.value[currentModule.value] = tpl.output_data
-        moduleSavedMap.value[currentModule.value] = true
-        selectedTemplateModules.value[currentModule.value] = String(tpl.id)
-        tplStore.updateSharedContext(tpl.module_key, tpl.output_data, projectId.value)
-        toast.success(`已应用模板: ${tpl.name}`)
-      }
-    } catch (_e) {
-      logger.error('[CreateV2] applyTemplate failed:', _e)
-      toast.error('应用模板失败')
-    }
-  }
-
-  pageLoading.value = false
-})
+  onMounted(init)
 
 /**
  * 加载指定项目的数据 — 从路由query.projectId读取，恢复流水线状态和项目名

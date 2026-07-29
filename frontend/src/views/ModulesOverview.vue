@@ -40,7 +40,7 @@
       <div class="modules-grid">
         <div
           v-for="(mod, idx) in filteredModules"
-          :key="mod.name"
+          :key="mod.name || idx"
           class="module-card"
           :class="{
             done: getModuleStatus(mod.name) === 'done',
@@ -52,7 +52,7 @@
         >
           <div class="card-header">
             <span class="card-idx">{{ idx + 1 }}</span>
-            <span class="card-name">{{ mod.display_name || mod.name }}</span>
+            <span class="card-name">{{ mod.displayName || mod.name }}</span>
             <span class="card-badge" :class="'badge-' + (getModuleStatus(mod.name) || 'pending')">
               {{ statusText(getModuleStatus(mod.name)) }}
             </span>
@@ -85,13 +85,13 @@ import { usePipelineStore } from '../stores/pipeline'
 import { useProjectStore } from '../stores/project'
 import { useToastStore } from '../stores/toast'
 import { getAllModuleData } from '../api/v2'
-import type { PipelineProgress } from '../types/v2'
+import type { ModuleInfo, PipelineProgress } from '../types/v2'
 
 const router = useRouter()
 const pipeline = usePipelineStore()
 const project = useProjectStore()
 const toast = useToastStore()
-const modules = ref<any[]>([])
+const modules = ref<ModuleInfo[]>([])
 const progress = ref<PipelineProgress | null>(null)
 const moduleData = ref<Record<string, any>>({})
 const loading = ref(false)
@@ -126,7 +126,7 @@ const filteredModules = computed(() => {
   let list = modules.value
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.trim().toLowerCase()
-    list = list.filter(m => (m.display_name || m.name).toLowerCase().includes(q))
+    list = list.filter(m => (m.displayName || m.name).toLowerCase().includes(q))
   }
   if (statusFilter.value !== 'all') {
     list = list.filter(m => getModuleStatus(m.name) === statusFilter.value)

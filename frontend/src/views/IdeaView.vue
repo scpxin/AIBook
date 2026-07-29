@@ -64,8 +64,8 @@
             <span class="genre">{{ c.genre }}</span>
           </div>
           <div class="candidate-desc">{{ c.description }}</div>
-          <div v-if="c.tags?.length" class="candidate-tags">
-            <span v-for="t in c.tags" :key="t" class="tag">{{ t }}</span>
+          <div v-if="(c.tags as string[])?.length" class="candidate-tags">
+            <span v-for="t in (c.tags as string[])" :key="t" class="tag">{{ t }}</span>
           </div>
         </div>
       </div>
@@ -144,7 +144,7 @@ import { useToastStore } from '../stores/toast'
 import logger from '../utils/logger'
 import TemplateDialog from '../components/TemplateDialog.vue'
 import TemplateManagePanel from '../components/TemplateManagePanel.vue'
-import type { IdeaTemplate, IdeaCandidate, IdeaUpgrade } from '../types/v2'
+import type { IdeaTemplate, IdeaCandidate, IdeaUpgrade, RiskAnalysis } from '../types/v2'
 
 const confirmDialog = setupConfirm()
 const errorBar = setupErrorBar()
@@ -159,10 +159,10 @@ const genres = ['玄幻', '都市', '科幻', '言情', '悬疑', '历史', '游
 
 const form = reactive({ prompt: '', genre: '', reference: '' })
 const generating = ref(false)
-const candidates = ref<any[]>([])
+const candidates = ref<IdeaCandidate[]>([])
 const selectedIdx = ref<number | null>(null)
-const upgrades = ref<any[]>([])
-const riskAnalysis = ref<any>(null)
+const upgrades = ref<IdeaUpgrade[]>([])
+const riskAnalysis = ref<RiskAnalysis | null>(null)
 const riskAnalysisLoading = ref(false)
 const error = ref('')
 
@@ -231,9 +231,9 @@ async function manualConfirm() {
   }
   await v2Api.confirmIdea(props.projectId, 'manual', 1)
   const state = fullState()
-  state.candidates = [manualIdea]
+  state.candidates = [manualIdea as unknown as IdeaCandidate]
   state.selectedIdx = 0
-  state.confirmedCandidate = manualIdea
+  state.confirmedCandidate = manualIdea as unknown as IdeaCandidate
   try { await v2Api.saveModuleData(props.projectId, 'idea', state) } catch (_e) {
     toast.error('保存灵感数据失败，请手动备份')
   }
@@ -273,7 +273,7 @@ async function onSelectCandidate(idx: number) {
     upgrades.value = ideaStore.upgradeVersions as IdeaUpgrade[] || []
     riskAnalysisLoading.value = true
     try {
-      riskAnalysis.value = await v2Api.analyzeIdeaRisks(props.projectId, candidate.title || candidate.description || '')
+      riskAnalysis.value = await v2Api.analyzeIdeaRisks(props.projectId, (candidate as any).title || (candidate as any).description || '')
     } catch (_e) {
       riskAnalysis.value = null
     } finally {
@@ -296,7 +296,7 @@ async function confirmAndStay() {
   }
   confirming.value = true
   try {
-    await v2Api.confirmIdea(props.projectId, candidate.id, candidate.version)
+    await v2Api.confirmIdea(props.projectId, (candidate as any).id, (candidate as any).version)
     const state = fullState()
     try {
       await v2Api.saveModuleData(props.projectId, 'idea', state)
@@ -322,7 +322,7 @@ async function confirm() {
   }
   confirming.value = true
   try {
-    await v2Api.confirmIdea(props.projectId, candidate.id, candidate.version)
+    await v2Api.confirmIdea(props.projectId, (candidate as any).id, (candidate as any).version)
     const state = fullState()
     try {
       await v2Api.saveModuleData(props.projectId, 'idea', state)
@@ -370,9 +370,9 @@ async function useTemplate(tpl: IdeaTemplate) {
       templateId: tpl.id,
     }
     const state = fullState()
-    state.candidates = [templateIdea]
+    state.candidates = [templateIdea as unknown as IdeaCandidate]
     state.selectedIdx = 0
-    state.confirmedCandidate = templateIdea
+    state.confirmedCandidate = templateIdea as unknown as IdeaCandidate
     try { await v2Api.saveModuleData(props.projectId, 'idea', state) } catch (_e) {
       toast.error('保存灵感数据失败，请手动备份')
     }
@@ -418,7 +418,7 @@ onMounted(async () => {
           tone: d.tone || d.style || '',
           summary: d.summary || '',
           isManual: true,
-        }]
+        } as unknown as IdeaCandidate]
         selectedIdx.value = 0
       }
       await nextTick()

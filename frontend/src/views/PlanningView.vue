@@ -6,10 +6,10 @@
     </div>
     <div v-else>
     <div class="sub-tabs">
-      <button :class="{ active: activeSubTab === 'volumes' }" @click="activeSubTab = 'volumes'">卷纲</button>
-      <button :class="{ active: activeSubTab === 'chapter_plan' }" @click="activeSubTab = 'chapter_plan'">章节规划</button>
-      <button :class="{ active: activeSubTab === 'chapter_outline' }" @click="activeSubTab = 'chapter_outline'">章节细纲</button>
-      <button :class="{ active: activeSubTab === 'scene_design' }" @click="activeSubTab = 'scene_design'">场景设计</button>
+      <button type="button" :class="{ active: activeSubTab === 'volumes' }" @click="activeSubTab = 'volumes'">卷纲</button>
+      <button type="button" :class="{ active: activeSubTab === 'chapter_plan' }" @click="activeSubTab = 'chapter_plan'">章节规划</button>
+      <button type="button" :class="{ active: activeSubTab === 'chapter_outline' }" @click="activeSubTab = 'chapter_outline'">章节细纲</button>
+      <button type="button" :class="{ active: activeSubTab === 'scene_design' }" @click="activeSubTab = 'scene_design'">场景设计</button>
     </div>
     <div v-if="activeSubTab === 'volumes'" class="sub-pane">
       <h4>卷纲设计</h4>
@@ -180,17 +180,17 @@
     </div>
 
     <div class="actions">
-      <button @click="generate" :disabled="generating" class="btn-primary">
+      <button type="button" @click="generate" :disabled="generating" class="btn-primary">
         <span v-if="generating" class="spinner"></span>{{ generating ? '生成中...' : 'AI生成' }}
       </button>
-      <button @click="proceed" class="btn-confirm">确认,下一步</button>
+      <button type="button" @click="proceed" class="btn-confirm">确认,下一步</button>
     </div>
 
-    <div v-if="isOffline" class="offline-badge">当前数据来自离线模板 (非AI生成) <button @click="generate" class="btn-link">重新AI生成</button></div>
+    <div v-if="isOffline" class="offline-badge">当前数据来自离线模板 (非AI生成) <button type="button" @click="generate" class="btn-link">重新AI生成</button></div>
 
     <div v-if="error" class="error-box">
       <p>{{ error }}</p>
-      <button @click="useOfflineMode" class="btn btn-ghost btn-sm">使用离线模板</button>
+      <button type="button" @click="useOfflineMode" class="btn btn-ghost btn-sm">使用离线模板</button>
     </div>
     </div>
   </div>
@@ -206,6 +206,7 @@ import { setupConfirm } from '../composables/useConfirm'
 import { setupErrorBar } from '../composables/useErrorBar'
 import * as v2Api from '../api/v2'
 import { useAutoSave } from '../composables/useAutoSave'
+import type { VolumeOutline, ChapterPlan, ChapterOutline, SceneOutline } from '../types/v2'
 import logger from '../utils/logger'
 
 const props = defineProps<{ projectId: string; currentModule: string }>()
@@ -222,7 +223,7 @@ const generating = ref(false)
 const error = ref('')
 const upstreamData = ref('')
 const isOffline = ref(false)
-const upstreamRawData = ref<any>({})
+const upstreamRawData = ref<Record<string, unknown>>({})
 
 const formDefaults: Record<string, any> = {
   volumes: { volumeCount: '5', chaptersPerVolume: 20, themes: '' },
@@ -239,10 +240,10 @@ watch(moduleKey, (key) => {
   }
 })
 
-const volumeList = ref<any[]>([])
-const chapterPlans = ref<any[]>([])
-const chapterOutlines = ref<any[]>([])
-const sceneDesigns = ref<any[]>([])
+const volumeList = ref<VolumeOutline[]>([])
+const chapterPlans = ref<ChapterPlan[]>([])
+const chapterOutlines = ref<ChapterOutline[]>([])
+const sceneDesigns = ref<SceneOutline[]>([])
 const sceneForm = reactive({ chapterNo: 1, sceneName: '', atmosphere: 'tense', characters: '', event: '', hook: '' })
 
 const planningData = () => {
@@ -272,17 +273,17 @@ onMounted(async () => {
     const raw = saved?.data
     if (raw) {
       if (Array.isArray(raw)) {
-        if (activeSubTab.value === 'volumes') { volumeList.value = raw as unknown[]; return }
-        if (activeSubTab.value === 'chapter_plan') { chapterPlans.value = raw as unknown[]; return }
-        if (activeSubTab.value === 'chapter_outline') { chapterOutlines.value = raw as unknown[]; return }
+        if (activeSubTab.value === 'volumes') { volumeList.value = raw as VolumeOutline[]; return }
+        if (activeSubTab.value === 'chapter_plan') { chapterPlans.value = raw as ChapterPlan[]; return }
+        if (activeSubTab.value === 'chapter_outline') { chapterOutlines.value = raw as ChapterOutline[]; return }
       }
       const r = raw as Record<string, unknown>
       if (r.form || r.volumes || r.chapterPlans || r.chapterOutlines) {
         if (r.form) Object.assign(form.value, r.form as Record<string, unknown>)
-        if (r.volumes) volumeList.value = r.volumes as unknown[]
-        if (r.chapterPlans) chapterPlans.value = r.chapterPlans as unknown[]
-        if (r.chapterOutlines) chapterOutlines.value = r.chapterOutlines as unknown[]
-        if (r.sceneDesigns) sceneDesigns.value = r.sceneDesigns as unknown[]
+        if (r.volumes) volumeList.value = r.volumes as VolumeOutline[]
+        if (r.chapterPlans) chapterPlans.value = r.chapterPlans as ChapterPlan[]
+        if (r.chapterOutlines) chapterOutlines.value = r.chapterOutlines as ChapterOutline[]
+        if (r.sceneDesigns) sceneDesigns.value = r.sceneDesigns as SceneOutline[]
         if (r.upstreamData) upstreamData.value = r.upstreamData as string
         return
       }
@@ -339,32 +340,32 @@ async function generate() {
     const key = activeSubTab.value
     const modules = upstreamRawData.value
     if (key === 'volumes') {
-      const sa = modules['architecture'] || {}
+      const sa = (modules['architecture'] || {}) as Record<string, any>
       const outline = sa.outline || sa.story || {}
       const count = parseInt(form.value.volumeCount) || 5
       const result = await v2Api.generateVolumes(props.projectId, count, outline).catch((e) => { logger.error('[PlanningView] generateVolumes error:', e); return null }) as Record<string, unknown>
       const items = (result?.volumes as unknown[]) || (Array.isArray(result) ? result : (result ? [result] : []))
-      volumeList.value = items
+      volumeList.value = items as VolumeOutline[]
       if (!items.length) useOfflineMode()
       else await saveModuleData(props.projectId, 'volumes', { volumes: volumeList.value, form: form.value })
     } else if (key === 'chapter_plan') {
-      const sa = modules['architecture'] || {}
-      const outline = sa.outline || sa.story || {}
-      const plotNodesData = sa.plot_nodes || []
+      const sa2 = (modules['architecture'] || {}) as Record<string, any>
+      const outline2 = sa2.outline || sa2.story || {}
+      const plotNodesData = sa2.plot_nodes || []
       const result = await v2Api.planChapters(
-        props.projectId, outline, plotNodesData,
+        props.projectId, outline2, plotNodesData,
         form.value.wordsPerChapter || 3000,
       ).catch(() => null)
       chapterPlans.value = result ? (Array.isArray(result) ? result : (result.chapters || [])) : []
       if (!chapterPlans.value.length) useOfflineMode()
       else await saveModuleData(props.projectId, 'chapter_plan', { chapterPlans: chapterPlans.value, form: form.value })
     } else if (key === 'chapter_plan') {
-      const chapterPlansData = modules['chapter_plan'] || {}
+      const chapterPlansData = (modules['chapter_plan'] || {}) as ChapterPlan
       const total = form.value.totalChapters || 10
       const result = await v2Api.generateChapterOutlines(props.projectId, total, chapterPlansData)
       const raw = result as Record<string, unknown>
       const items = (raw.outlines as unknown[]) || (raw.chapters as unknown[]) || (raw.items as unknown[]) || []
-      chapterOutlines.value = items
+      chapterOutlines.value = items as ChapterOutline[]
       await saveModuleData(props.projectId, 'chapter_plan', { chapterOutlines: chapterOutlines.value, form: form.value })
     } else if (key === 'scene_design') {
       const chapterNo = sceneForm.chapterNo || 1
@@ -377,7 +378,7 @@ async function generate() {
         hook: sceneForm.hook,
       }
       const result = await v2Api.designScenes(props.projectId, chapterOutline).catch(() => null)
-      sceneDesigns.value = result ? (Array.isArray(result) ? result : (result.scenes || [result])) : []
+      sceneDesigns.value = (result ? (Array.isArray(result) ? result : (result.scenes || [result])) : []) as SceneOutline[]
       if (!sceneDesigns.value.length) useOfflineMode()
       else await saveModuleData(props.projectId, 'scene_design', { sceneDesigns: sceneDesigns.value, form: sceneForm })
     }
@@ -404,21 +405,21 @@ function useOfflineMode() {
       summary: `围绕"${themes[i] || '核心冲突'}"展开的主要矛盾与发展`,
       target_words: (form.value.chaptersPerVolume || 20) * 3,
       chapter_count: form.value.chaptersPerVolume || 20,
-    }))
+    })) as unknown as VolumeOutline[]
   } else if (key === 'chapter_plan') {
     chapterPlans.value = Array.from({ length: Math.min(form.value.totalChapters || 100, 10) }, (_, i) => ({
       title: `第${i + 1}章`,
       target_words: form.value.wordsPerChapter || 3000,
       pace: i % 3 === 0 ? '高' : i % 3 === 1 ? '中' : '低',
       hook_type: i % 4 === 0 ? '悬念' : i % 4 === 1 ? '爽点' : i % 4 === 2 ? '反转' : '铺垫',
-    }))
+    })) as unknown as ChapterPlan[]
   } else if (key === 'chapter_plan') {
     const density = form.value.detailLevel === 'coarse' ? 3 : form.value.detailLevel === 'medium' ? 6 : 10
     chapterOutlines.value = Array.from({ length: 3 }, (_, i) => ({
       title: `第${i + 1}章大纲`,
       scenes: Array.from({ length: density }, (_, si) => `场景${si + 1}：待细化`),
       emotionCurve: Array.from({ length: 10 }, (_, j) => Math.sin(j / 1.5 + i) * 40 + 50),
-    }))
+    })) as unknown as ChapterOutline[]
   }
 }
 </script>

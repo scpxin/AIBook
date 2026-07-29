@@ -210,7 +210,7 @@ docker-compose up -d
 
 ```bash
 # SSH连接
-ssh ubuntu@140.143.210.177
+ssh ubuntu@&lt;your-server-ip&gt;
 
 # 进入项目
 cd /home/ubuntu/fanqie-v2

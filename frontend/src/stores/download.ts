@@ -13,13 +13,27 @@ export interface DownloadSession {
   total: number
 }
 
+export interface BookSearchItem {
+  book_id: string
+  book_name?: string
+  title?: string
+  author?: string
+}
+
+export interface SelectedBookInfo {
+  book_id: string
+  title?: string
+  author?: string
+  count?: string | number
+}
+
 export const useDownloadStore = defineStore('download', () => {
   const searchQuery = ref('')
   const searchLoading = ref(false)
-  const searchResults = ref<any[]>([])
+  const searchResults = ref<BookSearchItem[]>([])
   const searchError = ref('')
   const bookCounts = ref<Record<string, string>>({})
-  const selectedBook = ref<any>(null)
+  const selectedBook = ref<SelectedBookInfo | null>(null)
   const dlState = ref('idle')
   const dlCurrent = ref(0)
   const dlTotal = ref(0)
@@ -85,7 +99,7 @@ export const useDownloadStore = defineStore('download', () => {
     dlState.value = 'running'
     dlCurrent.value = 0
     try {
-      const d = await downloadApi.downloadStart(selectedBook.value.book_id, selectedBook.value.title)
+      const d = await downloadApi.downloadStart(selectedBook.value.book_id, selectedBook.value.title || '')
       dlSessionId.value = d.session_id
       pollDownload()
     } catch (e: unknown) {

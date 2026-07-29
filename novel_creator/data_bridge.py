@@ -91,9 +91,7 @@ class DataBridge:
 
     @staticmethod
     def _write_generic(project_id, data):
-        pass
-
-    # ========== M1: 灵感 ==========
+        raise NotImplementedError("_write_generic not implemented")
 
     @staticmethod
     def _write_idea(project_id, data):
@@ -420,9 +418,7 @@ class DataBridge:
 
     @staticmethod
     def _write_polish(project_id, data):
-        pass
-
-    # ========== M13: 一致性检查 ==========
+        raise NotImplementedError("_write_polish not implemented")
 
     @staticmethod
     def _write_consistency(project_id, data):

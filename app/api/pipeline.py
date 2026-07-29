@@ -71,8 +71,8 @@ def update_module_status_api(project_id: str, module_name: str,
 
     try:
         new_status = ModuleStatus(body.status)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"无效状态: {body.status}")
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=f"无效状态: {body.status}") from err
 
     set_module_status(project_id, module_name, new_status,
                      body.error, body.consistency_score)

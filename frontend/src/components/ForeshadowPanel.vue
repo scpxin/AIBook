@@ -27,11 +27,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useKnowledgeStore } from '../stores/knowledge'
+import type { ForeshadowItem } from '../types/v2'
 
 const props = defineProps<{ projectId: string }>()
 const knowledge = useKnowledgeStore()
 const expanded = ref(true)
-const foreshadows = ref<any[]>([])
+const foreshadows = ref<ForeshadowItem[]>([])
 
 const pending = computed(() => foreshadows.value.filter(f => f.status === 'pending'))
 const resolved = computed(() => foreshadows.value.filter(f => f.status === 'resolved'))

@@ -83,10 +83,10 @@ def create_template(body: dict):
         )
         return {"ok": True, "template": tpl}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"创建模板失败: {e}")
-        raise HTTPException(status_code=500, detail="创建模板失败，请稍后重试")
+        raise HTTPException(status_code=500, detail="创建模板失败，请稍后重试") from e
 
 
 # ========== 更新模板 ==========
@@ -152,7 +152,7 @@ def apply_template(template_id: int, body: dict):
     try:
         result = apply_template_to_project(template_id, project_id)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return result
 
 @router.get("/compat-group/{group_id}")
@@ -182,7 +182,7 @@ def rate_template(template_id: int, body: dict):
     try:
         tpl = update_generation_template(template_id, quality_rating=rating)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     if not tpl:
         raise HTTPException(status_code=404, detail="模板不存在")
     return {"ok": True, "template": tpl}

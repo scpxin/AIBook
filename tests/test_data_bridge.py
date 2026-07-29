@@ -275,9 +275,9 @@ class TestWriteParse:
 
 
 class TestWritePolish:
-    def test_is_noop(self, db):
-        DataBridge._write_polish('p1', {'some': 'data'})
-        # No error = pass
+    def test_raises_not_implemented(self, db):
+        with pytest.raises(NotImplementedError, match="_write_polish not implemented"):
+            DataBridge._write_polish('p1', {'some': 'data'})
 
 
 class TestWriteConsistency:
@@ -296,9 +296,9 @@ class TestWriteDispatch:
         row = conn.execute("SELECT user_input FROM v2_ideas WHERE project_id='p1'").fetchone()
         assert row['user_input'] == 'dispatched'
 
-    def test_unknown_module_is_noop(self, db):
-        DataBridge.write('p1', 'nonexistent', {'data': 'x'})
-        # No error
+    def test_unknown_module_raises_not_implemented(self, db):
+        with pytest.raises(NotImplementedError, match="_write_generic not implemented"):
+            DataBridge.write('p1', 'nonexistent', {'data': 'x'})
 
 
 class TestReadIdea:

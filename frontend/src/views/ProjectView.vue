@@ -58,12 +58,12 @@
       <div v-else-if="!hasIdea && !dimensions.length" class="empty-hint">
         请先完成"灵感生成"步骤，获取分析素材
         <div class="empty-action">
-          <button class="btn-goto" @click="$emit('goto', 'idea')">前往灵感生成</button>
+          <button type="button" class="btn-goto" @click="$emit('goto', 'idea')">前往灵感生成</button>
         </div>
       </div>
       <template v-else>
         <div v-if="dimensions.length" class="toolbar">
-          <button class="btn-reanalyze" @click="reanalyze" :disabled="analyzing"><span v-if="analyzing" class="spinner"></span>{{ analyzing ? '分析中...' : '重新分析' }}</button>
+          <button type="button" class="btn-reanalyze" @click="reanalyze" :disabled="analyzing"><span v-if="analyzing" class="spinner"></span>{{ analyzing ? '分析中...' : '重新分析' }}</button>
           <span v-if="lastAnalyzed" class="analyzed-time">上次分析: {{ lastAnalyzed }}</span>
         </div>
         <div v-if="dimensions.length" class="dimension-list">
@@ -107,7 +107,7 @@
           <span class="tag-con" v-for="c in compatDetail.cons" :key="c">{{ c }}</span>
         </div>
       </div>
-      <button @click="confirm" class="btn-confirm">确认定位,下一步</button>
+      <button type="button" @click="confirm" class="btn-confirm">确认定位,下一步</button>
     </div>
 
     <div v-if="derivedFields" class="section">
@@ -147,6 +147,7 @@
 import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import * as v2Api from '../api/v2'
 import { deriveProjectFields } from '../api/v2'
+import type { ProjectDimension, PlatformCompatibility, DerivedFields } from '../types/v2'
 import { setupConfirm } from '../composables/useConfirm'
 import { setupErrorBar } from '../composables/useErrorBar'
 import { useGeneration } from '../composables/useGeneration'
@@ -183,9 +184,9 @@ const wordCountOptions = [
   { value: '10000000', label: '1000万字' },
 ]
 const updateFrequencyOptions = ['日更6000', '日更4000', '隔日更', '每周2次', '每周1次']
-const dimensions = ref<any[]>([])
+const dimensions = ref<ProjectDimension[]>([])
 const expandedDims = ref<string[]>([])
-const compatResults = ref<any[]>([])
+const compatResults = ref<PlatformCompatibility[]>([])
 const compatDetail = ref<{ pros: string[]; cons: string[]; adjustment: string } | null>(null)
 const loading = ref(false)
 const analyzing = ref(false)
@@ -193,7 +194,7 @@ const errorMessage = ref('')
 const lastAnalyzed = ref('')
 const hasIdea = ref(false)
 const confirming = ref(false)
-const derivedFields = ref<any>(null)
+const derivedFields = ref<DerivedFields | null>(null)
 
 watch(selectedPlatform, () => {
   if (dimensions.value.length) saveDimension()
@@ -290,7 +291,7 @@ onMounted(async () => {
       { name: '题材合规', level: 'pending' },
       { name: '内容尺度', level: 'pending' },
       { name: '平台匹配', level: 'pending' },
-    ]
+    ] as unknown as PlatformCompatibility[]
     checkCompatibility()
   } catch (e: any) {
     errorBar.showError(e, () => checkCompatibility())
@@ -316,7 +317,7 @@ async function checkCompatibility() {
         { name: '题材合规', level: result.score >= 60 ? 'pass' : 'fail' },
         { name: '内容尺度', level: result.fit !== '极低' ? 'pass' : 'fail' },
         { name: '平台匹配', level: result.score >= 40 ? 'pass' : 'fail' },
-      ]
+      ] as unknown as PlatformCompatibility[]
       compatDetail.value = {
         pros: result.pros || [],
         cons: result.cons || [],

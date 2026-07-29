@@ -33,9 +33,9 @@ async def create(payload: TemplateCreateRequest):
         )
         return {"ok": True, "template": tpl}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=409, detail="模板名称已存在")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except sqlite3.IntegrityError as e:
+        raise HTTPException(status_code=409, detail="模板名称已存在") from e
 
 
 @router.put("/{template_id}")
@@ -49,8 +49,7 @@ async def update(template_id: int, payload: TemplateUpdateRequest):
             raise HTTPException(status_code=404, detail="模板不存在")
         return {"ok": True, "template": tpl}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 @router.delete("/{template_id}")
 async def delete(template_id: int):

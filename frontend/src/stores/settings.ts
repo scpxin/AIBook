@@ -14,11 +14,11 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function load() {
     try {
-      models.value = JSON.parse(localStorage.getItem(STORAGE_KEY_MODELS) || '[]')
+      models.value = JSON.parse(sessionStorage.getItem(STORAGE_KEY_MODELS) || '[]')
     } catch {
       models.value = []
     }
-    activeModelId.value = localStorage.getItem(STORAGE_KEY_ACTIVE) || (models.value.length ? models.value[0].id : '')
+    activeModelId.value = sessionStorage.getItem(STORAGE_KEY_ACTIVE) || (models.value.length ? models.value[0].id : '')
   }
 
   async function loadFromBackend() {
@@ -41,7 +41,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function saveLocal() {
-    localStorage.setItem(STORAGE_KEY_MODELS, JSON.stringify(models.value))
+    sessionStorage.setItem(STORAGE_KEY_MODELS, JSON.stringify(models.value))
   }
 
   let userModified = false
@@ -49,7 +49,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function setActive(id: string) {
     activeModelId.value = id
-    localStorage.setItem(STORAGE_KEY_ACTIVE, id)
+    sessionStorage.setItem(STORAGE_KEY_ACTIVE, id)
     markUserModified()
     saveToBackend()
   }
@@ -95,13 +95,13 @@ export const useSettingsStore = defineStore('settings', () => {
   loadFromBackend().then(() => {
     if (userModified) return
     if (!models.value.length) {
-      // If backend returned nothing, try localStorage one more time
+      // If backend returned nothing, try sessionStorage one more time
       try {
-        const local = JSON.parse(localStorage.getItem(STORAGE_KEY_MODELS) || '[]')
+        const local = JSON.parse(sessionStorage.getItem(STORAGE_KEY_MODELS) || '[]')
         if (local.length) {
           models.value = local
           if (!activeModelId.value) {
-            activeModelId.value = localStorage.getItem(STORAGE_KEY_ACTIVE) || local[0]?.id || ''
+            activeModelId.value = sessionStorage.getItem(STORAGE_KEY_ACTIVE) || local[0]?.id || ''
           }
         }
       } catch { /* ignore */ }
