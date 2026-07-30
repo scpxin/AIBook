@@ -57,6 +57,8 @@ def _download_worker(sid: str):
             s['status'] = 'done'
             return
 
+    if not book_id or not book_id.isdigit():
+        raise ValueError(f"Invalid book_id: {book_id}")
     book_dir = os.path.join(DOWNLOAD_DIR, book_id)
     os.makedirs(book_dir, exist_ok=True)
 

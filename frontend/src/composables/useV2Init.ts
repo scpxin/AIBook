@@ -1,4 +1,4 @@
-import { type Ref } from 'vue'
+import { type Ref, onBeforeUnmount } from 'vue'
 import { loadV2Project } from '../api/project'
 import type { ModuleInfo } from '../types/v2'
 import type { Project } from '../api/client'
@@ -137,7 +137,7 @@ export function useV2Init(params: UseV2InitParams) {
           moduleSavedMap.value[currentModule.value] = true
           selectedTemplateModules.value[currentModule.value] = String(tpl.id)
           tplStore.updateSharedContext(tpl.module_key, tpl.output_data, projectId.value)
-          toast.success(`已应用模板: ${tpl.name}`)
+          toast.success(`已应用模板：${tpl.name}`)
         }
       } catch (_e) {
         logger.error('[CreateV2] applyTemplate failed:', _e)
@@ -146,6 +146,15 @@ export function useV2Init(params: UseV2InitParams) {
     }
 
     pageLoading.value = false
+
+    let cleanupRan = false
+    function cleanup() {
+      if (cleanupRan) return
+      cleanupRan = true
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+
+    onBeforeUnmount(cleanup)
   }
 
   return { init }

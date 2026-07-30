@@ -2,7 +2,7 @@
   <Teleport to="body">
     <Transition name="dialog-fade">
       <div v-if="visible" class="dialog-overlay" @click.self="onCancel">
-        <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby="dlg-msg">
+        <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby="dlg-msg" @keydown="handleKeydown">
           <div class="dialog-header">
             <h3 id="dlg-title">{{ options.title }}</h3>
           </div>
@@ -12,7 +12,7 @@
           </div>
           <div class="dialog-footer">
             <button type="button" @click="onCancel" class="btn-cancel">{{ options.cancelText }}</button>
-            <button type="button" @click="onConfirm" :class="['btn-confirm', typeClass]">{{ options.confirmText }}</button>
+            <button type="button" ref="confirmBtnRef" @click="onConfirm" :class="['btn-confirm', typeClass]" autofocus>{{ options.confirmText }}</button>
           </div>
         </div>
       </div>
@@ -21,10 +21,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { setupConfirm } from '../composables/useConfirm'
 
 const { visible, options, handleConfirm, handleCancel } = setupConfirm()
+const confirmBtnRef = ref<HTMLButtonElement | null>(null)
+const lastFocusedElement = ref<HTMLElement | null>(null)
 
 const typeClass = computed(() => {
   if (options.value.type === 'danger') return 'btn-danger'
@@ -34,6 +36,44 @@ const typeClass = computed(() => {
 
 function onConfirm() { handleConfirm() }
 function onCancel() { handleCancel() }
+
+watch(visible, (newVal) => {
+  if (newVal) {
+    lastFocusedElement.value = document.activeElement as HTMLElement
+    setTimeout(() => confirmBtnRef.value?.focus(), 50)
+  } else {
+    lastFocusedElement.value?.focus()
+  }
+}, { immediate: true })
+
+function handleKeydown(e: KeyboardEvent) {
+  if (!visible.value) return
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    handleCancel()
+    return
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    const focusable = confirmBtnRef.value?.parentElement?.querySelectorAll('button')
+    if (!focusable || focusable.length === 0) return
+    const focusableArray = Array.from(focusable)
+    const currentIndex = focusableArray.indexOf(document.activeElement as HTMLButtonElement)
+    if (e.shiftKey) {
+      if (currentIndex <= 0) {
+        focusableArray[focusableArray.length - 1].focus()
+      } else {
+        focusableArray[currentIndex - 1].focus()
+      }
+    } else {
+      if (currentIndex >= focusableArray.length - 1 || currentIndex < 0) {
+        focusableArray[0].focus()
+      } else {
+        focusableArray[currentIndex + 1].focus()
+      }
+    }
+  }
+}
 </script>
 
 <style scoped>

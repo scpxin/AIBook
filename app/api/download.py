@@ -22,7 +22,19 @@ from app.services.download_service import (
 router = APIRouter()
 
 
+ALLOWED_HOSTS = frozenset([
+    'fanqienovel.com',
+    'novel.snssdk.com',
+    'www.fanqienovel.com',
+])
+
+
 def _http_get(url: str) -> bytes:
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    host = parsed.netloc.split(':')[0].lower()
+    if host and host not in ALLOWED_HOSTS:
+        raise ValueError(f"SSRF blocked: {host} not in allowed hosts")
     req = urllib.request.Request(url, headers={'User-Agent': UA})
     with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
         return r.read()
