@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: novel-creator-backup
+  labels:
+    app: novel-creator
+    component: backup
+spec:
+  schedule: "0 2 * * *"  # 每天凌晨 2 点执行
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: novel-creator
+            component: backup
+        spec:
+          containers:
+          - name: backup
+            image: novel-creator:latest
+            command:
+            - /bin/bash
+            - /workspace/scripts/backup.sh
+            env:
+            - name: DATABASE_PATH
+              value: /app/data/fanqie.db
+            - name: BACKUP_DIR
+              value: /app/data/backups
+            - name: MAX_BACKUPS
+              value: "7"
+            volumeMounts:
+            - name: data
+              mountPath: /app/data
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "100m"
+              limits:
+                memory: "256Mi"
+                cpu: "500m"
+          restartPolicy: OnFailure
+          volumes:
+          - name: data
+            persistentVolumeClaim:
+              claimName: novel-creator-data-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: novel-creator-backups
+  labels:
+    app: novel-creator
+    component: backups
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-storage
