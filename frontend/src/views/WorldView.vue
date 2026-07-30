@@ -178,9 +178,10 @@ import { setupConfirm } from '../composables/useConfirm'
 import { useAutoSave } from '../composables/useAutoSave'
 import { useToastStore } from '../stores/toast'
 import { setupErrorBar } from '../composables/useErrorBar'
+import type { WorldBuilding } from '../types/v2'
 
 const props = defineProps<{ projectId: string }>()
-const emit = defineEmits<{ complete: [data: any] }>()
+const emit = defineEmits<{ complete: [data: WorldBuilding] }>()
 const confirmDialog = setupConfirm()
 const errorBar = setupErrorBar()
 const toast = useToastStore()

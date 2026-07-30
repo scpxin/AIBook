@@ -118,7 +118,7 @@ import { useAutoSave } from '../composables/useAutoSave'
 import { useToastStore } from '../stores/toast'
 
 const props = defineProps<{ projectId: string }>()
-const emit = defineEmits<{ complete: [data: any] }>()
+const emit = defineEmits<{ complete: [data: { protagonist: any; supporting: Character[]; villains: Character[] }] }>()
 const confirmDialog = setupConfirm()
 const errorBar = setupErrorBar()
 const toast = useToastStore()

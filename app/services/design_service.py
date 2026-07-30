@@ -2,13 +2,14 @@
 
 M1: idea        — 灵感生成/评分/升级/风险分析
 M2: project     — 项目定位/平台兼容性/衍生字段
-M3: world       — 世界观(本源/规则/结构/文明/历史)
-M4: characters  — 角色系统(主角/配角/反派/关系)
-M5: story       — 故事体系(总纲/卷纲/一致性)
+M3: world       — 世界观 (本源/规则/结构/文明/历史)
+M4: characters  — 角色系统 (主角/配角/反派/关系)
+M5: story       — 故事体系 (总纲/卷纲/一致性)
 """
 import json
 import logging
 
+from app.config import DEFAULT_CHAPTER_COUNT
 from app.services.service_utils import build_style_str, get_default_generator
 from novel_creator import data_bridge
 
@@ -371,14 +372,14 @@ class ProjectService:
 def _estimate_chapters(overview: str) -> int:
     """估算章节数"""
     if not overview or not isinstance(overview, str):
-        return 300
+        return DEFAULT_CHAPTER_COUNT
     if '千万' in overview:
         return 800
     if '百万' in overview or '长篇' in overview:
         return 500
     if '中篇' in overview:
         return 200
-    return 300
+    return DEFAULT_CHAPTER_COUNT
 
 
 def _estimate_words(overview: str) -> int:

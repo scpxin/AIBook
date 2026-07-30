@@ -210,7 +210,7 @@ import type { VolumeOutline, ChapterPlan, ChapterOutline, SceneOutline } from '.
 import logger from '../utils/logger'
 
 const props = defineProps<{ projectId: string; currentModule: string }>()
-const emit = defineEmits<{ complete: [data: any] }>()
+const emit = defineEmits<{ complete: [data: { volumes?: VolumeOutline[]; chapterPlans?: ChapterPlan[]; chapterOutlines?: ChapterOutline[]; sceneDesigns?: SceneOutline[]; form: any }] }>()
 const gen = useGeneration(props.currentModule, '规划内容')
 const confirm = setupConfirm()
 const errorBar = setupErrorBar()

@@ -156,7 +156,7 @@ import { useToastStore } from '../stores/toast'
 import logger from '../utils/logger'
 
 const props = defineProps<{ projectId: string }>()
-const emit = defineEmits<{ complete: [data: any], goto: [module: string] }>()
+const emit = defineEmits<{ complete: [data: { platform: string; sub_genre: string; tone: string; word_count_plan: string; update_frequency: string; dimensions: ProjectDimension[], derivedFields?: DerivedFields }], goto: [module: string] }>()
 const confirmDialog = setupConfirm()
 const errorBar = setupErrorBar()
 const gen = useGeneration('project', '项目定位分析')

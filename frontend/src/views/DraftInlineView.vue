@@ -59,7 +59,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { saveDraft, getDrafts, getAllModuleData, saveModuleData } from '../api/v2'
-import type { SceneSkeleton } from '../types/v2'
+import type { SceneSkeleton, Draft } from '../types/v2'
 import { useExecutionStore } from '../stores/execution'
 import { useGeneration } from '../composables/useGeneration'
 import { setupConfirm } from '../composables/useConfirm'
@@ -70,7 +70,7 @@ import { useToastStore } from '../stores/toast'
 import logger from '../utils/logger'
 
 const props = defineProps<{ projectId: string }>()
-const emit = defineEmits<{ complete: [data: any] }>()
+const emit = defineEmits<{ complete: [data: { chapterNo: number; skeleton: string; styleNote: string; content: string; wordCount: number }] }>()
 const gen = useGeneration('draft', '正文生成')
 const confirm = setupConfirm()
 const errorBar = setupErrorBar()

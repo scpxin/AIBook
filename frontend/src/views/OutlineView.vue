@@ -133,13 +133,14 @@ import { setupConfirm } from '../composables/useConfirm'
 import { setupErrorBar } from '../composables/useErrorBar'
 import { useAutoSave } from '../composables/useAutoSave'
 import { useToastStore } from '../stores/toast'
+import type { MasterOutline } from '../types/v2'
 
 const confirmDialog = setupConfirm()
 const errorBar = setupErrorBar()
 const pageLoading = ref(true)
 
 const props = defineProps<{ projectId: string }>()
-const emit = defineEmits<{ complete: [data: any] }>()
+const emit = defineEmits<{ complete: [data: MasterOutline] }>()
 const gen = useGeneration('outline', '全书大纲')
 
 const generating = ref(false)

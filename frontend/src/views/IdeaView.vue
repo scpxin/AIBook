@@ -142,8 +142,6 @@ import { setupErrorBar } from '../composables/useErrorBar'
 import { useAutoSave } from '../composables/useAutoSave'
 import { useToastStore } from '../stores/toast'
 import logger from '../utils/logger'
-import TemplateDialog from '../components/TemplateDialog.vue'
-import TemplateManagePanel from '../components/TemplateManagePanel.vue'
 import type { IdeaTemplate, IdeaCandidate, IdeaUpgrade, RiskAnalysis } from '../types/v2'
 
 const confirmDialog = setupConfirm()
@@ -151,7 +149,7 @@ const errorBar = setupErrorBar()
 const toast = useToastStore()
 
 const props = defineProps<{ projectId: string }>()
-const emit = defineEmits<{ complete: [data: any] }>()
+const emit = defineEmits<{ complete: [data: { prompt: string; genre: string; reference: string; candidates: IdeaCandidate[]; selectedIdx: number | null; upgrades: IdeaUpgrade[]; riskAnalysis: RiskAnalysis | null; confirmedCandidate: IdeaCandidate | null }] }>()
 
 const ideaStore = useIdeaStore()
 const gen = useGeneration('idea', '灵感创意')

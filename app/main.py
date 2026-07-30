@@ -1,9 +1,11 @@
 import asyncio
+import json
 import logging
 import os
 import sqlite3
 import time
 from collections import defaultdict
+from datetime import datetime
 from threading import Lock
 
 from fastapi import FastAPI, HTTPException, Request
@@ -23,16 +25,53 @@ from app.api.template import router as template_router
 from app.config import DOWNLOAD_DIR, PORT, PROJECTS_DIR
 from app.database import novel_db
 
+
+class JsonFormatter(logging.Formatter):
+    """JSON 结构化日志格式"""
+
+    def format(self, record):
+        log_data = {
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'level': record.levelname,
+            'logger': record.name,
+            'message': record.getMessage(),
+        }
+        if record.exc_info:
+            log_data['exception'] = self.formatException(record.exc_info)
+        if hasattr(record, 'request_id'):
+            log_data['request_id'] = record.request_id
+        return json.dumps(log_data, ensure_ascii=False)
+
+
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(PROJECTS_DIR, exist_ok=True)
 
+log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
+json_log_handler = os.environ.get('JSON_LOG', 'false').lower() == 'true'
+
+if json_log_handler:
+    handler = logging.StreamHandler()
+    handler.setFormatter(JsonFormatter())
+else:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+    ))
+
+file_handler = logging.FileHandler(
+    os.path.join(os.environ.get('LOG_DIR', '/app/data'), 'generate.log'),
+    encoding='utf-8'
+)
+if json_log_handler:
+    file_handler.setFormatter(JsonFormatter())
+else:
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+    ))
+
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(os.path.join(os.environ.get('LOG_DIR', '/app/data'), 'generate.log'), encoding='utf-8'),
-    ]
+    level=getattr(logging, log_level, logging.INFO),
+    handlers=[handler, file_handler],
 )
 
 app = FastAPI(title="Fanqie Novel API", redirect_slashes=False)
@@ -124,6 +163,68 @@ app.include_router(pipeline_router)
 app.include_router(design_router)
 app.include_router(structure_router)
 app.include_router(execution_router)
+
+# Metrics 数据
+_metrics = {
+    'requests_total': 0,
+    'requests_by_method': defaultdict(int),
+    'requests_by_status': defaultdict(int),
+    'response_time_sum_ms': 0.0,
+    'errors_total': 0,
+    'start_time': time.time(),
+}
+_metrics_lock = Lock()
+
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    """记录请求指标"""
+    start = time.time()
+    response = await call_next(request)
+    duration_ms = (time.time() - start) * 1000
+
+    with _metrics_lock:
+        _metrics['requests_total'] += 1
+        _metrics['requests_by_method'][request.method] += 1
+        _metrics['requests_by_status'][response.status_code] += 1
+        _metrics['response_time_sum_ms'] += duration_ms
+        if response.status_code >= 400:
+            _metrics['errors_total'] += 1
+
+    return response
+
+
+@app.get("/metrics")
+async def get_metrics():
+    """Prometheus 格式指标"""
+    uptime = time.time() - _metrics['start_time']
+    avg_response_time = (
+        _metrics['response_time_sum_ms'] / _metrics['requests_total']
+        if _metrics['requests_total'] > 0 else 0.0
+    )
+
+    lines = [
+        '# HELP app_uptime_seconds Application uptime in seconds',
+        '# TYPE app_uptime_seconds counter',
+        f'app_uptime_seconds {uptime:.2f}',
+        '# HELP app_requests_total Total number of requests',
+        '# TYPE app_requests_total counter',
+        f'app_requests_total {_metrics["requests_total"]}',
+        '# HELP app_response_time_avg_ms Average response time in milliseconds',
+        '# TYPE app_response_time_avg_ms gauge',
+        f'app_response_time_avg_ms {avg_response_time:.2f}',
+        '# HELP app_errors_total Total number of errors',
+        '# TYPE app_errors_total counter',
+        f'app_errors_total {_metrics["errors_total"]}',
+    ]
+
+    for method, count in _metrics['requests_by_method'].items():
+        lines.append(f'app_requests_by_method{{method="{method}"}} {count}')
+
+    for status, count in _metrics['requests_by_status'].items():
+        lines.append(f'app_requests_by_status{{status="{status}"}} {count}')
+
+    return '\n'.join(lines), 200, {'Content-Type': 'text/plain'}
 
 
 @app.on_event("startup")

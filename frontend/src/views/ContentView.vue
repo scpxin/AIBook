@@ -87,7 +87,7 @@ const props = defineProps<{
   desc: string
   actionLabel: string
 }>()
-const emit = defineEmits<{ complete: [data: any] }>()
+const emit = defineEmits<{ complete: [data: { moduleType: string; chapterNo: number; content: string; result: PolishResult | ContentParseResult | ConsistencyReport | null; polishedContent: string; knowledgeAdded: string[] }] }>()
 const moduleLabel = computed(() => {
   const map: Record<string, string> = {
     polish: '润色优化',

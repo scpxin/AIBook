@@ -115,8 +115,31 @@ def cleanup_state(project_id: str, confirm: bool = False):
 # ========== V2 数据查询API(13模块) ==========
 
 
+def _query_all_v2_data(project_id: str) -> dict:
+    """批量查询所有 V2 模块数据 (避免 N+1 查询)"""
+    from app.services.pipeline import LEGACY_MODULE_MAP
+    
+    result = {}
+    
+    # 1. 基础模块 (idea, project, architecture, outline, volumes, chapter_plan, draft, parse, polish, consistency)
+    for module in ["idea", "project", "architecture", "outline", "volumes", "draft", "parse", "polish"]:
+        result[module] = database_v2.get_pipeline_module_data(project_id, module)
+    
+    # 2. 特殊模块需要单独查询
+    result["world"] = database_v2.get_world(project_id)
+    
+    chars = database_v2.get_all_characters(project_id)
+    result["characters"] = _restructure_characters(chars) if chars else None
+    
+    result["relation_map"] = database_v2.get_relation_map(project_id)
+    result["chapter_plan"] = _get_chapter_plan_with_subdata(project_id)
+    result["consistency"] = database_v2.get_consistency_reports(project_id)
+    
+    return result
+
+
 def _query_v2_data(project_id: str, module_name: str):
-    """根据模块名查询对应V2表"""
+    """根据模块名查询对应 V2 表"""
     from app.services.pipeline import LEGACY_MODULE_MAP
     resolved = LEGACY_MODULE_MAP.get(module_name)
     if resolved is not None:
@@ -178,12 +201,8 @@ def get_module_data(project_id: str, module_name: str):
 
 @router.get("/{project_id}/data")
 def get_all_module_data(project_id: str):
-    """获取项目所有上游模块数据(供下游模块联动)"""
-    result = {}
-    for name in MODULE_ORDER:
-        data = _query_v2_data(project_id, name)
-        if data:
-            result[name] = data
+    """获取项目所有上游模块数据 (供下游模块联动)"""
+    result = _query_all_v2_data(project_id)
     return {"project_id": project_id, "modules": result}
 
 

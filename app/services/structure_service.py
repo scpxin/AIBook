@@ -1,17 +1,18 @@
 """V2 结构层服务 — M6-M13
 
-M6: power_system — 力量体系(等级/战斗/升级/限制)
-M7: factions — 势力体系(5-8势力设计)
-M8: timeline — 时间线(整合历史+剧情)
-M9: master_outline — 全书大纲(起承转合/卷结构)
-M10: volumes — 卷纲(单卷详细设计)
-M11: plot_nodes — 剧情节点(事件具体化)
-M12: chapter_plan — 章节规划(事件→章)
-M13: chapter_outline — 章节细纲(逐章展开)
+M6: power_system — 力量体系 (等级/战斗/升级/限制)
+M7: factions — 势力体系 (5-8 势力设计)
+M8: timeline — 时间线 (整合历史 + 剧情)
+M9: master_outline — 全书大纲 (起承转合/卷结构)
+M10: volumes — 卷纲 (单卷详细设计)
+M11: plot_nodes — 剧情节点 (事件具体化)
+M12: chapter_plan — 章节规划 (事件→章)
+M13: chapter_outline — 章节细纲 (逐章展开)
 """
 import json
 import logging
 
+from app.config import MAX_TOKENS_OVERVIEW
 from app.services.service_utils import build_style_str, get_default_generator
 from novel_creator import data_bridge
 
@@ -53,7 +54,7 @@ class MasterOutlineService:
 
 返回JSON格式"""
 
-        result, err = gen._generate_json(prompt, max_tokens=16000, module_name="master_outline")
+        result, err = gen._generate_json(prompt, max_tokens=MAX_TOKENS_OVERVIEW, module_name="master_outline")
         if err:
             return None, err
         return result, None
