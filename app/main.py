@@ -13,6 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.api_keys import router as api_keys_router
 from app.api.design import router as design_router
 from app.api.download import router as download_router
 from app.api.execution import router as execution_router
@@ -154,6 +155,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+app.include_router(api_keys_router)
 app.include_router(projects_router)
 app.include_router(download_router)
 app.include_router(settings_router)

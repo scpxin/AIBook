@@ -32,7 +32,8 @@ def _v2_now():
 
 
 def _v2_db():
-    conn = sqlite3.connect(DB_PATH, timeout=30)
+    db_path = os.environ.get('DB_PATH', DB_PATH)
+    conn = sqlite3.connect(db_path, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
