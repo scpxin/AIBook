@@ -3,6 +3,7 @@
     <h1>AI创作平台</h1>
     <p>智能写作 · 一站式创作体验</p>
     <button class="settings-btn" @click="showSettings = true">&#9881; 模型配置</button>
+    <router-link to="/api-keys" class="settings-btn">&#128273; API 密钥</router-link>
   </div>
 
   <TabBar />

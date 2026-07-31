@@ -1,5 +1,7 @@
 const API_PREFIX = import.meta.env.VITE_API_PREFIX || ''
 
+import { authHeaders } from './auth'
+
 const pendingRequests = new Map<string, AbortController>()
 
 export function cancelPendingRequest(key: string) {
@@ -68,7 +70,7 @@ export async function apiGet<T>(path: string, params: Record<string, string> = {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeout)
   try {
-    const r = await fetch(url, { signal: controller.signal })
+    const r = await fetch(url, { signal: controller.signal, headers: authHeaders() })
     if (!r.ok) {
       const d = await r.json().catch(() => ({}))
       throw new ApiError(formatError(d.error || d.detail || '请求失败 (HTTP ' + r.status + ')', r.status), r.status, d)
@@ -95,7 +97,7 @@ export async function apiPost<T>(path: string, data: any, timeout = 120000, dedu
   try {
     const r = await fetch(withPrefix(path), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(data),
       signal: controller.signal,
     })
@@ -165,7 +167,7 @@ export async function apiPut<T>(path: string, data: any, timeout = 120000): Prom
   try {
     const r = await fetch(withPrefix(path), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(data),
       signal: controller.signal,
     })
@@ -195,6 +197,7 @@ export async function apiDelete<T>(path: string, timeout = 120000): Promise<T> {
   try {
     const r = await fetch(withPrefix(path), {
       method: 'DELETE',
+      headers: authHeaders(),
       signal: controller.signal,
     })
     if (!r.ok) {
@@ -232,7 +235,7 @@ export async function apiStream(
       const timer = setTimeout(() => controller.abort(), 600000)
       const r = await fetch(withPrefix(path), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(data),
         signal: controller.signal,
       })

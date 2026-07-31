@@ -46,9 +46,14 @@ const router = createRouter({
       component: () => import('../views/ProjectsOverview.vue'),
     },
     {
+      path: '/api-keys',
+      name: 'api-keys',
+      component: () => import('../views/ApiKeysView.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
-      component: () => import('@/views/NotFound.vue'),
+      component: () => import('../views/NotFound.vue'),
     },
   ],
 })
