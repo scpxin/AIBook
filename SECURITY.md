@@ -23,15 +23,17 @@
 - ✅ SQL 注入防护（参数化查询）
 - ✅ 速率限制（60 请求/分钟）
 - ✅ CORS 配置（可配置白名单）
-- ✅ 路径遍历防护（项目 ID 正则校验）
+- ✅ 路径遍历防护（项目 ID / book_id 正则校验）
+- ✅ JWT 签名密钥与 API Key 加盐强制来自环境变量（`API_KEY_SECRET`、`API_KEY_SALT`）
 
 ### 数据安全
 
 - ✅ 结构化日志（JSON 格式）
 - ✅ 指标监控（/metrics 端点）
-- ✅ 数据库备份脚本
+- ✅ 数据库备份脚本（WAL 安全备份）
+- ✅ 数据库文件存放于独立数据目录（`/app/data`）
 - ⚠️ HTTPS 部署（需反向代理配置）
-- ⚠️ 认证授权（未来版本规划）
+- ⚠️ API Key 管理接口已启用 JWT 认证，业务接口认证为规划中
 
 ### 依赖安全
 
@@ -43,9 +45,10 @@ pip install --upgrade -r app/requirements.txt
 
 ## 已知限制
 
-1. **无认证机制**: 当前版本不启用用户认证，部署时请通过反向代理限制访问
+1. **业务接口认证**: API Key 管理接口已启用 JWT 认证，其余业务接口（projects/download/design/structure/execution 等）尚未接入认证，暴露时应通过反向代理限制访问
 2. **HTTP 明文**: 默认 HTTP 传输，生产环境请配置 HTTPS
 3. **API Key 存储**: 前端使用 sessionStorage 存储，仍存在 XSS 风险
+4. **JWT 密钥**: 必须通过 `API_KEY_SECRET` / `API_KEY_SALT` 环境变量配置，未配置时启动依赖认证的接口会失败
 
 ## 部署建议
 

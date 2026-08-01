@@ -3,6 +3,10 @@ FROM python:3.11-slim as builder
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl gzip sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY app/requirements.txt .
 RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 
@@ -15,7 +19,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 ENV PORT=8000
-ENV DATABASE_PATH=/app/data/fanqie.db
+ENV DB_PATH=/app/data/fanqie.db
 ENV DOWNLOAD_DIR=/app/data/downloads
 ENV PROJECTS_DIR=/app/data/projects
 ENV LOG_DIR=/app/data/logs
@@ -25,6 +29,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY app ./app
 COPY novel_creator ./novel_creator
+COPY scripts ./scripts
 
 RUN mkdir -p /app/data/logs /app/data/downloads /app/data/projects && \
     chown -R root:root /app/data && \

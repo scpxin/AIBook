@@ -449,10 +449,24 @@ class ConsistencyService:
     def get_report(project_id: str, chapter_no: str = None) -> tuple:
         """获取最近检查报告"""
         try:
-            reports = database_v2.get_ai_generations(project_id, 'consistency')
-            if chapter_no:
-                reports = [r for r in (reports or []) if r.get('chapter_no') == chapter_no]
-            return {"reports": reports or [], "count": len(reports or [])}, None
+            rows = database_v2.get_consistency_reports(project_id, limit=50)
+            reports = []
+            for r in (rows or []):
+                report = {
+                    'chapter_no': r.get('chapter_no', ''),
+                    'overall_score': r.get('score', 0.0),
+                    'score': r.get('score', 0.0),
+                    'passed': (r.get('score') or 0) >= 80,
+                    'checks': r.get('items') or [],
+                    'items': r.get('items') or [],
+                    'critical_issues': r.get('fixes') or [],
+                    'fixes': r.get('fixes') or [],
+                    'summary': r.get('summary', ''),
+                    'created_at': r.get('created_at', ''),
+                }
+                if not chapter_no or report['chapter_no'] == chapter_no:
+                    reports.append(report)
+            return {"reports": reports, "count": len(reports)}, None
         except Exception as e:
             logger.exception("Failed to get consistency report")
             return None, str(e)

@@ -2,7 +2,7 @@
 set -e
 
 # 配置
-DB_PATH="${DATABASE_PATH:-/app/data/fanqie.db}"
+DB_PATH="${DB_PATH:-/app/data/fanqie.db}"
 BACKUP_DIR="${BACKUP_DIR:-/app/data/backups}"
 MAX_BACKUPS="${MAX_BACKUPS:-7}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -19,8 +19,12 @@ if [ ! -f "$DB_PATH" ]; then
     exit 1
 fi
 
-# 使用 SQLite 备份模式确保一致性
-cp "$DB_PATH" "$BACKUP_FILE"
+# 使用 SQLite 在线备份 API (WAL 安全)，避免 cp 拷贝到不一致状态
+if command -v sqlite3 >/dev/null 2>&1; then
+    sqlite3 "$DB_PATH" ".backup '$BACKUP_FILE'"
+else
+    cp "$DB_PATH" "$BACKUP_FILE"
+fi
 gzip "$BACKUP_FILE"
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] 备份完成：${BACKUP_FILE}.gz"

@@ -694,27 +694,28 @@ class TestConsistencyService:
         from app.services.execution_service import ConsistencyService
 
         reports = [
-            {"chapter_no": "1", "score": 85},
-            {"chapter_no": "2", "score": 90},
+            {"chapter_no": "1", "score": 85, "items": [], "fixes": [], "summary": "s1"},
+            {"chapter_no": "2", "score": 90, "items": [], "fixes": [], "summary": "s2"},
         ]
-        mock_database_v2.get_ai_generations.return_value = reports
+        mock_database_v2.get_consistency_reports.return_value = reports
 
         result, err = ConsistencyService.get_report("proj-1")
 
         assert err is None
-        assert result["reports"] == reports
         assert result["count"] == 2
-        mock_database_v2.get_ai_generations.assert_called_once_with("proj-1", "consistency")
+        assert result["reports"][0]["overall_score"] == 85
+        assert result["reports"][1]["overall_score"] == 90
+        mock_database_v2.get_consistency_reports.assert_called_once_with("proj-1", limit=50)
 
     def test_get_report_filters_by_chapter(self, mock_database_v2):
         from app.services.execution_service import ConsistencyService
 
         reports = [
-            {"chapter_no": "1", "score": 85},
-            {"chapter_no": "2", "score": 90},
-            {"chapter_no": "1", "score": 80},
+            {"chapter_no": "1", "score": 85, "items": [], "fixes": [], "summary": "s1"},
+            {"chapter_no": "2", "score": 90, "items": [], "fixes": [], "summary": "s2"},
+            {"chapter_no": "1", "score": 80, "items": [], "fixes": [], "summary": "s3"},
         ]
-        mock_database_v2.get_ai_generations.return_value = reports
+        mock_database_v2.get_consistency_reports.return_value = reports
 
         result, err = ConsistencyService.get_report("proj-1", chapter_no="1")
 
@@ -726,7 +727,7 @@ class TestConsistencyService:
     def test_get_report_handles_none_reports(self, mock_database_v2):
         from app.services.execution_service import ConsistencyService
 
-        mock_database_v2.get_ai_generations.return_value = None
+        mock_database_v2.get_consistency_reports.return_value = None
 
         result, err = ConsistencyService.get_report("proj-1")
 
@@ -737,7 +738,7 @@ class TestConsistencyService:
     def test_get_report_returns_error_on_exception(self, mock_database_v2):
         from app.services.execution_service import ConsistencyService
 
-        mock_database_v2.get_ai_generations.side_effect = RuntimeError("DB unavailable")
+        mock_database_v2.get_consistency_reports.side_effect = RuntimeError("DB unavailable")
 
         result, err = ConsistencyService.get_report("proj-1")
 

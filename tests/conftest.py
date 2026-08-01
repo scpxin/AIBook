@@ -1,12 +1,22 @@
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+os.environ.setdefault('API_KEY_SECRET', 'test-secret-for-unit-tests-only')
+os.environ.setdefault('API_KEY_SALT', 'test-salt-for-unit-tests-only')
+
 import novel_creator.database_v2  # noqa: F401
 
 
+@pytest.fixture(scope="session")
+def tmp_db_path(tmp_path_factory):
+    """会话级临时数据库路径，供认证/下载等真实 DB 测试使用，避免污染仓库 fanqie.db"""
+    return str(tmp_path_factory.mktemp("shared") / "test.db")
+
+
 @pytest.fixture
-def app():
+def app(tmp_db_path):
     """创建 FastAPI TestClient 的 app 实例（mock 启动流程和数据库依赖），每次调用完全隔离"""
     _pipeline_store = {}
 
@@ -92,7 +102,10 @@ def app():
          patch("novel_creator.database_v2", mock_db_v2), \
          patch("novel_creator.data_bridge.DataBridge", mock_databridge), \
          patch("app.services.template_service.seed_system_templates"), \
-         patch("app.api.projects.novel_db", mock_novel_db):
+         patch("app.api.projects.novel_db", mock_novel_db), \
+         patch("app.config.DB_PATH", tmp_db_path), \
+         patch("app.utils.security.DB_PATH", tmp_db_path), \
+         patch("app.api.api_keys.DB_PATH", tmp_db_path):
         import app.main
         from app.main import app as fastapi_app
         app.main._rate_limit_store.clear()

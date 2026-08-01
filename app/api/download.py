@@ -7,8 +7,9 @@ import urllib.request
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-from app.config import ALLOWED_PROXY_DOMAINS, CONTENT_API, DIR_API, HTTP_TIMEOUT, SEARCH_API, UA
+from app.config import ALLOWED_ORIGINS, ALLOWED_PROXY_DOMAINS, CONTENT_API, DIR_API, HTTP_TIMEOUT, SEARCH_API, UA
 from app.services.download_service import (
+    _BOOK_ID_PATTERN,
     create_download,
     get_downloaded_content,
     get_file,
@@ -159,9 +160,12 @@ def resolve(q: str = ''):
 
 @router.get("/api/download/start")
 def download_start(book_id: str = '', title: str = ''):
-    if not book_id:
-        return {"error": "missing book_id"}
-    sid = create_download(book_id, title)
+    if not book_id or not _BOOK_ID_PATTERN.match(book_id):
+        return {"error": "invalid book_id"}
+    try:
+        sid = create_download(book_id, title)
+    except ValueError as e:
+        return {"error": str(e)}
     return {"session_id": sid}
 
 
@@ -198,7 +202,7 @@ def download_file(session_id: str = ''):
     return PlainTextResponse(
         content=content_text,
         headers={
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0] if len(ALLOWED_ORIGINS) == 1 else "*",
             "Content-Type": "text/plain; charset=utf-8",
             "Content-Disposition": f'attachment; filename=fanqie_{book_id}.txt',
             "Content-Length": str(len(content_text.encode('utf-8')))
@@ -208,6 +212,8 @@ def download_file(session_id: str = ''):
 
 @router.get("/api/download/saved")
 def download_saved(book_id: str = ''):
+    if not book_id or not _BOOK_ID_PATTERN.match(book_id):
+        return {"error": "invalid book_id"}
     text = get_saved_file(book_id)
     if text is None:
         return {"error": "not found"}
@@ -229,6 +235,8 @@ def downloads_list():
 
 @router.get("/api/downloads/content")
 def downloads_content(book_id: str = ''):
+    if not book_id or not _BOOK_ID_PATTERN.match(book_id):
+        return {"error": "invalid book_id"}
     content_val = get_downloaded_content(book_id)
     if content_val is None:
         return {"error": "未找到该书籍内容"}
@@ -249,7 +257,7 @@ def proxy_text(url: str = ''):
             content=html_data,
             headers={
                 "Content-Type": "text/html; charset=utf-8",
-                "Access-Control-Allow-Origin": "*"
+                "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0] if len(ALLOWED_ORIGINS) == 1 else "*"
             }
         )
     except Exception as e:

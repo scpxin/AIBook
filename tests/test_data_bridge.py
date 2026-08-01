@@ -288,6 +288,26 @@ class TestWriteConsistency:
         count = conn.execute("SELECT COUNT(*) FROM v2_consistency_reports WHERE project_id='p1'").fetchone()[0]
         assert count == 2
 
+    def test_write_maps_overall_score_fields(self, db):
+        """check() 的字段 (overall_score/checks/critical_issues) 应正确落到 score/items/fixes 列"""
+        DataBridge._write_consistency('p1', {
+            'chapter_no': '3',
+            'overall_score': 90,
+            'passed': True,
+            'checks': [{'dimension': 'character_trait', 'score': 90}],
+            'critical_issues': [{'dimension': 'timeline', 'severity': 'high'}],
+            'summary': '良好',
+        })
+        conn = DataBridge._conn()
+        row = conn.execute(
+            "SELECT * FROM v2_consistency_reports WHERE project_id='p1' AND chapter_no='3'"
+        ).fetchone()
+        result = _deserialize_row(row)
+        assert result['score'] == 90
+        assert result['items'] == [{'dimension': 'character_trait', 'score': 90}]
+        assert result['fixes'] == [{'dimension': 'timeline', 'severity': 'high'}]
+        assert result['summary'] == '良好'
+
 
 class TestWriteDispatch:
     def test_write_via_dispatch(self, db):

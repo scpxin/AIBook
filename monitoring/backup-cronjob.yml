@@ -23,9 +23,9 @@ spec:
             image: novel-creator:latest
             command:
             - /bin/bash
-            - /workspace/scripts/backup.sh
+            - /app/scripts/backup.sh
             env:
-            - name: DATABASE_PATH
+            - name: DB_PATH
               value: /app/data/fanqie.db
             - name: BACKUP_DIR
               value: /app/data/backups

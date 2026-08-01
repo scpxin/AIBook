@@ -18,12 +18,12 @@ services:
     container_name: fanqie-v2-backend
     working_dir: /app
     command: >
-      sh -c "pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt &&
+      sh -c "pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r app/requirements.txt &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
     volumes:
       - ./app:/app/app
       - ./novel_creator:/app/novel_creator
-      - ./requirements.txt:/app/requirements.txt:ro
+      - ./app/requirements.txt:/app/app/requirements.txt:ro
       - db-data:/app/data
     ports:
       - "127.0.0.1:8000:8000"
@@ -43,6 +43,8 @@ services:
       - AI_ENDPOINT=${AI_ENDPOINT:-https://api.longcat.chat/openai}
       - AI_API_KEY=${AI_API_KEY:-}
       - AI_MODEL=${AI_MODEL:-LongCat-2.0}
+      - API_KEY_SECRET=${API_KEY_SECRET:-}
+      - API_KEY_SALT=${API_KEY_SALT:-}
     networks:
       - app-net
     restart: unless-stopped

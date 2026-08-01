@@ -19,16 +19,21 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 # API Key 存储时使用 SHA-256 加盐哈希
-API_KEY_SALT = os.environ.get('API_KEY_SALT', 'novel-creator-api-key-salt')
+API_KEY_SALT = os.environ.get('API_KEY_SALT', '')
+
+
+def _require_configured(env_name: str) -> str:
+    """读取必须配置的环境变量，缺失时返回空 (调用方负责拒绝/降级)"""
+    return os.environ.get(env_name, '')
 
 
 def get_api_key_secret() -> str:
-    """获取 JWT 签名密钥 (从环境变量或生成默认值)"""
+    """获取 JWT 签名密钥 (必须从环境变量配置，禁止使用可预测的默认值)"""
     secret = os.environ.get('API_KEY_SECRET', '')
     if not secret:
-        # 使用环境变量生成确定性密钥
-        default_secret = os.environ.get('DATABASE_PATH', '/app/data/fanqie.db')
-        secret = hashlib.sha256(default_secret.encode()).hexdigest()
+        raise RuntimeError(
+            "API_KEY_SECRET 未配置：JWT 认证需要强随机密钥，请在环境变量中设置 (如 python3 -c \"import secrets; print(secrets.token_urlsafe(64))\")"
+        )
     return secret
 
 
@@ -41,8 +46,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def get_password_hash(password: str) -> str:
-    """生成密码哈希 (SHA-256 + salt)"""
-    return hashlib.sha256(f"{API_KEY_SALT}:{password}".encode()).hexdigest()
+    """生成密码哈希 (SHA-256 + salt) — 需配置 API_KEY_SALT"""
+    salt = os.environ.get('API_KEY_SALT', '')
+    if not salt:
+        raise RuntimeError("API_KEY_SALT 未配置：API Key 哈希需要强随机盐，请在环境变量中设置")
+    return hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:

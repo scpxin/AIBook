@@ -8,7 +8,7 @@
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
-| `DATABASE_PATH` | `/app/data/fanqie.db` | 数据库文件路径 |
+| `DB_PATH` | `/app/data/fanqie.db` | 数据库文件路径 |
 | `BACKUP_DIR` | `/app/data/backups` | 备份文件存储目录 |
 | `MAX_BACKUPS` | `7` | 保留的备份数量 |
 
@@ -123,9 +123,9 @@ spec:
             image: fanqie-app:latest
             command:
             - /bin/bash
-            - /workspace/scripts/backup.sh
+            - /app/scripts/backup.sh
             env:
-            - name: DATABASE_PATH
+            - name: DB_PATH
               value: /app/data/fanqie.db
             - name: BACKUP_DIR
               value: /app/data/backups

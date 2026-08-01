@@ -4,9 +4,7 @@ import time
 from datetime import timedelta
 
 import pytest
-from datetime import timedelta
 
-from app.config import DB_PATH
 from app.models.api_key import APIKeyCreate
 from app.services.api_key_service import APIKeyService
 from app.utils.auth import (
@@ -198,9 +196,9 @@ class TestAPIKeyEndpoints:
         assert response.status_code == 200
         assert isinstance(response.json(), list)
 
-    def test_get_with_token(self, client, auth_token):
+    def test_get_with_token(self, client, auth_token, tmp_db_path):
         """带 Token 获取密钥详情"""
-        service = APIKeyService(DB_PATH)
+        service = APIKeyService(tmp_db_path)
         key = service.create(APIKeyCreate(name="详情", description=""))
         response = client.get(
             f"/api/api-keys/{key.id}",
@@ -217,9 +215,9 @@ class TestAPIKeyEndpoints:
         )
         assert response.status_code == 404
 
-    def test_revoke_with_token(self, client, auth_token):
+    def test_revoke_with_token(self, client, auth_token, tmp_db_path):
         """带 Token 撤销密钥"""
-        service = APIKeyService(DB_PATH)
+        service = APIKeyService(tmp_db_path)
         key = service.create(APIKeyCreate(name="待撤销", description=""))
         response = client.delete(
             f"/api/api-keys/{key.id}",
@@ -240,9 +238,9 @@ class TestAPIKeyEndpoints:
 class TestAPIKeyAuthentication:
     """API Key 数据库校验 (Bearer 之外的 X-API-Key 认证路径)"""
 
-    def test_valid_api_key_allows_access(self, client):
+    def test_valid_api_key_allows_access(self, client, tmp_db_path):
         """数据库中存在的活跃密钥可通过认证"""
-        service = APIKeyService(DB_PATH)
+        service = APIKeyService(tmp_db_path)
         key = service.create(APIKeyCreate(name="认证测试", description=""))
         assert key.raw_key
 
@@ -269,9 +267,9 @@ class TestAPIKeyAuthentication:
         )
         assert response.status_code == 401
 
-    def test_revoked_api_key_rejected(self, client):
+    def test_revoked_api_key_rejected(self, client, tmp_db_path):
         """已撤销的密钥被拒绝"""
-        service = APIKeyService(DB_PATH)
+        service = APIKeyService(tmp_db_path)
         key = service.create(APIKeyCreate(name="待撤销认证", description=""))
         service.revoke(key.id)
 

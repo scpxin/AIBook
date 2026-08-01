@@ -2,7 +2,7 @@
 set -e
 
 # 配置
-DB_PATH="${DATABASE_PATH:-/app/data/fanqie.db}"
+DB_PATH="${DB_PATH:-/app/data/fanqie.db}"
 BACKUP_DIR="${BACKUP_DIR:-/app/data/backups}"
 
 # 显示用法

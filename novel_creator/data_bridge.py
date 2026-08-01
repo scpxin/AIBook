@@ -427,9 +427,11 @@ class DataBridge:
             INSERT INTO v2_consistency_reports (project_id, chapter_no, score,
                 items, summary, fixes, created_at)
             VALUES (?,?,?,?,?,?,?)
-        """, (project_id, str(data.get('chapter_no', '')), data.get('score', 1.0),
-              _j(data.get('items', [])), str(data.get('summary', '')),
-              _j(data.get('fixes', [])), _now()))
+        """, (project_id, str(data.get('chapter_no', '')),
+              data.get('overall_score', data.get('score', 0.0)),
+              _j(data.get('checks', data.get('items', []))),
+              str(data.get('summary', '')),
+              _j(data.get('critical_issues', data.get('fixes', []))), _now()))
         conn.commit()
 
     @staticmethod

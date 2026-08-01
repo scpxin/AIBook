@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import shutil
 import threading
 import time
@@ -10,6 +11,19 @@ import uuid
 from app.config import CONTENT_API, DIR_API, DOWNLOAD_DIR, HTTP_TIMEOUT, SESSION_TTL, UA
 
 logger = logging.getLogger('novel_creator.download')
+
+_BOOK_ID_PATTERN = re.compile(r'^\d{1,32}$')
+_DOWNLOAD_DIR_ABS = os.path.abspath(DOWNLOAD_DIR)
+
+
+def _safe_book_dir(book_id: str) -> str | None:
+    """构造安全的书籍目录路径 (book_id 必须为纯数字，且解析后必须在 DOWNLOAD_DIR 内)"""
+    if not book_id or not _BOOK_ID_PATTERN.match(book_id):
+        return None
+    path = os.path.abspath(os.path.join(_DOWNLOAD_DIR_ABS, book_id))
+    if not path.startswith(_DOWNLOAD_DIR_ABS + os.sep):
+        return None
+    return path
 
 sessions: dict[str, dict] = {}
 sessions_lock = threading.Lock()
@@ -57,9 +71,11 @@ def _download_worker(sid: str):
             s['status'] = 'done'
             return
 
-    if not book_id or not book_id.isdigit():
+    if not book_id or not _BOOK_ID_PATTERN.match(book_id):
         raise ValueError(f"Invalid book_id: {book_id}")
-    book_dir = os.path.join(DOWNLOAD_DIR, book_id)
+    book_dir = _safe_book_dir(book_id)
+    if not book_dir:
+        raise ValueError(f"Invalid book_id: {book_id}")
     os.makedirs(book_dir, exist_ok=True)
 
     for i in range(s['current'], len(item_ids)):
@@ -104,7 +120,11 @@ def _download_worker(sid: str):
 
 
 def create_download(book_id: str, title: str) -> str:
-    book_dir = os.path.join(DOWNLOAD_DIR, str(book_id))
+    if not book_id or not _BOOK_ID_PATTERN.match(book_id):
+        raise ValueError(f"Invalid book_id: {book_id}")
+    book_dir = _safe_book_dir(book_id)
+    if not book_dir:
+        raise ValueError(f"Invalid book_id: {book_id}")
     if os.path.exists(book_dir):
         shutil.rmtree(book_dir)
     sid = uuid.uuid4().hex[:12]
@@ -167,7 +187,9 @@ def get_file(session_id: str) -> tuple | None:
         title = s.get('title', book_id)
         sessions.pop(session_id, None)
     try:
-        book_dir = os.path.join(DOWNLOAD_DIR, book_id)
+        book_dir = _safe_book_dir(book_id)
+        if not book_dir:
+            return (content_text, book_id)
         if os.path.exists(book_dir):
             shutil.rmtree(book_dir)
         os.makedirs(book_dir, exist_ok=True)
@@ -181,7 +203,9 @@ def get_file(session_id: str) -> tuple | None:
 
 
 def get_saved_file(book_id: str) -> str | None:
-    book_dir = os.path.join(DOWNLOAD_DIR, book_id)
+    book_dir = _safe_book_dir(book_id)
+    if not book_dir:
+        return None
     content_file = os.path.join(book_dir, 'content.txt')
     if os.path.exists(content_file):
         with open(content_file, encoding='utf-8') as f:
@@ -223,7 +247,9 @@ def list_downloads() -> list:
 
 
 def get_downloaded_content(book_id: str) -> str | None:
-    book_dir = os.path.join(DOWNLOAD_DIR, book_id)
+    book_dir = _safe_book_dir(book_id)
+    if not book_dir:
+        return None
     content_file = os.path.join(book_dir, 'content.txt')
     if not os.path.exists(content_file):
         return None

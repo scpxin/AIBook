@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import os
-import sqlite3
 import time
 from collections import defaultdict
 from datetime import datetime
@@ -46,6 +45,7 @@ class JsonFormatter(logging.Formatter):
 
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(PROJECTS_DIR, exist_ok=True)
+os.makedirs(os.environ.get('LOG_DIR', '/app/data'), exist_ok=True)
 
 log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
 json_log_handler = os.environ.get('JSON_LOG', 'false').lower() == 'true'
@@ -131,7 +131,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     else:
         detail = "服务器内部错误，请稍后重试"
         status_code = 500
-    headers = {"Access-Control-Allow-Origin": "*"}
+    headers = {"Access-Control-Allow-Origin": ALLOWED_ORIGINS[0] if len(ALLOWED_ORIGINS) == 1 else "*"}
     if isinstance(exc, HTTPException) and exc.headers:
         headers.update(exc.headers)
     return JSONResponse(
@@ -151,7 +151,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(
         status_code=422,
         content={"detail": errors},
-        headers={"Access-Control-Allow-Origin": "*"}
+        headers={"Access-Control-Allow-Origin": ALLOWED_ORIGINS[0] if len(ALLOWED_ORIGINS) == 1 else "*"}
     )
 
 
@@ -242,7 +242,7 @@ async def startup_event():
     try:
         from novel_creator.database_v2 import init_db_v2
         init_db_v2()
-    except (sqlite3.Error, Exception) as e:
+    except Exception as e:
         logging.error(f'V2数据库初始化失败，服务将在无V2数据库模式下运行: {e}', exc_info=True)
     try:
         from app.services.template_service import seed_system_templates
