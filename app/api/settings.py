@@ -70,7 +70,7 @@ def save_model_list(payload: SettingsSaveModelsRequest):
 
 
 @router.post("/test-connection")
-def test_connection(body: dict = Body(...)):
+def test_connection(body: dict = Body(...)):  # noqa: B008
     """测试AI模型连接"""
     endpoint = body.get('endpoint', '')
     api_key = body.get('apiKey', '')

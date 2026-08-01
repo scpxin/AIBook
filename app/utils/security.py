@@ -1,10 +1,12 @@
 """认证依赖项"""
 import re
+import sqlite3
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 
-from app.utils.auth import verify_token
+from app.config import DB_PATH
+from app.utils.auth import get_password_hash, verify_token
 
 # HTTP Bearer Token
 http_bearer = HTTPBearer(auto_error=False)
@@ -12,6 +14,23 @@ http_bearer = HTTPBearer(auto_error=False)
 # API Key Header
 API_KEY_PATTERN = re.compile(r'^[a-f0-9]{64}$')
 api_key_header = APIKeyHeader(name='X-API-Key', auto_error=False)
+
+
+def _verify_api_key_in_db(api_key: str) -> bool:
+    """从数据库验证 API Key 是否存在且活跃"""
+    key_hash = get_password_hash(api_key)
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        try:
+            row = conn.execute(
+                "SELECT id FROM api_keys WHERE key_hash = ? AND is_active = 1",
+                (key_hash,),
+            ).fetchone()
+        finally:
+            conn.close()
+        return row is not None
+    except sqlite3.Error:
+        return False
 
 
 async def get_current_user_from_token(
@@ -30,14 +49,15 @@ async def get_current_user_from_token(
 
 
 async def get_current_user_from_api_key(
-    api_key: str | None = Depends(api_key_header)
+    api_key: str | None = Depends(api_key_header)  # noqa: B008
 ) -> str | None:
-    """从 API Key 获取用户标识"""
+    """从 API Key 获取用户标识 (验证密钥存在于数据库且活跃)"""
     if not api_key or not API_KEY_PATTERN.match(api_key):
         return None
 
-    # TODO: 从数据库验证 API Key
-    # 临时实现：接受任何符合格式的 API Key
+    if not _verify_api_key_in_db(api_key):
+        return None
+
     return f"api_key:{api_key[:8]}"
 
 

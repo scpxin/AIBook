@@ -23,7 +23,7 @@ from app.api.projects import router as projects_router
 from app.api.settings import router as settings_router
 from app.api.structure import router as structure_router
 from app.api.template import router as template_router
-from app.config import DOWNLOAD_DIR, PORT, PROJECTS_DIR
+from app.config import ALLOWED_ORIGINS, DOWNLOAD_DIR, PORT, PROJECTS_DIR
 from app.database import novel_db
 
 
@@ -77,7 +77,7 @@ logging.basicConfig(
 
 app = FastAPI(title="Fanqie Novel API", redirect_slashes=False)
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://127.0.0.1:80").split(",")
+ALLOWED_ORIGINS = ALLOWED_ORIGINS or ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -107,7 +107,7 @@ async def rate_limit_middleware(request: Request, call_next):
                 return JSONResponse(
                     status_code=429,
                     content={"detail": "请求过于频繁，请稍后再试"},
-                    headers={"Access-Control-Allow-Origin": "*"}
+                    headers={"Access-Control-Allow-Origin": ALLOWED_ORIGINS[0] if len(ALLOWED_ORIGINS) == 1 else "*"}
                 )
             _rate_limit_store[client_ip].append(now)
     return await call_next(request)
@@ -180,7 +180,10 @@ _metrics_lock = Lock()
 
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
-    """记录请求指标"""
+    """记录请求指标 (排除 /metrics 自身避免自计数)"""
+    if request.url.path == "/metrics":
+        return await call_next(request)
+
     start = time.time()
     response = await call_next(request)
     duration_ms = (time.time() - start) * 1000

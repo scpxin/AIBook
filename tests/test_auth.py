@@ -235,3 +235,48 @@ class TestAPIKeyEndpoints:
             headers={"Authorization": "Bearer invalid.token.here"},
         )
         assert response.status_code == 401
+
+
+class TestAPIKeyAuthentication:
+    """API Key 数据库校验 (Bearer 之外的 X-API-Key 认证路径)"""
+
+    def test_valid_api_key_allows_access(self, client):
+        """数据库中存在的活跃密钥可通过认证"""
+        service = APIKeyService(DB_PATH)
+        key = service.create(APIKeyCreate(name="认证测试", description=""))
+        assert key.raw_key
+
+        response = client.get(
+            "/api/api-keys",
+            headers={"X-API-Key": key.raw_key},
+        )
+        assert response.status_code == 200
+
+    def test_invalid_format_api_key_rejected(self, client):
+        """格式错误的密钥被拒绝"""
+        response = client.get(
+            "/api/api-keys",
+            headers={"X-API-Key": "short"},
+        )
+        assert response.status_code == 401
+
+    def test_nonexistent_api_key_rejected(self, client):
+        """未注册的密钥被拒绝"""
+        fake_key = "a" * 64
+        response = client.get(
+            "/api/api-keys",
+            headers={"X-API-Key": fake_key},
+        )
+        assert response.status_code == 401
+
+    def test_revoked_api_key_rejected(self, client):
+        """已撤销的密钥被拒绝"""
+        service = APIKeyService(DB_PATH)
+        key = service.create(APIKeyCreate(name="待撤销认证", description=""))
+        service.revoke(key.id)
+
+        response = client.get(
+            "/api/api-keys",
+            headers={"X-API-Key": key.raw_key},
+        )
+        assert response.status_code == 401

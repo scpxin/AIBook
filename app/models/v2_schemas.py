@@ -339,14 +339,14 @@ class SettingsModel(BaseModel):
     id: str = Field(..., max_length=200)
     name: str = Field(..., min_length=1, max_length=200)
     endpoint: str = Field(..., min_length=1, max_length=500)
-    apiKey: str = Field(..., min_length=1, max_length=500)
+    apiKey: str = Field(..., min_length=1, max_length=500)  # noqa: N815
     model: str = Field(..., min_length=1, max_length=200)
 
 
 class SettingsSaveModelsRequest(BaseModel):
     """保存模型配置请求 (全局设置，不需要 project_id)"""
     models: list[SettingsModel] = Field(default_factory=list, max_length=50)
-    activeModelId: str = Field(default='', max_length=200)
+    activeModelId: str = Field(default='', max_length=200)  # noqa: N815
 
 
 class ModuleStatusUpdateRequest(BaseModel):

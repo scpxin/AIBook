@@ -12,7 +12,6 @@ from app.models.v2_schemas import (
     ModuleStatusUpdateRequest,
 )
 from app.services.pipeline import (
-    MODULE_ORDER,
     ModuleStatus,
     cleanup_project_state,
     get_all_modules_info,
@@ -117,24 +116,23 @@ def cleanup_state(project_id: str, confirm: bool = False):
 
 def _query_all_v2_data(project_id: str) -> dict:
     """批量查询所有 V2 模块数据 (避免 N+1 查询)"""
-    from app.services.pipeline import LEGACY_MODULE_MAP
-    
+
     result = {}
-    
+
     # 1. 基础模块 (idea, project, architecture, outline, volumes, chapter_plan, draft, parse, polish, consistency)
     for module in ["idea", "project", "architecture", "outline", "volumes", "draft", "parse", "polish"]:
         result[module] = database_v2.get_pipeline_module_data(project_id, module)
-    
+
     # 2. 特殊模块需要单独查询
     result["world"] = database_v2.get_world(project_id)
-    
+
     chars = database_v2.get_all_characters(project_id)
     result["characters"] = _restructure_characters(chars) if chars else None
-    
+
     result["relation_map"] = database_v2.get_relation_map(project_id)
     result["chapter_plan"] = _get_chapter_plan_with_subdata(project_id)
     result["consistency"] = database_v2.get_consistency_reports(project_id)
-    
+
     return result
 
 
@@ -231,7 +229,7 @@ def _now_iso_str():
 
 @router.post("/{project_id}/data/{module_name}")
 
-def save_module_data(project_id: str, module_name: str, data: Any = Body(...)):
+def save_module_data(project_id: str, module_name: str, data: Any = Body(...)):  # noqa: B008
     """保存模块的V2数据（统一走 DataBridge）"""
     from app.services.pipeline import LEGACY_MODULE_MAP
     from novel_creator import DataBridge
