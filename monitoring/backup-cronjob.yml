@@ -34,6 +34,8 @@ spec:
             volumeMounts:
             - name: data
               mountPath: /app/data
+            - name: backups
+              mountPath: /app/data/backups
             resources:
               requests:
                 memory: "64Mi"
@@ -46,6 +48,9 @@ spec:
           - name: data
             persistentVolumeClaim:
               claimName: novel-creator-data-pvc
+          - name: backups
+            persistentVolumeClaim:
+              claimName: novel-creator-backups
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

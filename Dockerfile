@@ -15,6 +15,10 @@ FROM python:3.11-slim as runtime
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl gzip sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
