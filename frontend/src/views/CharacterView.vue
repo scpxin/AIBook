@@ -4,7 +4,7 @@
       <div class="loading-spinner"></div>
       <p>加载中...</p>
     </div>
-    <div v-else">
+    <div v-else>
     <div class="tabs">
       <div v-for="t in tabs" :key="t.key" class="tab" :class="{ active: activeTab === t.key }" @click="activeTab = t.key" role="tab" tabindex="0" :aria-selected="activeTab === t.key" @keydown.left="handleTabKeydown(-1, $event)" @keydown.right="handleTabKeydown(1, $event)">{{ t.label }}</div>
     </div>

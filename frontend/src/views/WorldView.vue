@@ -4,7 +4,7 @@
       <div class="loading-spinner"></div>
       <p>加载中...</p>
     </div>
-    <div v-else">
+    <div v-else>
     <div v-if="!ideaText && !pageLoading" class="upstream-missing-hint">
       尚未完成灵感生成，建议先完成"灵感"和"项目定位"模块以获得更好的世界观生成效果
     </div>

@@ -91,6 +91,7 @@ _rate_limit_lock = Lock()
 _rate_limit_store = defaultdict(list)
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX = 60
+_RATE_LIMIT_SWEEP_THRESHOLD = 10000
 
 
 @app.middleware("http")
@@ -110,6 +111,13 @@ async def rate_limit_middleware(request: Request, call_next):
                     headers={"Access-Control-Allow-Origin": ALLOWED_ORIGINS[0] if len(ALLOWED_ORIGINS) == 1 else "*"}
                 )
             _rate_limit_store[client_ip].append(now)
+            if len(_rate_limit_store) > _RATE_LIMIT_SWEEP_THRESHOLD:
+                for ip in list(_rate_limit_store):
+                    expired = [t for t in _rate_limit_store[ip] if now - t < RATE_LIMIT_WINDOW]
+                    if expired:
+                        _rate_limit_store[ip] = expired
+                    else:
+                        del _rate_limit_store[ip]
     return await call_next(request)
 
 
