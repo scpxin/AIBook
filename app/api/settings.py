@@ -8,6 +8,7 @@ from fastapi import APIRouter, Body
 
 from app.models.v2_schemas import SettingsSaveModelsRequest
 from app.services.settings_service import get_settings, save_models
+from app.utils.security import validate_public_endpoint
 
 router = APIRouter(prefix="/api/v2/settings", tags=["设置"])
 logger = logging.getLogger('novel_creator.api.settings')
@@ -77,6 +78,8 @@ def test_connection(body: dict = Body(...)):  # noqa: B008
     model_id = body.get('model', '')
     if not all([endpoint, api_key, model_id]):
         return {"ok": False, "error": "缺少 endpoint / apiKey / model 参数"}
+    if not validate_public_endpoint(endpoint):
+        return {"ok": False, "error": "endpoint 不在允许访问范围（SSRF 防护）"}
     messages = [
         {'role': 'system', 'content': 'You are a helpful assistant. Reply briefly.'},
         {'role': 'user', 'content': 'Say "OK" if you can hear me.'}

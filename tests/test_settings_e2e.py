@@ -68,3 +68,31 @@ class TestSettingsTestConnection:
         })
         assert resp.status_code == 200
         assert resp.json()["ok"] is False
+
+    def test_ssrf_blocks_private_ip(self, client):
+        for endpoint in [
+            "http://10.0.0.1/v1",
+            "http://192.168.1.1/v1",
+            "http://172.16.0.1/v1",
+            "http://100.64.0.1/v1",
+        ]:
+            resp = client.post("/api/v2/settings/test-connection", json={
+                "endpoint": endpoint,
+                "apiKey": "sk-fake",
+                "model": "gpt-4"
+            })
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body["ok"] is False, f"{endpoint} 应被 SSRF 拦截"
+            assert "SSRF" in body["error"]
+
+    def test_loopback_allowed(self, client):
+        resp = client.post("/api/v2/settings/test-connection", json={
+            "endpoint": "http://localhost:11434/v1",
+            "apiKey": "sk-local",
+            "model": "llama3"
+        })
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["ok"] is False
+        assert "SSRF" not in body["error"]
