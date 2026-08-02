@@ -92,11 +92,23 @@ _rate_limit_store = defaultdict(list)
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX = 60
 _RATE_LIMIT_SWEEP_THRESHOLD = 10000
+_RATE_LIMITED_GET_PREFIXES = (
+    "/api/download/start",
+    "/api/download/pause",
+    "/api/download/resume",
+    "/api/download/saved",
+    "/api/downloads/content",
+)
 
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    if request.method in ("POST", "PUT", "DELETE"):
+    is_write = request.method in ("POST", "PUT", "DELETE")
+    is_mutating_get = (
+        request.method == "GET"
+        and request.url.path.startswith(_RATE_LIMITED_GET_PREFIXES)
+    )
+    if is_write or is_mutating_get:
         client_ip = request.client.host if request.client else "unknown"
         now = time.time()
         with _rate_limit_lock:

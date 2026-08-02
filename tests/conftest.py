@@ -101,6 +101,8 @@ def app(tmp_db_path):
          patch("novel_creator.database_v2.init_db_v2"), \
          patch("novel_creator.database_v2", mock_db_v2), \
          patch("novel_creator.data_bridge.DataBridge", mock_databridge), \
+         patch("app.services.pipeline.DataBridge", mock_databridge), \
+         patch("app.api.pipeline.database_v2", mock_db_v2), \
          patch("app.services.template_service.seed_system_templates"), \
          patch("app.api.projects.novel_db", mock_novel_db), \
          patch("app.config.DB_PATH", tmp_db_path), \
