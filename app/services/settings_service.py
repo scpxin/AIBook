@@ -32,8 +32,14 @@ def get_settings() -> dict:
 
 
 def save_models(models: list, active_model_id: str = '') -> dict:
-    """保存模型配置到数据库"""
+    """保存模型配置到数据库 (校验 endpoint 为公网地址, 防 SSRF)"""
+    from app.utils.security import validate_public_endpoint
+
     with _lock:
+        for m in models:
+            endpoint = m.get('endpoint', '')
+            if endpoint and not validate_public_endpoint(endpoint):
+                raise ValueError(f"模型 {m.get('name', m.get('id', '未知'))} 的 endpoint 不在允许访问范围（SSRF 防护）")
         set_setting(SETTINGS_KEY_MODELS, json.dumps(models, ensure_ascii=False))
         if active_model_id:
             set_setting(SETTINGS_KEY_ACTIVE, active_model_id)
@@ -41,7 +47,9 @@ def save_models(models: list, active_model_id: str = '') -> dict:
 
 
 def get_ai_config() -> dict | None:
-    """获取AI模型配置，优先环境变量，其次数据库"""
+    """获取AI模型配置，优先环境变量，其次数据库 (DB 来源做 SSRF 兜底校验)"""
+    from app.utils.security import validate_public_endpoint
+
     endpoint = os.environ.get('AI_ENDPOINT', '')
     api_key = os.environ.get('AI_API_KEY', '')
     model = os.environ.get('AI_MODEL', '')
@@ -60,6 +68,9 @@ def get_ai_config() -> dict | None:
     if models:
         active = next((m for m in models if m.get('id') == active_id), models[-1])
         if active.get('endpoint') and active.get('apiKey'):
+            # SSRF 兜底: DB 中遗留的非法 endpoint 不参与运行时调用
+            if not validate_public_endpoint(active['endpoint']):
+                return None
             return {
                 'endpoint': active['endpoint'],
                 'api_key': active['apiKey'],

@@ -64,10 +64,13 @@ def get_all():
 @router.post("/models")
 def save_model_list(payload: SettingsSaveModelsRequest):
     """保存模型配置列表"""
-    # Convert Pydantic models to dicts for JSON serialization
-    models = [m.model_dump() for m in payload.models]
-    save_models(models, payload.activeModelId)
-    return {"ok": True, "count": len(payload.models)}
+    try:
+        # Convert Pydantic models to dicts for JSON serialization
+        models = [m.model_dump() for m in payload.models]
+        save_models(models, payload.activeModelId)
+        return {"ok": True, "count": len(models)}
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
 
 
 @router.post("/test-connection")

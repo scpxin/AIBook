@@ -29,8 +29,8 @@ class TestSettingsSaveModels:
     def test_save_multiple_models(self, client):
         resp = client.post("/api/v2/settings/models", json={
             "models": [
-                {"id": "a1", "name": "Model-A", "apiKey": "key-a", "endpoint": "https://a.com", "model": "a-v1"},
-                {"id": "b1", "name": "Model-B", "apiKey": "key-b", "endpoint": "https://b.com", "model": "b-v1"},
+                {"id": "a1", "name": "Model-A", "apiKey": "key-a", "endpoint": "https://api.deepseek.com", "model": "a-v1"},
+                {"id": "b1", "name": "Model-B", "apiKey": "key-b", "endpoint": "https://api.openai.com", "model": "b-v1"},
             ],
             "activeModelId": "a1"
         })
@@ -40,6 +40,33 @@ class TestSettingsSaveModels:
         resp = client.post("/api/v2/settings/models", json={
             "models": [],
             "activeModelId": ""
+        })
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+
+    def test_save_rejects_private_endpoint(self, client):
+        resp = client.post("/api/v2/settings/models", json={
+            "models": [{"id": "evil", "name": "Evil", "apiKey": "sk-x", "endpoint": "http://192.168.1.1/v1", "model": "x"}],
+            "activeModelId": "evil"
+        })
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["ok"] is False
+        assert "SSRF" in body["error"]
+
+    def test_save_rejects_cgnat_endpoint(self, client):
+        resp = client.post("/api/v2/settings/models", json={
+            "models": [{"id": "evil2", "name": "Evil2", "apiKey": "sk-x", "endpoint": "http://100.64.0.1/v1", "model": "x"}],
+            "activeModelId": "evil2"
+        })
+        body = resp.json()
+        assert body["ok"] is False
+        assert "SSRF" in body["error"]
+
+    def test_save_allows_loopback_endpoint(self, client):
+        resp = client.post("/api/v2/settings/models", json={
+            "models": [{"id": "local", "name": "Ollama", "apiKey": "sk-local", "endpoint": "http://localhost:11434/v1", "model": "llama3"}],
+            "activeModelId": "local"
         })
         assert resp.status_code == 200
         assert resp.json()["ok"] is True

@@ -21,7 +21,7 @@
 
 - ✅ 输入验证（Pydantic 类型校验）
 - ✅ SQL 注入防护（参数化查询）
-- ✅ 速率限制（60 请求/分钟）
+- ✅ 速率限制（60 请求/分钟，覆盖全部写操作及修改型 GET）
 - ✅ CORS 配置（可配置白名单）
 - ✅ 路径遍历防护（项目 ID / book_id 正则校验）
 - ✅ JWT 签名密钥与 API Key 加盐强制来自环境变量（`API_KEY_SECRET`、`API_KEY_SALT`）
@@ -76,6 +76,10 @@ pip install --upgrade -r app/requirements.txt
 | 版本 | 日期 | 安全修复 |
 |------|------|----------|
 | v2.0 | 2026-01 | 初始安全审计 |
+| v2.1 | 2026-03 | 限流覆盖修改型 GET；部署运行时依赖补全（curl/gzip/sqlite3）；backup-cronjob PVC 挂载修复 |
+| v2.2 | 2026-03 | AI 端点 SSRF 防护（`validate_public_endpoint` 拒绝私网/链路本地/保留/CGNAT，支持 `ALLOWED_PROXY_DOMAINS`）；API Key bootstrap 引导模式修复死锁 |
+| v2.3 | 2026-03 | 依赖漏洞升级：python-jose 3.4.0、python-multipart 0.0.30、cryptography 48.0.1；前端 vite 5→8、npm audit 清零 |
+| v2.4 | 2026-03 | nginx `/fanqie/api/` 反代修复（生产环境 API 请求误入 SPA） |
 
 ## 致谢
 
