@@ -50,6 +50,7 @@ pip install --upgrade -r app/requirements.txt
 3. **API Key 存储**: 前端使用 sessionStorage 存储，仍存在 XSS 风险
 4. **JWT 密钥**: 必须通过 `API_KEY_SECRET` / `API_KEY_SALT` 环境变量配置，未配置时启动依赖认证的接口会失败
 5. **AI 端点 SSRF 防护**: `/api/v2/settings/test-connection` 已默认拒绝私网/链路本地/保留地址，回环地址放行以支持本地模型（如 Ollama）；如需自建内网模型服务，通过 `ALLOWED_PROXY_DOMAINS` 白名单放行
+6. **API Key 引导**: 数据库无活跃 Key 时允许匿名创建首个密钥（bootstrap 引导），创建后恢复强制认证，防止匿名滥用
 
 ## 部署建议
 

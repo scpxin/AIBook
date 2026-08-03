@@ -167,8 +167,19 @@ class TestAPIKeyService:
 
 
 class TestAPIKeyEndpoints:
-    def test_create_without_auth(self, client):
-        """无认证创建密钥返回 401"""
+    def test_bootstrap_create_first_key(self, client, monkeypatch, tmp_path):
+        """数据库无活跃 Key 时允许匿名创建首个 Key (引导模式)"""
+        from app.api import api_keys as api_keys_mod
+        iso_db = str(tmp_path / "bootstrap.db")
+        monkeypatch.setattr(api_keys_mod, "DB_PATH", iso_db)
+        response = client.post("/api/api-keys", json={"name": "引导密钥"})
+        assert response.status_code == 201
+        assert "raw_key" in response.json()
+
+    def test_create_without_auth_when_keys_exist(self, client, tmp_db_path):
+        """存在活跃 Key 后无认证创建返回 401"""
+        service = APIKeyService(tmp_db_path)
+        service.create(APIKeyCreate(name="已存在", description=""))
         response = client.post("/api/api-keys", json={"name": "无认证"})
         assert response.status_code == 401
 
