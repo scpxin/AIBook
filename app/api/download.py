@@ -28,13 +28,16 @@ ALLOWED_HOSTS = frozenset([
     'fanqienovel.com',
     'novel.snssdk.com',
     'www.fanqienovel.com',
+    'localhost',
+    '127.0.0.1',
+    '::1',
 ])
 
 
 def _http_get(url: str) -> bytes:
     from urllib.parse import urlparse
     parsed = urlparse(url)
-    host = parsed.netloc.split(':')[0].lower()
+    host = parsed.hostname.lower() if parsed.hostname else ''
     if host and host not in ALLOWED_HOSTS:
         raise ValueError(f"SSRF blocked: {host} not in allowed hosts")
     req = urllib.request.Request(url, headers={'User-Agent': UA})
