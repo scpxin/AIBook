@@ -370,11 +370,11 @@ def is_execution_loop_complete(project_id: str, chapter_no: str = None) -> bool:
 
 
 def cleanup_project_state(project_id: str):
-    db_rows = _get_pipeline_state(project_id)
-    if db_rows:
-        _save_pipeline_state(project_id, "idea", {"status": "pending"})
     lock = _get_project_lock(project_id)
     with lock:
+        db_rows = _get_pipeline_state(project_id)
+        if db_rows:
+            _save_pipeline_state(project_id, "idea", {"status": "pending"})
         _state_locks.pop(project_id, None)
 
 
