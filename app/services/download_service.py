@@ -119,12 +119,19 @@ def _download_worker(sid: str):
             time.sleep(0.5)
 
 
+MAX_CONCURRENT_DOWNLOADS = 20
+
+
 def create_download(book_id: str, title: str) -> str:
     if not book_id or not _BOOK_ID_PATTERN.match(book_id):
         raise ValueError(f"Invalid book_id: {book_id}")
     book_dir = _safe_book_dir(book_id)
     if not book_dir:
         raise ValueError(f"Invalid book_id: {book_id}")
+    with sessions_lock:
+        active = sum(1 for s in sessions.values() if s['status'] == 'downloading')
+        if active >= MAX_CONCURRENT_DOWNLOADS:
+            raise ValueError("下载会话过多，请稍后再试")
     if os.path.exists(book_dir):
         shutil.rmtree(book_dir)
     sid = uuid.uuid4().hex[:12]
