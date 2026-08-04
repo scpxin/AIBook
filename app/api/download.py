@@ -7,7 +7,7 @@ import urllib.request
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-from app.config import ALLOWED_ORIGINS, ALLOWED_PROXY_DOMAINS, CONTENT_API, DIR_API, HTTP_TIMEOUT, SEARCH_API, UA
+from app.config import ALLOWED_ORIGINS, CONTENT_API, DIR_API, HTTP_TIMEOUT, SEARCH_API, UA
 from app.services.download_service import (
     _BOOK_ID_PATTERN,
     create_download,
@@ -19,6 +19,7 @@ from app.services.download_service import (
     pause_download,
     resume_download,
 )
+from app.utils.security import is_allowed_proxy_host
 
 router = APIRouter()
 
@@ -243,13 +244,18 @@ def downloads_content(book_id: str = ''):
     return {"content": content_val, "length": len(content_val)}
 
 
+def _host_in_proxy_whitelist(host: str) -> bool:
+    """判断域名是否命中 ALLOWED_PROXY_DOMAINS 白名单 (统一走 security.is_allowed_proxy_host)"""
+    return is_allowed_proxy_host(host)
+
+
 @router.get("/api/proxy-text")
 def proxy_text(url: str = ''):
     if not url:
         return {"error": "missing url"}
     from urllib.parse import urlparse
     parsed = urlparse(url)
-    if parsed.hostname not in ALLOWED_PROXY_DOMAINS:
+    if not _host_in_proxy_whitelist(parsed.hostname):
         return {"error": "域名不在白名单中"}
     try:
         html_data = _http_get(url).decode('utf-8', errors='ignore')

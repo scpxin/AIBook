@@ -39,6 +39,28 @@ def _is_private_ip(ip: str) -> bool:
     return addr.is_reserved
 
 
+def is_allowed_proxy_host(host: str) -> bool:
+    """判断域名是否命中 ALLOWED_PROXY_DOMAINS 白名单。
+
+    支持 `*.example.com` 通配前缀匹配任意子域名（含裸域本身）。
+    未配置白名单时返回 False。大小写不敏感。
+    """
+    if not host or not ALLOWED_PROXY_DOMAINS:
+        return False
+    host = host.rstrip('.').lower()
+    allowed = [d.rstrip('.').lower() for d in ALLOWED_PROXY_DOMAINS]
+    if host in allowed:
+        return True
+    for d in allowed:
+        if d.startswith('*.'):
+            suffix = d[1:]  # 去掉 '*'
+            if host == suffix.lstrip('.'):
+                return True
+            if host.endswith(suffix) and host != suffix.lstrip('.'):
+                return True
+    return False
+
+
 def validate_public_endpoint(endpoint: str) -> bool:
     """SSRF 防护：校验 URL 的 host 不得解析到内网/云元数据等敏感地址。
 
@@ -53,7 +75,7 @@ def validate_public_endpoint(endpoint: str) -> bool:
     if not host:
         return False
     host = host.rstrip('.').lower()
-    if ALLOWED_PROXY_DOMAINS and host in {d.lower().lstrip('*.') for d in ALLOWED_PROXY_DOMAINS}:
+    if is_allowed_proxy_host(host):
         return True
     if host in ('localhost', '127.0.0.1', '::1'):
         return True
