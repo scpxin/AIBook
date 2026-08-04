@@ -2,10 +2,17 @@
 import json
 import os
 import re
+import threading
 
 import httpx
 
 _ssl_verify = os.getenv("AI_VERIFY_SSL", "true").lower() != "false"
+
+# 全局 AI 并发信号量: 限制同时进行的同步 AI 请求数
+# (设计/结构/执行等 22+ 处同步 AI 调用共享, 防 uvicorn worker 被并发长调用耗尽)
+MAX_AI_CONCURRENCY = int(os.getenv("MAX_AI_CONCURRENCY", "10"))
+_AI_SEMAPHORE_TIMEOUT = int(os.getenv("AI_SEMAPHORE_TIMEOUT", "30"))
+_ai_semaphore = threading.BoundedSemaphore(MAX_AI_CONCURRENCY)
 
 
 class AIClient:
@@ -55,6 +62,8 @@ class AIClient:
             "max_tokens": max_tokens if max_tokens is not None else self.max_tokens,
         }
 
+        if not _ai_semaphore.acquire(blocking=True, timeout=_AI_SEMAPHORE_TIMEOUT):
+            return None, "AI 并发请求过多，请稍后再试"
         try:
             resp = self._client.post(
                 self._build_url(),
@@ -68,6 +77,8 @@ class AIClient:
             return None, f"API错误 {e.response.status_code}: {error_body}"
         except Exception as e:
             return None, str(e)
+        finally:
+            _ai_semaphore.release()
 
         if result.get("error"):
             return None, result["error"].get("message", str(result["error"]))
@@ -80,6 +91,15 @@ class AIClient:
         return content, None
 
     def generate_stream(self, prompt, system_prompt=None, temperature=None, max_tokens=None):
+        if not _ai_semaphore.acquire(blocking=True, timeout=_AI_SEMAPHORE_TIMEOUT):
+            yield {"error": "AI 并发请求过多，请稍后再试"}
+            return
+        try:
+            yield from self._generate_stream_inner(prompt, system_prompt, temperature, max_tokens)
+        finally:
+            _ai_semaphore.release()
+
+    def _generate_stream_inner(self, prompt, system_prompt=None, temperature=None, max_tokens=None):
         body = {
             "model": self.model,
             "messages": self._build_messages(prompt, system_prompt),
