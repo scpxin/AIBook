@@ -289,3 +289,78 @@ class TestAPIKeyAuthentication:
             headers={"X-API-Key": key.raw_key},
         )
         assert response.status_code == 401
+
+
+class TestAPIKeyExpiry:
+    def test_expired_key_rejected(self, api_key_service, monkeypatch):
+        """已过期的 API Key 被认证拒绝"""
+        import sqlite3
+        from datetime import datetime, timedelta
+
+        # 插入一个已过期的 Key 到 DB
+        past = datetime.utcnow() - timedelta(days=1)
+        raw_key = generate_api_key()
+        key_hash = get_password_hash(raw_key)
+        conn = sqlite3.connect(api_key_service.db_path)
+        conn.execute(
+            "INSERT INTO api_keys (name, key_hash, is_active, expires_at) VALUES (?, ?, 1, ?)",
+            ("expired", key_hash, past.isoformat())
+        )
+        conn.commit()
+        conn.close()
+
+        # 带有效 API Key 请求业务端点，应 401 而非 200
+        from app.main import app
+        from fastapi.testclient import TestClient
+        client = TestClient(app)
+
+        # 清除 conftest 的 mock 影响，设置真实 DB_PATH
+        monkeypatch.setattr("app.config.DB_PATH", api_key_service.db_path)
+        monkeypatch.setattr("app.utils.security.DB_PATH", api_key_service.db_path)
+
+        resp = client.get("/api/health", headers={"X-API-Key": raw_key})
+        # health 端点不限流也不需要认证，改用需要认证的路径验证
+        # 实际上 test_auth 不 mock DB 路径，这里只验证 SQL 逻辑
+        # 直接查 _verify_api_key_in_db 行为
+        from app.utils.security import _verify_api_key_in_db
+        # 需要 monkeypatch DB_PATH 让 _verify_api_key_in_db 用测试 DB
+        monkeypatch.setattr("app.utils.security.DB_PATH", api_key_service.db_path)
+        assert _verify_api_key_in_db(raw_key) is False, "已过期的 Key 应被拒绝"
+
+    def test_future_expiry_key_accepted(self, api_key_service, monkeypatch):
+        """未过期的 API Key 通过认证"""
+        import sqlite3
+        from datetime import datetime, timedelta
+
+        future = datetime.utcnow() + timedelta(days=30)
+        raw_key = generate_api_key()
+        key_hash = get_password_hash(raw_key)
+        conn = sqlite3.connect(api_key_service.db_path)
+        conn.execute(
+            "INSERT INTO api_keys (name, key_hash, is_active, expires_at) VALUES (?, ?, 1, ?)",
+            ("future", key_hash, future.isoformat())
+        )
+        conn.commit()
+        conn.close()
+
+        monkeypatch.setattr("app.utils.security.DB_PATH", api_key_service.db_path)
+        from app.utils.security import _verify_api_key_in_db
+        assert _verify_api_key_in_db(raw_key) is True, "未过期的 Key 应通过"
+
+    def test_null_expiry_key_accepted(self, api_key_service, monkeypatch):
+        """永不过期 (expires_at=NULL) 的 API Key 通过认证"""
+        import sqlite3
+
+        raw_key = generate_api_key()
+        key_hash = get_password_hash(raw_key)
+        conn = sqlite3.connect(api_key_service.db_path)
+        conn.execute(
+            "INSERT INTO api_keys (name, key_hash, is_active, expires_at) VALUES (?, ?, 1, NULL)",
+            ("perpetual", key_hash)
+        )
+        conn.commit()
+        conn.close()
+
+        monkeypatch.setattr("app.utils.security.DB_PATH", api_key_service.db_path)
+        from app.utils.security import _verify_api_key_in_db
+        assert _verify_api_key_in_db(raw_key) is True, "永不过期的 Key 应通过"

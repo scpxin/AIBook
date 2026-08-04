@@ -94,13 +94,14 @@ def validate_public_endpoint(endpoint: str) -> bool:
 
 
 def _verify_api_key_in_db(api_key: str) -> bool:
-    """从数据库验证 API Key 是否存在且活跃"""
+    """从数据库验证 API Key 是否存在、活跃且未过期"""
     key_hash = get_password_hash(api_key)
     try:
         conn = sqlite3.connect(DB_PATH, timeout=5)
         try:
             row = conn.execute(
-                "SELECT id FROM api_keys WHERE key_hash = ? AND is_active = 1",
+                "SELECT id FROM api_keys WHERE key_hash = ? AND is_active = 1 "
+                "AND (expires_at IS NULL OR expires_at > datetime('now'))",
                 (key_hash,),
             ).fetchone()
         finally:
