@@ -1,6 +1,7 @@
 """V2 执行层 API — M14-M19 REST端点"""
 import json
 import logging
+import threading
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -29,6 +30,10 @@ from app.utils.errors import safe_error as _safe_error
 logger = logging.getLogger('novel_creator.api.v2.execution')
 
 router = APIRouter(prefix="/api/v2", tags=["V2执行层"])
+
+# 流式生成并发信号量: 限制同时运行的 AI 长连接数, 防止连接池/线程耗尽
+MAX_STREAM_CONCURRENCY = 5
+_stream_semaphore = threading.BoundedSemaphore(MAX_STREAM_CONCURRENCY)
 
 
 # ========== 世界观一致性检查 ==========
@@ -94,6 +99,10 @@ def draft_generate(payload: DraftGenerateRequest):
     """POST /api/v2/draft/generate — 流式正文生成"""
 
     def generate():
+        if not _stream_semaphore.acquire(blocking=False):
+            yield f"data: {json.dumps({'type': 'error', 'message': '并发生成任务过多，请稍后再试'})}\n\n"
+            yield "data: [DONE]\n\n"
+            return
         try:
             for chunk in DraftService.generate_stream(
                 payload.project_id,
@@ -106,6 +115,8 @@ def draft_generate(payload: DraftGenerateRequest):
             logger.error(f"Draft generation error: {e}", exc_info=True)
             yield f"data: {json.dumps({'type': 'error', 'message': _safe_error(str(e))})}\n\n"
             yield "data: [DONE]\n\n"
+        finally:
+            _stream_semaphore.release()
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
