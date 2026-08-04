@@ -80,6 +80,7 @@ pip install --upgrade -r app/requirements.txt
 | v2.2 | 2026-03 | AI 端点 SSRF 防护（`validate_public_endpoint` 拒绝私网/链路本地/保留/CGNAT，支持 `ALLOWED_PROXY_DOMAINS`）；API Key bootstrap 引导模式修复死锁 |
 | v2.3 | 2026-03 | 依赖漏洞升级：python-jose 3.4.0、python-multipart 0.0.30、cryptography 48.0.1；前端 vite 5→8、npm audit 清零 |
 | v2.4 | 2026-03 | nginx `/fanqie/api/` 反代修复（生产环境 API 请求误入 SPA） |
+| v2.5 | 2026-08 | 模型保存端点 SSRF 校验（保存时+运行时兜底）；API Key 过期校验；下载会话并发上限 20；限流键解析 X-Forwarded-For（反代下防全站误触发）；代理白名单统一 `is_allowed_proxy_host()`（修复 `*.example.com` 通配符与 IPv6）；download 回环放行；流式正文并发上限 5；AI 同步调用全局并发上限 10；pipeline 状态写入锁外竞态修复 |
 
 ## 致谢
 
