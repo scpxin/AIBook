@@ -101,6 +101,14 @@ _RATE_LIMITED_GET_PREFIXES = (
 )
 
 
+def _client_ip(request: Request) -> str:
+    """获取真实客户端 IP (优先 X-Forwarded-For, 兼容 nginx 反代)"""
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
     is_write = request.method in ("POST", "PUT", "DELETE")
@@ -109,7 +117,7 @@ async def rate_limit_middleware(request: Request, call_next):
         and request.url.path.startswith(_RATE_LIMITED_GET_PREFIXES)
     )
     if is_write or is_mutating_get:
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = _client_ip(request)
         now = time.time()
         with _rate_limit_lock:
             timestamps = _rate_limit_store[client_ip]
