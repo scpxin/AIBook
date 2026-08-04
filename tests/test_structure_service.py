@@ -319,7 +319,7 @@ class TestChapterPlanServicePlan:
         assert result is None
         assert "API" in err
 
-    def test_plan_success_returns_result(self, mock_generator):
+    def test_plan_success_returns_result(self, mock_generator, mock_databridge):
         mock_gen, _ = mock_generator
         plan = {
             "chapter_assignments": [
@@ -357,7 +357,7 @@ class TestChapterPlanServicePlan:
         assert err is None
         mock_databridge.write.assert_not_called()
 
-    def test_plan_preserves_target_wordcount(self, mock_generator):
+    def test_plan_preserves_target_wordcount(self, mock_generator, mock_databridge):
         mock_gen, _ = mock_generator
         mock_gen._generate_json.return_value = ({}, None)
 
