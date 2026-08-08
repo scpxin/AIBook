@@ -4,6 +4,7 @@ import logging
 import os
 import time
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from datetime import datetime
 from threading import Lock
 
@@ -75,7 +76,33 @@ logging.basicConfig(
     handlers=[handler, file_handler],
 )
 
-app = FastAPI(title="Fanqie Novel API", redirect_slashes=False)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        novel_db.init_db()
+    except Exception as e:
+        logging.error(f'数据库初始化失败: {e}', exc_info=True)
+        raise RuntimeError(f"数据库初始化失败，无法启动服务: {e}") from e
+    try:
+        from novel_creator.database_v2 import init_db_v2
+        init_db_v2()
+    except Exception as e:
+        logging.error(f'V2数据库初始化失败，服务将在无V2数据库模式下运行: {e}', exc_info=True)
+    try:
+        from app.services.template_service import seed_system_templates
+        seed_system_templates()
+    except Exception as e:
+        logging.warning(f'预置模板初始化失败: {e}')
+    yield
+    try:
+        from novel_creator.data_bridge import DataBridge
+        DataBridge.close()
+    except Exception:
+        pass
+
+
+app = FastAPI(title="Fanqie Novel API", redirect_slashes=False, lifespan=lifespan)
 
 ALLOWED_ORIGINS = ALLOWED_ORIGINS or ["*"]
 
@@ -258,34 +285,6 @@ async def get_metrics():
         lines.append(f'app_requests_by_status{{status="{status}"}} {count}')
 
     return '\n'.join(lines), 200, {'Content-Type': 'text/plain'}
-
-
-@app.on_event("startup")
-async def startup_event():
-    try:
-        novel_db.init_db()
-    except Exception as e:
-        logging.error(f'数据库初始化失败: {e}', exc_info=True)
-        raise RuntimeError(f"数据库初始化失败，无法启动服务: {e}") from e
-    try:
-        from novel_creator.database_v2 import init_db_v2
-        init_db_v2()
-    except Exception as e:
-        logging.error(f'V2数据库初始化失败，服务将在无V2数据库模式下运行: {e}', exc_info=True)
-    try:
-        from app.services.template_service import seed_system_templates
-        seed_system_templates()
-    except Exception as e:
-        logging.warning(f'预置模板初始化失败: {e}')
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    try:
-        from novel_creator.data_bridge import DataBridge
-        DataBridge.close()
-    except Exception:
-        pass
 
 
 if __name__ == "__main__":

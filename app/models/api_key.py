@@ -1,7 +1,7 @@
 """API Key 数据模型"""
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class APIKeyBase(BaseModel):
@@ -24,8 +24,7 @@ class APIKey(APIKeyBase):
     expires_at: datetime | None = None
     last_used_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class APIKeyInDB(APIKey):
