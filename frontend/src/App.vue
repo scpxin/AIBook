@@ -17,6 +17,7 @@
   </div>
 
   <ModelConfig v-if="showSettings" @close="showSettings = false" />
+  <AppConfirmDialog />
   <ToastContainer />
 </template>
 
@@ -24,6 +25,7 @@
 import { onErrorCaptured } from 'vue'
 import TabBar from './components/TabBar.vue'
 import ModelConfig from './components/ModelConfig.vue'
+import AppConfirmDialog from './components/AppConfirmDialog.vue'
 import ToastContainer from './components/ToastContainer.vue'
 import { useSettingsPanel } from './composables/useSettingsPanel'
 

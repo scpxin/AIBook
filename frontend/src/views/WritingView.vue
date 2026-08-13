@@ -58,9 +58,10 @@
         />
 
         <div class="writing-toolbar">
-          <button type="button" @click="generateDraft" :disabled="isGenerating" class="btn-generate">
-            {{ isGenerating ? '生成中...' : '生成正文' }}
+          <button v-if="!isGenerating" type="button" @click="generateDraft" :disabled="isGenerating" class="btn-generate">
+            生成正文
           </button>
+          <button v-else type="button" @click="cancelGeneration" class="btn-cancel-gen">取消生成</button>
           <button type="button" @click="polish" :disabled="isPolishing || !draftContent" class="btn-tool">润色</button>
           <button type="button" @click="rewrite" :disabled="isGenerating || isRewriting || !draftContent" class="btn-tool">{{ isRewriting ? '重写中...' : '重写' }}</button>
           <button type="button" @click="parse" :disabled="isParsing || !draftContent" class="btn-tool">解析</button>
@@ -112,6 +113,7 @@ const chapters = ref<Array<{ id: string; title: string; outline: { title: string
 const currentChapterIdx = ref(0)
 const draftContent = ref('')
 const isGenerating = ref(false)
+const generationAbort = ref<AbortController | null>(null)
 const isPolishing = ref(false)
 const isSaving = ref(false)
 const isParsing = ref(false)
@@ -132,6 +134,10 @@ const currentOutline = computed(() => {
 
 async function selectChapter(idx: number) {
   if (idx < 0 || idx >= chapters.value.length) return
+  if (isGenerating.value || isRewriting.value) {
+    toast.warning('正文生成中，请先取消生成或等待完成')
+    return
+  }
   if (draftContent.value && draftContent.value !== chapters.value[currentChapterIdx.value]?.content) {
     const ok = await confirm.confirm({
       message: '当前章节草稿有未保存的更改，切换将丢失这些更改，是否继续？',
@@ -151,6 +157,7 @@ async function generateDraft() {
     return
   }
   isGenerating.value = true
+  generationAbort.value = new AbortController()
   const backup = draftContent.value
   let hadContent = !!draftContent.value
   if (hadContent) toast.info('正在生成，将覆盖现有草稿')
@@ -159,7 +166,7 @@ async function generateDraft() {
     await execution.generateDraft(projectId.value, chapter.id, (text: string) => {
       if (firstChunk) { draftContent.value = ''; firstChunk = false }
       draftContent.value += text
-    })
+    }, undefined, generationAbort.value.signal)
     toast.success('正文生成完成')
     // 5.2-3: 生成正文后自动保存
     if (draftContent.value && draftContent.value !== (chapter.content || '')) {
@@ -179,14 +186,25 @@ async function generateDraft() {
       }
     }
   } catch (e) {
-    if (hadContent && backup) {
-      draftContent.value = backup
-    } else if (!draftContent.value) {
-      draftContent.value = backup
+    if (generationAbort.value?.signal.aborted) {
+      toast.info('已取消生成')
+    } else {
+      if (hadContent && backup) {
+        draftContent.value = backup
+      } else if (!draftContent.value) {
+        draftContent.value = backup
+      }
+      errorBar.showError(e, () => generateDraft())
     }
-    errorBar.showError(e, () => generateDraft())
   } finally {
     isGenerating.value = false
+    generationAbort.value = null
+  }
+}
+
+function cancelGeneration() {
+  if (generationAbort.value) {
+    generationAbort.value.abort()
   }
 }
 
@@ -230,18 +248,24 @@ async function rewrite() {
   const backup = draftContent.value
   draftContent.value = ''
   isRewriting.value = true
+  generationAbort.value = new AbortController()
   try {
     await execution.generateDraft(projectId.value, chapter.id, (text: string) => {
       draftContent.value += text
-    })
+    }, undefined, generationAbort.value.signal)
     toast.success('重写完成')
   } catch (e) {
-    if (backup && !draftContent.value) {
-      draftContent.value = backup
+    if (generationAbort.value?.signal.aborted) {
+      toast.info('已取消重写')
+    } else {
+      if (backup && !draftContent.value) {
+        draftContent.value = backup
+      }
+      errorBar.showError(e, () => rewrite())
     }
-    errorBar.showError(e, () => rewrite())
   } finally {
     isRewriting.value = false
+    generationAbort.value = null
   }
 }
 
@@ -492,6 +516,7 @@ watch(() => currentChapterIdx.value, async () => {
 .writing-toolbar { display: flex; gap: 10px; padding: 13px 20px; border-top: 1px solid #eee; background: #fafafa; }
 .btn-generate { padding: 10px 20px; background: var(--primary); color: #fff; border: none; border-radius: 5px; cursor: pointer; }
 .btn-generate:disabled { opacity: 0.5; cursor: wait; }
+.btn-cancel-gen { padding: 10px 20px; background: #f56c6c; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
 .btn-tool { padding: 10px 14px; background: #fff; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 17px; }
 .btn-tool:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-save { padding: 10px 14px; background: #52c41a; color: #fff; border: none; border-radius: 5px; cursor: pointer; margin-left: auto; }

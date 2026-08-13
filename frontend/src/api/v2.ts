@@ -282,7 +282,8 @@ export function generateDraft(
   sceneSkeleton: SceneSkeleton,
   onChunk?: (text: string) => void,
   onDone?: () => void,
-  onError?: (err: string) => void
+  onError?: (err: string) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   let buffer = ''
   return apiStream('/api/v2/draft/generate', {
@@ -307,7 +308,7 @@ export function generateDraft(
         }
       }
     }
-  }, onDone, onError)
+  }, onDone, onError, 1, signal)
 }
 
 export function saveDraft(projectId: string, chapterNo: string, content: string) {

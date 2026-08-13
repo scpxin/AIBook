@@ -226,13 +226,23 @@ export async function apiStream(
   onChunk: (text: string) => void,
   onDone?: () => void,
   onError?: (err: string) => void,
-  maxRetries = 1
+  maxRetries = 1,
+  signal?: AbortSignal
 ): Promise<void> {
   let lastErr = ''
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (signal?.aborted) { onDone?.(); return }
     try {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 600000)
+      if (signal) {
+        if (signal.aborted) {
+          clearTimeout(timer)
+          onDone?.()
+          return
+        }
+        signal.addEventListener('abort', () => controller.abort(), { once: true })
+      }
       const r = await fetch(withPrefix(path), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -263,6 +273,7 @@ export async function apiStream(
       onDone?.()
       return
     } catch (e: any) {
+      if (signal?.aborted) { onDone?.(); return }
       lastErr = e.message || String(e)
       if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000))
     }

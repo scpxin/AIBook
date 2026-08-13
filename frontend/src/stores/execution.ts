@@ -41,7 +41,7 @@ export const useExecutionStore = defineStore('execution', () => {
   const loading = ref(false)
   const error = ref('')
 
-  async function generateDraftContent(pid: string, chapterNo: string, sceneSkeleton?: SceneSkeleton, onChunk?: (text: string) => void) {
+  async function generateDraftContent(pid: string, chapterNo: string, sceneSkeleton?: SceneSkeleton, onChunk?: (text: string) => void, signal?: AbortSignal) {
     isGenerating.value = true
     generationProgress.value = 0
     draftContent.value = ''
@@ -74,7 +74,8 @@ export const useExecutionStore = defineStore('execution', () => {
           error.value = err
           useToastStore().error(err)
           reject(new Error(err))
-        }
+        },
+        signal
       )
     })
   }
@@ -133,11 +134,11 @@ export const useExecutionStore = defineStore('execution', () => {
     }
   }
 
-  async function startDraftGeneration(pid: string, chapterNo: string, onChunk: (text: string) => void, sceneSkeleton?: SceneSkeleton) {
+  async function startDraftGeneration(pid: string, chapterNo: string, onChunk: (text: string) => void, sceneSkeleton?: SceneSkeleton, signal?: AbortSignal) {
     isGenerating.value = true
     draftContent.value = ''
     try {
-      await generateDraftContent(pid, chapterNo, sceneSkeleton, onChunk)
+      await generateDraftContent(pid, chapterNo, sceneSkeleton, onChunk, signal)
     } finally {
       isGenerating.value = false
     }
