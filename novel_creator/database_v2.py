@@ -848,15 +848,26 @@ def get_pipeline_state(project_id):
     return [dict(r) for r in rows]
 
 
+def _v2_table_has_column(conn, table, column):
+    """检查 V2 表是否存在指定列"""
+    try:
+        cols = conn.execute(f"PRAGMA table_info({table})").fetchall()
+        return any(r[1] == column for r in cols)
+    except Exception:
+        return False
+
+
+_PROJECT_SCOPED_TABLES = frozenset(V2_TABLES | {'idea_templates'})
+
+
 def delete_project_v2(project_id):
     """软删除项目所有V2数据（标记 deleted_at）"""
-    tables = list(V2_TABLES)
     now = _v2_now()
     with _v2_lock:
         conn = _v2_db()
         try:
-            for table in tables:
-                if table not in V2_TABLES:
+            for table in _PROJECT_SCOPED_TABLES:
+                if not _v2_table_has_column(conn, table, 'project_id'):
                     continue
                 try:
                     conn.execute(f"UPDATE {table} SET deleted_at=? WHERE project_id=? AND deleted_at IS NULL", (now, project_id))
@@ -868,14 +879,30 @@ def delete_project_v2(project_id):
             conn.close()
 
 
-def hard_delete_project_v2(project_id):
-    """硬删除项目所有V2数据（用于30天后的垃圾回收）"""
-    tables = list(V2_TABLES)
+def restore_project_v2(project_id):
+    """恢复软删除的项目V2数据（清除 deleted_at 标记）"""
     with _v2_lock:
         conn = _v2_db()
         try:
-            for table in tables:
-                if table not in V2_TABLES:
+            for table in _PROJECT_SCOPED_TABLES:
+                if not _v2_table_has_column(conn, table, 'project_id'):
+                    continue
+                try:
+                    conn.execute(f"UPDATE {table} SET deleted_at=NULL WHERE project_id=?", (project_id,))
+                except Exception:
+                    pass
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def hard_delete_project_v2(project_id):
+    """硬删除项目所有V2数据（用于30天后的垃圾回收）"""
+    with _v2_lock:
+        conn = _v2_db()
+        try:
+            for table in _PROJECT_SCOPED_TABLES:
+                if not _v2_table_has_column(conn, table, 'project_id'):
                     continue
                 conn.execute(f"DELETE FROM {table} WHERE project_id=?", (project_id,))
             conn.commit()

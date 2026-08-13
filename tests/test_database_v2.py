@@ -160,3 +160,55 @@ class TestDatabaseV2CRUD:
         for module_name, expected in test_cases:
             result = get_pipeline_module_data("test-ps", module_name)
             assert result == expected, f"模块 {module_name} 数据不匹配: {result} != {expected}"
+
+
+class TestSoftDeleteV2:
+    def test_soft_delete_marks_all_tables(self, temp_db):
+        from novel_creator.database_v2 import _v2_db, delete_project_v2, init_db_v2
+        init_db_v2()
+        conn = _v2_db()
+        conn.execute("INSERT INTO v2_projects(project_id, project_overview) VALUES('p1','测试')")
+        conn.execute("INSERT INTO idea_templates(project_id, name, genre, prompt) VALUES('p1','t','g','p')")
+        conn.commit()
+        conn.close()
+
+        delete_project_v2('p1')
+
+        conn = _v2_db()
+        row = conn.execute("SELECT deleted_at FROM v2_projects WHERE project_id='p1'").fetchone()
+        assert row is not None and row[0] is not None
+        # idea_templates 无 deleted_at 列，软删回退为硬删除
+        trow = conn.execute("SELECT * FROM idea_templates WHERE project_id='p1'").fetchone()
+        assert trow is None
+        conn.close()
+
+    def test_restore_clears_deleted_at(self, temp_db):
+        from novel_creator.database_v2 import _v2_db, delete_project_v2, init_db_v2, restore_project_v2
+        init_db_v2()
+        conn = _v2_db()
+        conn.execute("INSERT INTO v2_projects(project_id, project_overview) VALUES('p2','测试')")
+        conn.commit()
+        conn.close()
+
+        delete_project_v2('p2')
+        restore_project_v2('p2')
+
+        conn = _v2_db()
+        row = conn.execute("SELECT deleted_at FROM v2_projects WHERE project_id='p2'").fetchone()
+        assert row is not None and row[0] is None
+        conn.close()
+
+    def test_hard_delete_removes_rows(self, temp_db):
+        from novel_creator.database_v2 import _v2_db, hard_delete_project_v2, init_db_v2
+        init_db_v2()
+        conn = _v2_db()
+        conn.execute("INSERT INTO v2_projects(project_id, project_overview) VALUES('p3','测试')")
+        conn.commit()
+        conn.close()
+
+        hard_delete_project_v2('p3')
+
+        conn = _v2_db()
+        row = conn.execute("SELECT * FROM v2_projects WHERE project_id='p3'").fetchone()
+        assert row is None
+        conn.close()

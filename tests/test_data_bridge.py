@@ -184,6 +184,43 @@ class TestWriteCharacters:
         count = conn.execute("SELECT COUNT(*) FROM v2_characters WHERE project_id='p1'").fetchone()[0]
         assert count == 2
 
+    def test_nested_input_frontend_format(self, db):
+        """前端 saveCharacters 的嵌套格式不再静默丢失"""
+        data = {
+            'protagonist': {'char_id': 'c1', 'name': 'Alice', 'role_type': 'protagonist'},
+            'supporting': [
+                {'char_id': 'c2', 'name': 'Bob'},
+                {'char_id': 'c3', 'name': 'Carol'},
+            ],
+            'villains': [{'char_id': 'c4', 'name': 'Dark'}],
+            'relations': {'edges': []},
+        }
+        DataBridge._write_characters('p1', data)
+        conn = DataBridge._conn()
+        rows = conn.execute(
+            "SELECT char_id, name, role_type FROM v2_characters WHERE project_id='p1' ORDER BY char_id"
+        ).fetchall()
+        assert len(rows) == 4
+        role_map = {r['char_id']: r['role_type'] for r in rows}
+        assert role_map['c1'] == 'protagonist'
+        assert role_map['c4'] == 'antagonist'
+
+    def test_nested_antagonists_alias(self, db):
+        """antagonists 别名与 role 自动归一"""
+        data = {
+            'antagonists': [{'char_id': 'v1', 'name': 'Villain'}],
+            'supporting': {'char_id': 's1', 'name': 'Support'},
+        }
+        DataBridge._write_characters('p1', data)
+        conn = DataBridge._conn()
+        rows = conn.execute(
+            "SELECT char_id, role_type FROM v2_characters WHERE project_id='p1' ORDER BY char_id"
+        ).fetchall()
+        assert len(rows) == 2
+        role_map = {r['char_id']: r['role_type'] for r in rows}
+        assert role_map['v1'] == 'antagonist'
+        assert role_map['s1'] == 'supporting'
+
 
 class TestWriteRelationMap:
     def test_write(self, db):

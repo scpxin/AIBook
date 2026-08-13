@@ -184,8 +184,34 @@ class DataBridge:
     def _write_characters(project_id, data):
         conn = DataBridge._conn()
         now = _now()
-        chars = data if isinstance(data, list) else data.get('characters', data.get('items', []))
+        if isinstance(data, list):
+            chars = data
+        else:
+            # 兼容嵌套结构 {protagonist, supporting, villains, antagonists, relations}
+            nested = ('protagonist' in data or 'supporting' in data or
+                      'villains' in data or 'antagonists' in data)
+            if nested:
+                chars = []
+                for role in ('protagonist', 'supporting', 'villains', 'antagonists'):
+                    group = data.get(role)
+                    if not group:
+                        continue
+                    items = group if isinstance(group, list) else [group]
+                    for ch in items:
+                        if isinstance(ch, dict):
+                            c = dict(ch)
+                            if role == 'protagonist' and not c.get('role_type'):
+                                c['role_type'] = 'protagonist'
+                            elif role == 'villains':
+                                c['role_type'] = 'antagonist'
+                            elif role == 'antagonists':
+                                c['role_type'] = 'antagonist'
+                            chars.append(c)
+            else:
+                chars = data.get('characters', data.get('items', []))
         for ch in chars:
+            if not isinstance(ch, dict):
+                continue
             char_id = str(ch.get('char_id', ch.get('name', '')))
             if not char_id:
                 continue

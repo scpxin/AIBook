@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.config import PROJECT_ID_PATTERN
 from app.database import novel_db
+from novel_creator import database_v2
 
 router = APIRouter()
 logger = logging.getLogger('novel_creator.api.projects')
@@ -176,10 +177,12 @@ def project_soft_delete(body: dict):
     """将项目标记为已删除（移入回收站），而非永久删除"""
     project_id = body.get('project_id', '')
     if not validate_project_id(project_id):
-        return {"error": "无效的项目ID"}
+        raise HTTPException(status_code=400, detail="无效的项目ID")
     project = novel_db.get_project(project_id)
     if not project:
-        return {"error": "项目不存在"}
+        # v2 项目可能不存在于 projects 表，仍允许标记 V2 数据
+        database_v2.delete_project_v2(project_id)
+        return {"ok": True}
     # get_project 返回的 data 可能是 dict 或 JSON string，兼容处理
     raw = project.get('data', None)
     if isinstance(raw, dict):
@@ -198,6 +201,8 @@ def project_soft_delete(body: dict):
     novel_db.save_project(project_id, project.get('name', '未命名') or '未命名',
                          project.get('step', 0) or 0,
                          json.dumps(data, ensure_ascii=False), tags)
+    # 同步标记 v2_projects 及所有 V2 模块表，保证列表过滤生效
+    database_v2.delete_project_v2(project_id)
     return {"ok": True}
 
 
@@ -206,10 +211,11 @@ def project_restore(body: dict):
     """从回收站恢复项目"""
     project_id = body.get('project_id', '')
     if not validate_project_id(project_id):
-        return {"error": "无效的项目ID"}
+        raise HTTPException(status_code=400, detail="无效的项目ID")
     project = novel_db.get_project(project_id)
     if not project:
-        return {"error": "项目不存在"}
+        database_v2.restore_project_v2(project_id)
+        return {"ok": True}
     raw = project.get('data', None)
     if isinstance(raw, dict):
         data = raw
@@ -227,21 +233,24 @@ def project_restore(body: dict):
     novel_db.save_project(project_id, project.get('name', '未命名') or '未命名',
                          project.get('step', 0) or 0,
                          json.dumps(data, ensure_ascii=False), tags)
+    database_v2.restore_project_v2(project_id)
     return {"ok": True}
 
 @router.get("/api/v2/projects/list")
 async def list_v2_projects():
     from novel_creator.database_v2 import _v2_db
     conn = _v2_db()
-    rows = conn.execute("""
-        SELECT v2.project_id, v2.project_overview, v2.created_at, v2.updated_at,
-               COALESCE(p.name, v2.project_overview) as display_name
-        FROM v2_projects v2
-        LEFT JOIN projects p ON v2.project_id = p.id
-        WHERE v2.deleted_at IS NULL
-        ORDER BY v2.updated_at DESC
-    """).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute("""
+            SELECT v2.project_id, v2.project_overview, v2.created_at, v2.updated_at,
+                   COALESCE(p.name, v2.project_overview) as display_name
+            FROM v2_projects v2
+            LEFT JOIN projects p ON v2.project_id = p.id
+            WHERE v2.deleted_at IS NULL
+            ORDER BY v2.updated_at DESC
+        """).fetchall()
+    finally:
+        conn.close()
     projects = []
     for r in rows:
         projects.append({

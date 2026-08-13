@@ -31,15 +31,33 @@ def get_settings() -> dict:
     return result
 
 
+def _is_masked_api_key(key: str) -> bool:
+    """识别后端脱敏格式 (prefix...suffix), 形如 sk-a1...wxyz"""
+    if not key or '...' not in key:
+        return False
+    parts = key.split('...')
+    if len(parts) != 2 or not all(parts):
+        return False
+    return True
+
+
 def save_models(models: list, active_model_id: str = '') -> dict:
-    """保存模型配置到数据库 (校验 endpoint 为公网地址, 防 SSRF)"""
+    """保存模型配置到数据库 (校验 endpoint 为公网地址, 防 SSRF)
+
+    脱敏 apiKey (prefix...suffix) 视为未修改，保留数据库中已有原值，防止覆盖。
+    """
     from app.utils.security import validate_public_endpoint
 
     with _lock:
+        current = get_settings()
+        existing = {m.get('id'): m.get('apiKey', '') for m in current.get('models', []) if m.get('id')}
         for m in models:
             endpoint = m.get('endpoint', '')
             if endpoint and not validate_public_endpoint(endpoint):
                 raise ValueError(f"模型 {m.get('name', m.get('id', '未知'))} 的 endpoint 不在允许访问范围（SSRF 防护）")
+            api_key = m.get('apiKey', '')
+            if _is_masked_api_key(api_key):
+                m['apiKey'] = existing.get(m.get('id'), api_key)
         set_setting(SETTINGS_KEY_MODELS, json.dumps(models, ensure_ascii=False))
         if active_model_id:
             set_setting(SETTINGS_KEY_ACTIVE, active_model_id)
