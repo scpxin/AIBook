@@ -78,6 +78,19 @@ def init_db_v2():
             except Exception:
                 logger.debug("Migration skipped: CREATE UNIQUE INDEX idx_v2_ideas_project_unique (may already exist)")
 
+            # 迁移: idea_templates 添加 (project_id, name) UNIQUE 约束
+            # 先清理历史重复模板(保留每组最新一条),否则唯一索引无法创建
+            try:
+                conn.execute("""
+                    DELETE FROM idea_templates WHERE id NOT IN (
+                        SELECT MAX(id) FROM idea_templates GROUP BY project_id, name
+                    )
+                """)
+                conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_idea_templates_unique_project_name "
+                             "ON idea_templates(project_id, name)")
+            except Exception:
+                logger.debug("Migration skipped: idx_idea_templates_unique_project_name (may already exist)")
+
             conn.commit()
         finally:
             conn.close()
@@ -784,7 +797,11 @@ def get_ai_generations(project_id, module_name=None, limit=100):
 # ========== 级联删除 ==========
 
 def save_pipeline_state(project_id, module_name, data):
-    """保存或更新流水线模块状态(含完整数据JSON)"""
+    """保存或更新流水线模块状态(含完整数据JSON)
+
+    保留现有 retry_count/started_at/completed_at/consistency_score 等状态字段，
+    除非 data 中显式提供新值 —— 防止全量保存时重置流水线进度。
+    """
     with _v2_lock:
         conn = _v2_db()
         try:
@@ -793,7 +810,8 @@ def save_pipeline_state(project_id, module_name, data):
 
             # 查询现有状态,保存数据时不意外覆盖 locked/done 等状态
             existing = conn.execute(
-                "SELECT status FROM v2_pipeline_states WHERE project_id=? AND module_name=?",
+                "SELECT status, retry_count, error, consistency_score, started_at, completed_at "
+                "FROM v2_pipeline_states WHERE project_id=? AND module_name=?",
                 (project_id, module_name)
             ).fetchone()
 
@@ -803,6 +821,18 @@ def save_pipeline_state(project_id, module_name, data):
                 new_status = existing[0]
             else:
                 new_status = 'pending'
+
+            def _pick(value, current):
+                """data 中显式提供则用之，否则保留现有值（或默认）"""
+                if value is not None:
+                    return value
+                return current if current is not None else ''
+
+            retry_count = data.get('retry_count') if 'retry_count' in data else (existing[1] if existing else 0)
+            error = _pick(data.get('error'), existing[2] if existing else '')
+            consistency = data.get('consistency_score') if 'consistency_score' in data else (existing[3] if existing else 0)
+            started_at = data.get('started_at') if 'started_at' in data else (existing[4] if existing else '')
+            completed_at = data.get('completed_at') if 'completed_at' in data else (existing[5] if existing else '')
 
             conn.execute("""
                 INSERT INTO v2_pipeline_states (project_id, module_name, status, retry_count,
@@ -814,9 +844,9 @@ def save_pipeline_state(project_id, module_name, data):
                     started_at=excluded.started_at, completed_at=excluded.completed_at,
                     updated_at=excluded.updated_at, data_json=excluded.data_json
             """, (project_id, module_name, new_status,
-                  data.get('retry_count', 0), data.get('error', ''),
-                  data.get('consistency_score', 0), data.get('started_at', ''),
-                  data.get('completed_at', ''), now, module_data))
+                  retry_count, error,
+                  consistency, started_at,
+                  completed_at, now, module_data))
             conn.commit()
         finally:
             conn.close()

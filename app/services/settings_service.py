@@ -12,23 +12,27 @@ SETTINGS_KEY_ACTIVE = 'active_model_id'
 
 
 def get_settings() -> dict:
-    """从数据库获取所有设置"""
-    raw = get_all_settings()
-    result = {}
-    # 解析 models
-    models_raw = raw.get(SETTINGS_KEY_MODELS, '')
-    if models_raw:
-        try:
-            result['models'] = json.loads(models_raw)
-        except (json.JSONDecodeError, TypeError):
+    """从数据库获取所有设置
+
+    与 save_models 共用同一把锁，避免读到"models 已更新但 active 未更新"的中间态。
+    """
+    with _lock:
+        raw = get_all_settings()
+        result = {}
+        # 解析 models
+        models_raw = raw.get(SETTINGS_KEY_MODELS, '')
+        if models_raw:
+            try:
+                result['models'] = json.loads(models_raw)
+            except (json.JSONDecodeError, TypeError):
+                result['models'] = []
+        else:
             result['models'] = []
-    else:
-        result['models'] = []
-    # 解析 activeModelId
-    active = raw.get(SETTINGS_KEY_ACTIVE, '')
-    if active:
-        result['activeModelId'] = active
-    return result
+        # 解析 activeModelId
+        active = raw.get(SETTINGS_KEY_ACTIVE, '')
+        if active:
+            result['activeModelId'] = active
+        return result
 
 
 def _is_masked_api_key(key: str) -> bool:

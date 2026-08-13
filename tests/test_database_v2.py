@@ -212,3 +212,47 @@ class TestSoftDeleteV2:
         row = conn.execute("SELECT * FROM v2_projects WHERE project_id='p3'").fetchone()
         assert row is None
         conn.close()
+
+
+class TestSavePipelineStatePreservesStatus:
+    def test_partial_save_preserves_retry_and_timestamps(self, temp_db):
+        from novel_creator.database_v2 import _v2_db, init_db_v2, save_pipeline_state
+        init_db_v2()
+        save_pipeline_state('p1', 'world', {
+            'status': 'generating', 'retry_count': 3,
+            'error': '', 'started_at': '2026-01-01 00:00:00',
+            'module_data': {'origin': {'name': 'world'}},
+        })
+        # 全量保存：只带 module_data，不带状态字段
+        save_pipeline_state('p1', 'world', {'module_data': {'origin': {'name': 'updated'}}})
+
+        conn = _v2_db()
+        row = conn.execute(
+            "SELECT status, retry_count, started_at, data_json FROM v2_pipeline_states "
+            "WHERE project_id='p1' AND module_name='world'"
+        ).fetchone()
+        conn.close()
+        assert row['status'] == 'generating'
+        assert row['retry_count'] == 3
+        assert row['started_at'] == '2026-01-01 00:00:00'
+        import json as _json
+        assert 'updated' in _json.loads(row['data_json'])['origin']['name']
+
+    def test_explicit_status_update_wins(self, temp_db):
+        from novel_creator.database_v2 import _v2_db, init_db_v2, save_pipeline_state
+        init_db_v2()
+        save_pipeline_state('p1', 'idea', {
+            'status': 'generating', 'retry_count': 1, 'started_at': '2026-01-01 00:00:00',
+            'module_data': {'a': 1},
+        })
+        save_pipeline_state('p1', 'idea', {
+            'status': 'done', 'retry_count': 2,
+            'module_data': {'a': 2},
+        })
+        conn = _v2_db()
+        row = conn.execute(
+            "SELECT status, retry_count FROM v2_pipeline_states WHERE project_id='p1' AND module_name='idea'"
+        ).fetchone()
+        conn.close()
+        assert row['status'] == 'done'
+        assert row['retry_count'] == 2

@@ -218,10 +218,8 @@ def _ensure_v2_project_exists(project_id, name=""):
         conn.close()
 
 def _get_db_local():
-    import sqlite3
-
-    from novel_creator.database_v2 import DB_PATH as V2_DB_PATH
-    return sqlite3.connect(V2_DB_PATH)
+    from novel_creator.database_v2 import _v2_db
+    return _v2_db()
 
 def _now_iso_str():
     from datetime import datetime

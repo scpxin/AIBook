@@ -187,7 +187,7 @@ def get_file(session_id: str) -> tuple | None:
         s = sessions.get(session_id)
         if not s:
             return None
-        if s['status'] == 'downloading' and not s.get('paused'):
+        if s['status'] != 'done':
             return None
         content_text = ''.join(s['content'])
         book_id = str(s.get('book_id', ''))

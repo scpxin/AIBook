@@ -43,3 +43,39 @@ class TestDownloadConcurrencyLimit:
              patch("app.services.download_service._download_worker"):
             sid = download_service.create_download("456", "测试")
             assert sid
+
+
+class TestGetFile:
+    def _fake_session(self, status, paused=False):
+        return {
+            "book_id": "123", "title": "测试", "status": status,
+            "paused": paused, "content": ["第1章", "内容"],
+        }
+
+    def test_paused_session_returns_none(self):
+        sessions = {"sid": self._fake_session("downloading", paused=True)}
+        with patch("app.services.download_service.sessions", sessions), \
+             patch("app.services.download_service.sessions_lock", threading.RLock()):
+            assert download_service.get_file("sid") is None
+        assert "sid" in sessions
+
+    def test_downloading_session_returns_none(self):
+        sessions = {"sid": self._fake_session("downloading")}
+        with patch("app.services.download_service.sessions", sessions), \
+             patch("app.services.download_service.sessions_lock", threading.RLock()):
+            assert download_service.get_file("sid") is None
+
+    def test_done_session_returns_content_and_pops(self):
+        sessions = {"sid": self._fake_session("done")}
+        with patch("app.services.download_service.sessions", sessions), \
+             patch("app.services.download_service.sessions_lock", threading.RLock()), \
+             patch("app.services.download_service._safe_book_dir", return_value=None):
+            content, book_id = download_service.get_file("sid")
+        assert "第1章" in content
+        assert book_id == "123"
+        assert "sid" not in sessions
+
+    def test_unknown_session_returns_none(self):
+        with patch("app.services.download_service.sessions", {}), \
+             patch("app.services.download_service.sessions_lock", threading.RLock()):
+            assert download_service.get_file("nope") is None
