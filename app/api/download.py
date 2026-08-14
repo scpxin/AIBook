@@ -2,8 +2,8 @@ import json
 import re
 import time
 import urllib.parse
-import urllib.request
 
+import httpx
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse, PlainTextResponse
 
@@ -40,9 +40,9 @@ def _http_get(url: str) -> bytes:
     host = parsed.hostname.lower() if parsed.hostname else ''
     if host and host not in ALLOWED_HOSTS:
         raise ValueError(f"SSRF blocked: {host} not in allowed hosts")
-    req = urllib.request.Request(url, headers={'User-Agent': UA})
-    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
-        return r.read()
+    resp = httpx.get(url, headers={'User-Agent': UA}, timeout=HTTP_TIMEOUT, follow_redirects=True)
+    resp.raise_for_status()
+    return resp.content
 
 
 def _resolve_book_id(q: str):
@@ -61,7 +61,7 @@ def _resolve_book_id(q: str):
             m2 = re.search(r'"author"\s*:\s*"([^"]+)"', page)
             author = m2.group(1) if m2 else None
             return bid, title, author
-        except (urllib.error.URLError, OSError, UnicodeDecodeError):
+        except (httpx.HTTPError, OSError, UnicodeDecodeError):
             return None, None, None
 
     if '/reader/' in q:
@@ -77,7 +77,7 @@ def _resolve_book_id(q: str):
     try:
         _http_get(DIR_API.format(candidate))
         return candidate, *extract(f'https://fanqienovel.com/page/{candidate}')[1:]
-    except (urllib.error.URLError, OSError):
+    except (httpx.HTTPError, OSError):
         pass
 
     return candidate, None, None
@@ -87,7 +87,7 @@ def _get_chapter_count(book_id: str) -> int:
     try:
         data = _http_get(DIR_API.format(book_id))
         return len(json.loads(data).get('data', {}).get('allItemIds', []))
-    except (urllib.error.URLError, OSError, json.JSONDecodeError, KeyError):
+    except (httpx.HTTPError, OSError, json.JSONDecodeError, KeyError):
         return 0
 
 

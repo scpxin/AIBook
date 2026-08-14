@@ -5,8 +5,9 @@ import re
 import shutil
 import threading
 import time
-import urllib.request
 import uuid
+
+import httpx
 
 from app.config import CONTENT_API, DIR_API, DOWNLOAD_DIR, HTTP_TIMEOUT, SESSION_TTL, UA
 
@@ -14,6 +15,8 @@ logger = logging.getLogger('novel_creator.download')
 
 _BOOK_ID_PATTERN = re.compile(r'^\d{1,32}$')
 _DOWNLOAD_DIR_ABS = os.path.abspath(DOWNLOAD_DIR)
+
+_client = httpx.Client(timeout=httpx.Timeout(HTTP_TIMEOUT), follow_redirects=True)
 
 
 def _safe_book_dir(book_id: str) -> str | None:
@@ -30,9 +33,9 @@ sessions_lock = threading.Lock()
 
 
 def _http_get(url: str) -> bytes:
-    req = urllib.request.Request(url, headers={'User-Agent': UA})
-    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
-        return r.read()
+    resp = _client.get(url, headers={'User-Agent': UA})
+    resp.raise_for_status()
+    return resp.content
 
 
 def _cleanup_loop():
@@ -57,7 +60,7 @@ def _download_worker(sid: str):
     try:
         data = _http_get(DIR_API.format(book_id))
         item_ids = json.loads(data).get('data', {}).get('allItemIds', [])
-    except (urllib.error.URLError, OSError, json.JSONDecodeError, KeyError):
+    except (httpx.HTTPError, OSError, json.JSONDecodeError, KeyError):
         with sessions_lock:
             if sid in sessions:
                 sessions[sid]['status'] = 'error'
@@ -94,7 +97,7 @@ def _download_worker(sid: str):
                 text = result['data']['content']
             else:
                 text = '[获取失败]'
-        except (urllib.error.URLError, OSError, json.JSONDecodeError, KeyError):
+        except (httpx.HTTPError, OSError, json.JSONDecodeError, KeyError):
             text = '[下载失败]'
 
         with sessions_lock:

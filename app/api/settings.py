@@ -1,9 +1,7 @@
 """设置API — 模型配置的持久化读写"""
-import json
 import logging
-import urllib.error
-import urllib.request
 
+import httpx
 from fastapi import APIRouter, Body
 
 from app.models.v2_schemas import SettingsSaveModelsRequest
@@ -23,7 +21,6 @@ def _ai_call(endpoint: str, api_key: str, model: str, messages: list, options: d
         'max_tokens': (options or {}).get('max_tokens', 4096),
         'stream': (options or {}).get('stream', False),
     }
-    data = json.dumps(req_body).encode('utf-8')
     ep = endpoint.rstrip("/")
     if ep.endswith("/chat/completions"):
         url = ep
@@ -31,18 +28,18 @@ def _ai_call(endpoint: str, api_key: str, model: str, messages: list, options: d
         url = f"{ep}/chat/completions"
     else:
         url = f"{ep}/v1/chat/completions"
-    req = urllib.request.Request(url, data=data, headers={
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + api_key,
-    })
     req_timeout = min(timeout, 600)
     try:
-        resp = urllib.request.urlopen(req, timeout=req_timeout)
-        body = json.loads(resp.read().decode('utf-8'))
+        resp = httpx.post(url, json=req_body, headers={
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + api_key,
+        }, timeout=req_timeout)
+        resp.raise_for_status()
+        body = resp.json()
         content = body.get('choices', [{}])[0].get('message', {}).get('content', '')
         return content, None
-    except urllib.error.HTTPError as e:
-        return None, f"HTTP {e.code}: {e.reason}"
+    except httpx.HTTPStatusError as e:
+        return None, f"HTTP {e.response.status_code}: {e.response.text[:200]}"
     except Exception as e:
         logger.exception("Failed to call AI API for settings test")
         return None, str(e)[:300]
