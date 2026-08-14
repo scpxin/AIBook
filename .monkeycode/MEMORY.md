@@ -156,3 +156,14 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
   - 匹配分数: 同组+40,题材+25,世界类型+20,子类型+20,风格+15
   - 前端路由: /templates(模板库), /create-v2(集成弹窗)
   - 参考项目文档: /workspace/.monkeycode/docs/REFERENCE_PROJECTS.md
+
+### 部署配置关键信息
+- Date: 2026-08-14
+- Context: Agent 执行部署配置审查与依赖审计时发现
+- Category: 运维部署
+- Instructions:
+  - docker-compose backend 服务已加 network alias `novel-creator-api`，monitoring/prometheus.yml 抓取目标为 `novel-creator-api:8000`
+  - backend 有 healthcheck（curl /api/health），frontend depends_on 用 service_healthy 条件
+  - frontend-nginx.conf 的 /api/ 与 /fanqie/api/ 均设置 X-Forwarded-For/X-Forwarded-Proto，限流中间件依赖 X-Forwarded-For
+  - app/requirements.txt 与根 requirements.txt 必须保持完全一致（已校验 IDENTICAL）
+  - 前端依赖审计命令: `cd frontend && npm audit --omit=dev`（nanoid 漏洞已修，现 0 vulnerabilities）
