@@ -677,8 +677,15 @@ async function saveProjectFull() {
       for (const mod of allMods) {
         const name = mod.name
         const modState: any = pipeline.progress?.modules?.[name] || {}
+        const hasData = (() => {
+          const v = modules[name]
+          if (v == null) return false
+          if (Array.isArray(v)) return v.length > 0
+          if (typeof v === 'object') return Object.keys(v).length > 0
+          return true
+        })()
         pipelineState.modules[name] = {
-          status: modules[name] ? (modState.status === 'done' ? 'done' : 'done') : (modState.status || 'pending'),
+          status: hasData ? 'done' : (modState.status || 'pending'),
           completedAt: modState.completedAt || '',
         }
       }
