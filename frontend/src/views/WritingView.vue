@@ -351,6 +351,7 @@ async function retryLoad() {
         let items: any[] = []
         if (Array.isArray(raw)) items = raw
         else if (raw.chapterOutlines) items = raw.chapterOutlines
+        else if (raw.chapter_outline) items = raw.chapter_outline
         else if (raw.outlines) items = raw.outlines
         else if (raw.form) items = raw.form.chapterOutlines || []
         if (items.length) {
@@ -371,6 +372,8 @@ async function retryLoad() {
         let items: any[] = []
         if (Array.isArray(planRaw)) items = planRaw
         else if (planRaw.chapterPlans) items = planRaw.chapterPlans
+        else if (planRaw.chapters) items = planRaw.chapters
+        else if (planRaw.chapter_plan) items = planRaw.chapter_plan
         else if (planRaw.form) items = planRaw.form.chapterPlans || []
         if (items.length) {
           chapters.value = items.map((c: any, i: number) => ({
@@ -425,7 +428,7 @@ onMounted(async () => {
               return -1
             }
             const currentId = String(chapters.value[currentChapterIdx.value]?.id || '')
-            const currentMatch = drafts.find((d: any) => String(d.chapter_no) === currentId)
+            const currentMatch = drafts.find((d: any) => String(d.chapter_no || d.chapterNo || d.id) === currentId)
             if (currentMatch?.content || currentMatch?.contentRaw) {
               draftContent.value = currentMatch.content || currentMatch.contentRaw
             }

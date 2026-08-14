@@ -5,7 +5,7 @@ export async function searchBooks(q: string): Promise<{ books: any[] }> {
   return apiGet('/api/search', { q })
 }
 
-export async function resolveBook(q: string): Promise<{ book_id: string; count: number; title: string; author: string }> {
+export async function resolveBook(q: string): Promise<{ bookId: string; count: number; title: string; author: string }> {
   return apiGet('/api/resolve', { q })
 }
 
@@ -13,7 +13,7 @@ export async function directoryApi(bookId: string): Promise<{ total: number; ids
   return apiGet('/api/directory', { book_id: bookId })
 }
 
-export async function downloadStart(bookId: string, title: string): Promise<{ session_id: string }> {
+export async function downloadStart(bookId: string, title: string): Promise<{ sessionId: string }> {
   return apiGet('/api/download/start', { book_id: bookId, title })
 }
 

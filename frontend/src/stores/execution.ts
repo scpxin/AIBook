@@ -9,10 +9,12 @@ import { useToastStore } from './toast'
 
 interface DraftRaw {
   chapter_no?: string | number
+  chapterNo?: string | number
   id?: string | number
   title?: string
   content?: string
   word_count_final?: number
+  wordCountFinal?: number
 }
 
 interface OutlineItemRaw {
@@ -169,14 +171,19 @@ export const useExecutionStore = defineStore('execution', () => {
       const outlines = outlinesRes?.data
       if (outlines) {
         let outlineList: OutlineItemRaw[] = []
-        if (Array.isArray(outlines)) {
-          outlineList = outlines
-        } else if (outlines.chapter_plan && Array.isArray(outlines.chapter_plan)) {
-          outlineList = outlines.chapter_plan
-        } else if (outlines.module_data && Array.isArray(outlines.module_data)) {
-          outlineList = outlines.module_data
-        } else if (outlines.chapters && Array.isArray(outlines.chapters)) {
-          outlineList = outlines.chapters
+        const container = (outlines as any).data && typeof (outlines as any).data === 'object'
+          ? (outlines as any).data
+          : outlines
+        if (Array.isArray(container)) {
+          outlineList = container
+        } else if (container.chapterPlans && Array.isArray(container.chapterPlans)) {
+          outlineList = container.chapterPlans
+        } else if (container.chapters && Array.isArray(container.chapters)) {
+          outlineList = container.chapters
+        } else if (container.chapter_plan && Array.isArray(container.chapter_plan)) {
+          outlineList = container.chapter_plan
+        } else if (container.module_data && Array.isArray(container.module_data)) {
+          outlineList = container.module_data
         }
         if (outlineList.length > 0) {
           return outlineList.map((o: OutlineItemRaw, i: number) => ({
@@ -197,11 +204,11 @@ export const useExecutionStore = defineStore('execution', () => {
       const drafts = await getDrafts(pid) as DraftRaw[]
       if (drafts && drafts.length > 0) {
         return drafts.map((d: DraftRaw) => ({
-          id: String(d.chapter_no || d.id),
-          title: `第${d.chapter_no}章` || d.title,
-          outline: { title: d.title || `第${d.chapter_no}章`, summary: '', scenes: [], key_points: [], characters: [] },
+          id: String(d.chapter_no || d.chapterNo || d.id),
+          title: `第${d.chapter_no || d.chapterNo || '?'}章`,
+          outline: { title: d.title || `第${d.chapter_no || d.chapterNo || '?'}章`, summary: '', scenes: [], key_points: [], characters: [] },
           content: d.content || '',
-          wordCount: d.word_count_final || 0,
+          wordCount: d.word_count_final || d.wordCountFinal || 0,
         }))
       }
     } catch (_e) { /* fallback below */ }

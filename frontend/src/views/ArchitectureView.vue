@@ -243,7 +243,8 @@ onMounted(async () => {
     if (world && !story.theme && world.theme) story.theme = world.theme
     const project = allData?.modules?.['project']
     if (project) {
-      if (!story.theme && project.sub_genre) story.theme = project.sub_genre + '修炼之路'
+      const subGenre = project.sub_genre || project.subGenre
+      if (!story.theme && subGenre) story.theme = subGenre + '修炼之路'
     }
   } catch (_e) { /* ignore */ }
   finally { pageLoading.value = false }

@@ -359,11 +359,12 @@ onMounted(async () => {
     }
     const project = allData?.modules?.['project']
     if (project) {
+      const subGenre = project.sub_genre || project.subGenre || ''
       projectPlatform.value = project.platform || ''
-      projectSubGenre.value = project.sub_genre || ''
+      projectSubGenre.value = subGenre
       projectTone.value = project.tone || ''
-      if (!world.origin.worldType && project.sub_genre) {
-        world.origin.worldType = project.sub_genre
+      if (!world.origin.worldType && subGenre) {
+        world.origin.worldType = subGenre
       }
     }
   } catch (_e) {

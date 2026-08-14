@@ -278,12 +278,14 @@ onMounted(async () => {
         if (activeSubTab.value === 'chapter_outline') { chapterOutlines.value = raw as ChapterOutline[]; return }
       }
       const r = raw as Record<string, unknown>
-      if (r.form || r.volumes || r.chapterPlans || r.chapterOutlines) {
+      if (r.form || r.volumes || r.chapterPlans || r.chapterOutlines || r.chapter_outline || r.scene_designs) {
         if (r.form) Object.assign(form.value, r.form as Record<string, unknown>)
         if (r.volumes) volumeList.value = r.volumes as VolumeOutline[]
         if (r.chapterPlans) chapterPlans.value = r.chapterPlans as ChapterPlan[]
         if (r.chapterOutlines) chapterOutlines.value = r.chapterOutlines as ChapterOutline[]
+        if (r.chapter_outline) chapterOutlines.value = r.chapter_outline as ChapterOutline[]
         if (r.sceneDesigns) sceneDesigns.value = r.sceneDesigns as SceneOutline[]
+        if (r.scene_designs) sceneDesigns.value = r.scene_designs as SceneOutline[]
         if (r.upstreamData) upstreamData.value = r.upstreamData as string
         return
       }

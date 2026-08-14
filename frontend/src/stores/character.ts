@@ -22,8 +22,8 @@ export const useCharacterStore = defineStore('character', () => {
     projectId.value = pid
     try {
       const result = await generateProtagonist(pid, worldRules, storyConcept)
-      if (result && !result.name && result.basic_info) {
-        const bi = result.basic_info
+      if (result && !result.name && (result.basic_info || result.basicInfo)) {
+        const bi = result.basic_info || result.basicInfo
         protagonist.value = {
           ...result,
           name: bi.name || '',
@@ -34,7 +34,7 @@ export const useCharacterStore = defineStore('character', () => {
           background: result.backstory?.origin || '',
           goal: result.motivation?.outerGoal || '',
           flaw: Array.isArray(result.personality?.flaws) ? result.personality.flaws.join(',') : (result.personality?.flaws || ''),
-          arc: result.character_arc?.final_state || '',
+          arc: (result.character_arc?.final_state || (result.characterArc?.finalState)) || '',
         } as Character
       } else {
         protagonist.value = result

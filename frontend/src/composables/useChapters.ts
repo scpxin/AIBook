@@ -19,6 +19,8 @@ export function useChapters(projectId: string) {
         let list: Record<string, unknown>[] = []
         if (Array.isArray(cp)) {
           list = cp
+        } else if (Array.isArray(cp.chapterPlans)) {
+          list = cp.chapterPlans
         } else if (Array.isArray(cp.chapter_plan)) {
           list = cp.chapter_plan
         } else if (Array.isArray(cp.module_data)) {

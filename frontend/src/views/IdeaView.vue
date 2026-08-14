@@ -411,8 +411,8 @@ onMounted(async () => {
         candidates.value = [{
           title: d.title || d.prompt || '',
           genre: d.genre || d.genreHint || '',
-          target_audience: d.target_audience || '',
-          writing_style: d.writing_style || '',
+          target_audience: d.target_audience || d.targetAudience || '',
+          writing_style: d.writing_style || d.writingStyle || '',
           tone: d.tone || d.style || '',
           summary: d.summary || '',
           isManual: true,

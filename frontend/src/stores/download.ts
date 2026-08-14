@@ -5,8 +5,8 @@ import * as downloadApi from '../api/download'
 import { useToastStore } from './toast'
 
 export interface DownloadSession {
-  session_id: string
-  book_id: string
+  sessionId: string
+  bookId: string
   title: string
   status: string
   current: number
@@ -14,14 +14,14 @@ export interface DownloadSession {
 }
 
 export interface BookSearchItem {
-  book_id: string
-  book_name?: string
+  bookId: string
+  bookName?: string
   title?: string
   author?: string
 }
 
 export interface SelectedBookInfo {
-  book_id: string
+  bookId: string
   title?: string
   author?: string
   count?: string | number
@@ -52,7 +52,7 @@ export const useDownloadStore = defineStore('download', () => {
       const idMatch = searchQuery.value.match(/(\d{16,20})/)
       if (idMatch) {
         const info = await downloadApi.resolveBook(searchQuery.value)
-        if (info && info.book_id) {
+        if (info && info.bookId) {
           selectedBook.value = info
           searchLoading.value = false
           return
@@ -61,8 +61,8 @@ export const useDownloadStore = defineStore('download', () => {
       const data = await downloadApi.searchBooks(searchQuery.value)
       searchResults.value = data.books || []
       searchResults.value.forEach(b => {
-        downloadApi.directoryApi(b.book_id).then(d => {
-          bookCounts.value[b.book_id] = d.total + ' 章'
+        downloadApi.directoryApi(b.bookId).then(d => {
+          bookCounts.value[b.bookId] = d.total + ' 章'
         }).catch(() => {})
       })
     } catch (e: unknown) {
@@ -71,12 +71,12 @@ export const useDownloadStore = defineStore('download', () => {
     searchLoading.value = false
   }
 
-  function selectBook(b: { book_id: string; book_name?: string; title?: string; author?: string }) {
+  function selectBook(b: { bookId: string; bookName?: string; title?: string; author?: string }) {
     selectedBook.value = {
-      book_id: b.book_id,
-      title: b.title || b.book_name,
+      bookId: b.bookId,
+      title: b.title || b.bookName,
       author: b.author,
-      count: bookCounts.value[b.book_id],
+      count: bookCounts.value[b.bookId],
     }
     dlState.value = 'idle'
     dlCurrent.value = 0
@@ -96,11 +96,12 @@ export const useDownloadStore = defineStore('download', () => {
       await resumeDownload()
       return
     }
+    cancelPoll()
     dlState.value = 'running'
     dlCurrent.value = 0
     try {
-      const d = await downloadApi.downloadStart(selectedBook.value.book_id, selectedBook.value.title || '')
-      dlSessionId.value = d.session_id
+      const d = await downloadApi.downloadStart(selectedBook.value.bookId, selectedBook.value.title || '')
+      dlSessionId.value = d.sessionId
       pollDownload()
     } catch (e: unknown) {
       dlState.value = 'idle'
@@ -110,24 +111,29 @@ export const useDownloadStore = defineStore('download', () => {
 
   let _pollRetryCount = 0
   const MAX_POLL_RETRIES = 5
+  let _pollTimer: ReturnType<typeof setTimeout> | null = null
+  let _pollActive = false
 
-  async function pollDownload() {
+  function pollDownload() {
     if (!dlSessionId.value || dlState.value === 'idle') return
-    try {
+    _pollActive = true
+    _pollTimer = null
+    downloadApi.downloadStatus(dlSessionId.value).then((d) => {
+      if (!_pollActive) return
       _pollRetryCount = 0
-      const d = await downloadApi.downloadStatus(dlSessionId.value)
       dlCurrent.value = d.current
       dlTotal.value = d.total
       if (d.status === 'done') {
         dlState.value = 'done'
       } else if (d.status === 'downloading') {
-        setTimeout(pollDownload, 1000)
+        _pollTimer = setTimeout(pollDownload, 1000)
       } else if (d.status === 'paused') {
         dlState.value = 'paused'
       } else if (d.status === 'error') {
         dlState.value = 'error'
       }
-    } catch {
+    }).catch(() => {
+      if (!_pollActive) return
       _pollRetryCount++
       if (_pollRetryCount >= MAX_POLL_RETRIES) {
         dlState.value = 'error'
@@ -135,12 +141,16 @@ export const useDownloadStore = defineStore('download', () => {
         return
       }
       const delay = Math.min(2000 * Math.pow(2, _pollRetryCount - 1), 30000)
-      setTimeout(pollDownload, delay)
-    }
+      _pollTimer = setTimeout(pollDownload, delay)
+    })
   }
 
   function cancelPoll() {
-    _pollRetryCount = MAX_POLL_RETRIES
+    _pollActive = false
+    if (_pollTimer) {
+      clearTimeout(_pollTimer)
+      _pollTimer = null
+    }
   }
 
   async function pauseDownload() {
@@ -188,6 +198,7 @@ export const useDownloadStore = defineStore('download', () => {
     resetSearch,
     startDownload,
     pollDownload,
+    cancelPoll,
     pauseDownload,
     resumeDownload,
     saveFile,

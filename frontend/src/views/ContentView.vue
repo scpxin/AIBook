@@ -231,7 +231,7 @@ async function runModule() {
           ...(chars.villains || []),
         ].filter(Boolean) : undefined)
         const worldData = modules['world'] || undefined
-        const powerSystem = modules['world']?.power_system || undefined
+        const powerSystem = modules['world']?.power_system || modules['world']?.powerSystem || undefined
         const res = await v2Api.checkConsistency(pid, chapterNo, content, knowledgeState, characters, worldData, powerSystem)
         result.value = res
         toast.success('一致性检查完成')
@@ -266,10 +266,10 @@ onMounted(async () => {
       const saved = await v2Api.getModuleData(props.projectId, props.moduleType)
       if (saved?.data && Object.keys(saved.data).length > 0) {
         const d = saved.data
-        if (d.chapterNo) form.chapterNo = d.chapterNo
+        if (d.chapterNo || d.chapter_no) form.chapterNo = d.chapterNo || d.chapter_no
         if (d.content) form.content = d.content
         if (d.result) result.value = d.result
-        if (d.polishedContent) polishedContent.value = d.polishedContent
+        if (d.polishedContent || d.polished_content) polishedContent.value = d.polishedContent || d.polished_content
         return
       }
     } catch (_e) { /* ignore */ }

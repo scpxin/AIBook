@@ -61,7 +61,13 @@ function unwrapResponse(data: any): any {
   return data
 }
 
-export async function apiGet<T>(path: string, params: Record<string, string> = {}, timeout = 30000): Promise<T> {
+export interface ApiGetOptions {
+  /** 是否将响应键 snake_case → camelCase (默认 true) */
+  convert?: boolean
+}
+
+export async function apiGet<T>(path: string, params: Record<string, string> = {}, timeout = 30000, opts: ApiGetOptions = {}): Promise<T> {
+  const { convert = true } = opts
   let url = withPrefix(path)
   const qs = Object.keys(params)
     .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
@@ -75,7 +81,8 @@ export async function apiGet<T>(path: string, params: Record<string, string> = {
       const d = await r.json().catch(() => ({}))
       throw new ApiError(formatError(d.error || d.detail || '请求失败 (HTTP ' + r.status + ')', r.status), r.status, d)
     }
-    return unwrapResponse(convertKeys(await r.json()))
+    const json = await r.json()
+    return unwrapResponse(convert ? convertKeys(json) : json)
   } catch (e: any) {
     if (e instanceof ApiError) throw e
     if (e.name === 'AbortError') throw new ApiError('请求超时，请检查网络连接', 0)
@@ -327,7 +334,7 @@ export interface OutlineItem {
 }
 
 export interface SavedBook {
-  book_id: string
+  bookId: string
   title: string
   total: number
   size: number

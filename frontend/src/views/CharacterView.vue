@@ -215,7 +215,8 @@ function enrichedStoryConcept(): string {
   const parts = [storyConcept.value]
   const ctx: string[] = []
   if (projectContext.value) {
-    if (projectContext.value.sub_genre) ctx.push(`体裁: ${projectContext.value.sub_genre}`)
+    const subGenre = projectContext.value.sub_genre || projectContext.value.subGenre
+    if (subGenre) ctx.push(`体裁: ${subGenre}`)
     if (projectContext.value.tone) ctx.push(`文风: ${projectContext.value.tone}`)
     if (projectContext.value.platform) ctx.push(`平台: ${projectContext.value.platform}`)
   }

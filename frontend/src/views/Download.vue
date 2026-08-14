@@ -16,22 +16,22 @@
       <div class="tip">输入书名、粘贴链接或直接输入 book_id</div>
       <div
         v-for="r in store.searchResults"
-        :key="r.book_id"
+        :key="r.bookId"
         class="book-item"
-        :class="{ selected: store.selectedBook && store.selectedBook.book_id === r.book_id }"
+        :class="{ selected: store.selectedBook && store.selectedBook.bookId === r.bookId }"
         tabindex="0" @click="store.selectBook(r)" @keydown.enter="store.selectBook(r)"
       >
         <div>
-          <div class="book-title">{{ r.title || r.book_name || '未知书名' }}</div>
+          <div class="book-title">{{ r.title || r.bookName || '未知书名' }}</div>
           <div class="book-meta">{{ r.author || '' }}</div>
         </div>
-        <div class="book-count">{{ store.bookCounts[r.book_id] || '...' }}</div>
+        <div class="book-count">{{ store.bookCounts[r.bookId] || '...' }}</div>
       </div>
       <div v-if="store.searchError" class="error">{{ store.searchError }}</div>
     </div>
 
     <div class="card" v-if="store.selectedBook">
-      <h2>{{ store.selectedBook.title || store.selectedBook.book_id }}</h2>
+      <h2>{{ store.selectedBook.title || store.selectedBook.bookId }}</h2>
       <div style="font-size:11px;color:#888;margin-bottom:10px">
         {{ store.selectedBook.author ? store.selectedBook.author + ' | ' : '' }}{{ store.selectedBook.count }}{{ store.selectedBook.count ? ' 章' : '' }}
       </div>
@@ -73,10 +73,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onDeactivated, onUnmounted } from 'vue'
 import { useDownloadStore } from '../stores/download'
 
 const store = useDownloadStore()
+
+onDeactivated(() => store.cancelPoll())
+onUnmounted(() => store.cancelPoll())
 
 const percentage = computed(() =>
   store.dlTotal > 0 ? Math.round(store.dlCurrent / store.dlTotal * 100) : 0

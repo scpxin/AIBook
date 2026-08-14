@@ -396,7 +396,8 @@ export function updateModuleStatus(projectId: string, moduleName: string, status
 }
 
 export function getModuleData(projectId: string, moduleName: string) {
-  return apiGet<{ module: string; data: Record<string, any> }>(`/api/v2/pipeline/${projectId}/data/${moduleName}`)
+  return apiGet<{ module: string; data: Record<string, any> }>(
+    `/api/v2/pipeline/${projectId}/data/${moduleName}`, {}, 30000, { convert: false })
 }
 
 export function saveModuleData(projectId: string, moduleName: string, data: Record<string, any>) {
@@ -404,7 +405,8 @@ export function saveModuleData(projectId: string, moduleName: string, data: Reco
 }
 
 export function getAllModuleData(projectId: string) {
-  return apiGet<{ project_id: string; modules: Record<string, any> }>(`/api/v2/pipeline/${projectId}/data`)
+  return apiGet<{ project_id: string; modules: Record<string, any> }>(
+    `/api/v2/pipeline/${projectId}/data`, {}, 30000, { convert: false })
 }
 
 import { useModuleSaveStore } from '../stores/moduleSave'
